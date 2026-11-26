@@ -22,7 +22,7 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795730702222,
+    "lastMapsSyncAt": 1795731723270,
     "announcement": "🌿 100% Pure Vegetarian • 🕒 12:00 PM–3:00 PM & 6:00 PM–11:50 PM (Break 3–6 PM)",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
@@ -1149,6 +1149,26 @@
       "available": true
     }
   ],
+  "ads": [
+    {
+      "id": "ad-insta-1",
+      "title": "Chatkaro Live Kitchen Reel #1",
+      "type": "video",
+      "url": "assets/ads/reel-1.mp4",
+      "linkedDishId": "veg-angara",
+      "active": true,
+      "createdAt": 1795731723270
+    },
+    {
+      "id": "ad-insta-2",
+      "title": "Chatkaro Special Dish Reel #2",
+      "type": "video",
+      "url": "assets/ads/reel-2.mp4",
+      "linkedDishId": "cheese-anguri",
+      "active": true,
+      "createdAt": 1795731722270
+    }
+  ],
   "tables": [
     {
       "id": 1,
@@ -1158,7 +1178,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 2,
@@ -1168,7 +1188,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 3,
@@ -1178,7 +1198,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 4,
@@ -1188,7 +1208,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 5,
@@ -1198,7 +1218,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 6,
@@ -1208,7 +1228,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 7,
@@ -1218,7 +1238,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     },
     {
       "id": 8,
@@ -1228,7 +1248,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795730702222
+      "updatedAt": 1795731723270
     }
   ],
   "customers": {},
@@ -1241,7 +1261,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795729262222
+      "createdAt": 1795730283270
     },
     {
       "id": "rev-2",
@@ -1250,7 +1270,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793138702222
+      "createdAt": 1793139723270
     },
     {
       "id": "rev-3",
@@ -1259,7 +1279,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793916302222
+      "createdAt": 1793917323270
     },
     {
       "id": "rev-4",
@@ -1268,7 +1288,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794521102222
+      "createdAt": 1794522123270
     }
   ],
   "mapPhotos": [
@@ -1278,7 +1298,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795557902222
+      "createdAt": 1795558923270
     },
     {
       "id": "mp-2",
@@ -1286,7 +1306,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795471502222
+      "createdAt": 1795472523270
     },
     {
       "id": "mp-3",
@@ -1294,7 +1314,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795385102222
+      "createdAt": 1795386123270
     },
     {
       "id": "mp-4",
@@ -1302,7 +1322,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795298702222
+      "createdAt": 1795299723270
     },
     {
       "id": "mp-5",
@@ -1310,7 +1330,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795212302222
+      "createdAt": 1795213323270
     },
     {
       "id": "mp-6",
@@ -1318,7 +1338,7 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795729262222
+      "createdAt": 1795730283270
     }
   ],
   "chatMessages": []

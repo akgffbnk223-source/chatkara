@@ -537,21 +537,29 @@ body.no-fx * {
 .hero-ad-stage {
   transition: height 0.32s ease;
 }
-.hero-ad-stage.is-reel {
+.hero-ad-stage.is-video {
   height: 410px;
-  background: #000;
+  background: #09090b;
 }
-.hero-ad-reel-wrap {
+.hero-ad-video {
   position: absolute;
   inset: 0;
-  z-index: 3;
-  background: #000;
-}
-.hero-ad-reel-wrap iframe {
   width: 100%;
   height: 100%;
-  border: 0;
+  object-fit: contain;
+  background: #000;
+  z-index: 3;
   display: block;
+}
+.btn-instagram {
+  background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 52%, #fcb045 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 24px rgba(253, 29, 29, 0.25);
+}
+.btn-instagram:hover {
+  filter: brightness(1.06);
+  color: #ffffff;
 }
 .insta-follow-tab {
   background: linear-gradient(135deg, #c13584, #e1306c) !important;
@@ -595,11 +603,14 @@ body.no-fx * {
   height: 460px;
   background: #000;
 }
-.insta-reel-embed-box iframe {
+.insta-reel-embed-box iframe,
+.insta-reel-embed-box video {
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
+  object-fit: contain;
+  background: #000;
 }
 .insta-reel-card-foot {
   display: flex;
@@ -2302,7 +2313,7 @@ body.no-fx * {
   .crimson-reviews-band { padding: 1.4rem 1rem; border-radius: 20px; }
   .crimson-story-band { border-radius: 20px; padding: 1.5rem 1rem 1.6rem; }
   .hero-ad-stage { height: 225px; }
-  .hero-ad-stage.is-reel { height: 390px; }
+  .hero-ad-stage.is-video { height: 390px; }
   .insta-reel-embed-box { height: 400px; }
   .hero-ad-below-bar { flex-direction: column; align-items: stretch; }
   .hero-ad-below-actions { flex-direction: row; justify-content: space-between; align-items: center; }

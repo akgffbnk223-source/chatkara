@@ -17,6 +17,11 @@ const MIME_TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
@@ -63,6 +68,26 @@ function createDefaultDb() {
       }
     },
     menu: DEFAULT_MENU.map((m) => ({ ...m })),
+    ads: [
+      {
+        id: 'ad-insta-1',
+        title: 'Chatkaro Live Kitchen Reel #1',
+        type: 'video',
+        url: 'assets/ads/reel-1.mp4',
+        linkedDishId: 'veg-angara',
+        active: true,
+        createdAt: now
+      },
+      {
+        id: 'ad-insta-2',
+        title: 'Chatkaro Special Dish Reel #2',
+        type: 'video',
+        url: 'assets/ads/reel-2.mp4',
+        linkedDishId: 'cheese-anguri',
+        active: true,
+        createdAt: now - 1000
+      }
+    ],
     tables: [
       { id: 1, label: 'Table 1', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
       { id: 2, label: 'Table 2', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
@@ -364,6 +389,7 @@ function getPublicSnapshot() {
       phonepeEnv: db.settings.phonepeEnv || 'sandbox'
     },
     menu: db.menu,
+    ads: Array.isArray(db.ads) ? db.ads : [],
     tables: db.tables,
     orders: realOrders.slice(0, 60),
     reviews: db.reviews.slice(0, 50),
@@ -486,7 +512,7 @@ function sendJson(res, status, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Pin, X-Admin-Token'
+    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Pin, X-Admin-Token, X-File-Name, X-Ad-Title, X-Media-Type, X-Linked-Dish'
   });
   res.end(JSON.stringify(data));
 }
@@ -1466,6 +1492,95 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (pathname === '/api/admin/ads' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      if (!Array.isArray(db.ads)) db.ads = [];
+      const ad = body.ad || {};
+      if (ad.id && db.ads.some((a) => a.id === ad.id)) {
+        db.ads = db.ads.map((a) => (a.id === ad.id ? { ...a, ...ad } : a));
+      } else {
+        const url = String(ad.url || '').trim();
+        if (!url) return sendJson(res, 400, { error: 'Ad video or photo URL required.' });
+        const type = ad.type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : 'image';
+        db.ads.unshift({
+          id: 'ad-' + Date.now(),
+          title: String(ad.title || 'Chatkaro Special Ad').trim(),
+          type,
+          url,
+          linkedDishId: String(ad.linkedDishId || 'veg-angara').trim(),
+          active: ad.active !== false,
+          createdAt: Date.now()
+        });
+      }
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, ads: db.ads });
+    }
+
+    if (pathname === '/api/admin/upload-ad-media' && req.method === 'POST') {
+      if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const chunks = [];
+      let totalBytes = 0;
+      const maxBytes = 40 * 1024 * 1024; // 40 MB
+      await new Promise((resolve, reject) => {
+        req.on('data', (c) => {
+          totalBytes += c.length;
+          if (totalBytes > maxBytes) {
+            reject(new Error('File too large (max 40 MB)'));
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
+        req.on('end', resolve);
+        req.on('error', reject);
+      });
+      const buf = Buffer.concat(chunks);
+      if (!buf.length) return sendJson(res, 400, { error: 'Empty file uploaded.' });
+
+      const rawName = decodeURIComponent(String(req.headers['x-file-name'] || 'ad.mp4'));
+      const extMatch = rawName.toLowerCase().match(/\.(mp4|webm|mov|jpg|jpeg|png|webp|gif)$/);
+      const hdrType = String(req.headers['x-media-type'] || '').toLowerCase();
+      const isVideo = hdrType.startsWith('video/') || (extMatch && ['mp4', 'webm', 'mov'].includes(extMatch[1]));
+      const ext = extMatch ? (extMatch[1] === 'jpeg' ? 'jpg' : extMatch[1]) : (isVideo ? 'mp4' : 'jpg');
+
+      const adsDir = path.join(ROOT_DIR, 'assets', 'ads');
+      if (!fs.existsSync(adsDir)) fs.mkdirSync(adsDir, { recursive: true });
+      const fileName = `custom-ad-${Date.now()}.${ext}`;
+      fs.writeFileSync(path.join(adsDir, fileName), buf);
+      const url = `assets/ads/${fileName}`;
+
+      if (!Array.isArray(db.ads)) db.ads = [];
+      const title = decodeURIComponent(String(req.headers['x-ad-title'] || (isVideo ? 'Custom Video Ad' : 'Custom Photo Ad'))).trim() || 'Custom Ad';
+      const linkedDishId = String(req.headers['x-linked-dish'] || 'veg-angara').trim();
+      const newAd = {
+        id: 'ad-' + Date.now(),
+        title,
+        type: isVideo ? 'video' : 'image',
+        url,
+        linkedDishId,
+        active: true,
+        createdAt: Date.now()
+      };
+      db.ads.unshift(newAd);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, ad: newAd, ads: db.ads });
+    }
+
+    if (pathname.startsWith('/api/admin/ads/') && req.method === 'DELETE') {
+      if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const id = pathname.split('/').pop();
+      if (!Array.isArray(db.ads)) db.ads = [];
+      const target = db.ads.find((a) => a.id === id);
+      if (target && String(target.url || '').startsWith('assets/ads/custom-ad-')) {
+        const f = path.join(ROOT_DIR, target.url);
+        if (fs.existsSync(f)) { try { fs.unlinkSync(f); } catch {} }
+      }
+      db.ads = db.ads.filter((a) => a.id !== id);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, ads: db.ads });
+    }
+
     if (pathname === '/api/admin/settings' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
@@ -1557,7 +1672,30 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
     return res.end('Not found');
   }
   const ext = path.extname(fullPath).toLowerCase();
-  res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+  const mime = MIME_TYPES[ext] || 'application/octet-stream';
+  const stat = fs.statSync(fullPath);
+  const range = req.headers.range;
+  if (range) {
+    const m = range.match(/bytes=(\d*)-(\d*)/);
+    if (m) {
+      const start = m[1] ? parseInt(m[1], 10) : 0;
+      const end = m[2] ? Math.min(parseInt(m[2], 10), stat.size - 1) : stat.size - 1;
+      if (start <= end && start < stat.size) {
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': end - start + 1,
+          'Content-Type': mime
+        });
+        return fs.createReadStream(fullPath, { start, end }).pipe(res);
+      }
+    }
+  }
+  res.writeHead(200, {
+    'Content-Type': mime,
+    'Content-Length': stat.size,
+    'Accept-Ranges': 'bytes'
+  });
   fs.createReadStream(fullPath).pipe(res);
 });
 

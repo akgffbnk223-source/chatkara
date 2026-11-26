@@ -48,6 +48,7 @@
       }
     },
     menu: [],
+    ads: [],
     tables: [],
     orders: [],
     reviews: [],
@@ -443,6 +444,10 @@
     applySnapshot({
       settings: appState.settings,
       menu: menuItems,
+      ads: [
+        { id: 'ad-insta-1', title: 'Chatkaro Live Kitchen Reel #1', type: 'video', url: 'assets/ads/reel-1.mp4', linkedDishId: 'veg-angara', active: true },
+        { id: 'ad-insta-2', title: 'Chatkaro Special Dish Reel #2', type: 'video', url: 'assets/ads/reel-2.mp4', linkedDishId: 'cheese-anguri', active: true }
+      ],
       tables: [
         { id: 1, label: 'Table 1', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
         { id: 2, label: 'Table 2', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
@@ -476,6 +481,7 @@
   function applySnapshot(snap) {
     if (snap.settings) appState.settings = snap.settings;
     if (snap.menu) appState.menu = snap.menu;
+    if (snap.ads) appState.ads = snap.ads;
     if (snap.tables) appState.tables = snap.tables;
     if (snap.orders) appState.orders = snap.orders;
     if (snap.reviews) appState.reviews = snap.reviews;
@@ -556,7 +562,7 @@
     }
     $('topHoursText').textContent = s.openHoursText || defaultHours;
     $('heroHoursBadge').textContent = getLiveOpenStatusText();
-    $('heroPriceRange').textContent = s.priceRange || '₹1–300 per person';
+    if ($('heroPriceRange')) $('heroPriceRange').textContent = s.priceRange || '₹1–300 per person';
     $('visitHoursText').textContent = s.openHoursText || defaultHours;
     $('visitPriceText').textContent = `${s.priceRange || '₹1–300 per person'} • 100% Pure Vegetarian`;
     $('visitRestName').textContent = s.restaurantName || 'Chatkaro Food Hub';
@@ -600,20 +606,26 @@
     const grid = $('instaReelsGrid');
     if (!grid) return;
     const handle = String(appState.settings.instagramHandle || 'chatkaro_the_food_hub').replace(/^@+/, '').trim() || 'chatkaro_the_food_hub';
-    const reelIds = parseInstagramReelIds(appState.settings.instagramReels);
-    const sig = `${handle}:${reelIds.join(',')}`;
+    const videoAds = (appState.ads || []).filter((a) => a.type === 'video' && a.active !== false);
+    const items = videoAds.length
+      ? videoAds
+      : [
+          { id: 'reel-1', title: `@${handle} Live Kitchen Reel #1`, url: 'assets/ads/reel-1.mp4' },
+          { id: 'reel-2', title: `Chatkaro Food Hub Special Reel #2`, url: 'assets/ads/reel-2.mp4' }
+        ];
+    const sig = `${handle}:${items.map((x) => `${x.id}:${x.url}`).join('|')}`;
     if (sig === renderedReelsSig) return;
     renderedReelsSig = sig;
-    grid.innerHTML = reelIds
+    grid.innerHTML = items
       .map(
-        (id, i) => `
+        (v, i) => `
       <article class="insta-reel-card card-hover">
         <div class="insta-reel-embed-box">
-          <iframe src="https://www.instagram.com/reel/${encodeURIComponent(id)}/embed/" title="Chatkaro Food Hub Reel ${i + 1}" frameborder="0" scrolling="no" allowtransparency="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
+          <video src="${escapeHtml(v.url)}" controls muted autoplay loop playsinline preload="metadata"></video>
         </div>
         <div class="insta-reel-card-foot">
-          <span>📸 ${i === 0 ? `@${escapeHtml(handle)}` : 'Featured Reel'} • Reel #${i + 1}</span>
-          <a href="https://www.instagram.com/reel/${encodeURIComponent(id)}/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs">Open on Instagram ↗</a>
+          <span>🎬 ${escapeHtml(v.title || `Reel #${i + 1}`)}</span>
+          <a href="https://www.instagram.com/${encodeURIComponent(handle)}/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs">@${escapeHtml(handle)} ↗</a>
         </div>
       </article>`
       )
@@ -849,17 +861,17 @@
     'beverages': 'Freshly Prepared Chilled / Warm Serving'
   };
 
-  // ================= HERO LIVE VIDEO-AD DISH & INSTAGRAM REEL ENGINE =================
+  // ================= HERO LIVE VIDEO-AD DISH & CUSTOM MEDIA REEL ENGINE =================
   const heroAdState = {
-    mode: 'all', // 'all' (Dish + Insta Reels), 'dish', 'reel-0', 'reel-1'
     idx: 0,
     paused: false,
+    muted: true,
     elapsed: 0,
     duration: 3600,
     timer: null,
     currentDishId: 'veg-angara',
     lastSrc: '',
-    activeReelId: '',
+    isCurrentVideo: false,
     shuffledIds: [],
     lastMotionIdx: -1,
     lastTransIdx: -1
@@ -903,27 +915,33 @@
       heroAdState.shuffledIds = shuffleIds(valid.map((m) => m.id));
     }
     const dishes = heroAdState.shuffledIds.map((id) => validMap.get(id)).filter(Boolean);
-    if (heroAdState.mode === 'dish') return dishes.map((d) => ({ kind: 'dish', dish: d }));
 
-    const reelIds = parseInstagramReelIds(appState.settings.instagramReels);
-    if (heroAdState.mode.startsWith('reel-')) {
-      const rIdx = Number(heroAdState.mode.split('-')[1] || 0);
-      const id = reelIds[rIdx] || reelIds[0];
-      return id ? [{ kind: 'reel', reelId: id, reelIndex: rIdx }] : dishes.map((d) => ({ kind: 'dish', dish: d }));
-    }
+    const activeCustomAds = (appState.ads || []).filter((a) => a.active !== false && a.url);
+    const customList = activeCustomAds.length
+      ? activeCustomAds
+      : [
+          { id: 'ad-insta-1', title: 'Chatkaro Live Kitchen Reel #1', type: 'video', url: 'assets/ads/reel-1.mp4', linkedDishId: 'veg-angara' },
+          { id: 'ad-insta-2', title: 'Chatkaro Special Dish Reel #2', type: 'video', url: 'assets/ads/reel-2.mp4', linkedDishId: 'cheese-anguri' }
+        ];
 
-    // 'all': Interleave Instagram Reels smoothly between Dish Video Ads
+    // Interleave downloaded Video Ads & Admin Photo/Video Ads naturally between Dish Ads
     const mixed = [];
-    let reelCursor = 0;
+    let adCursor = 0;
     dishes.forEach((d, i) => {
-      mixed.push({ kind: 'dish', dish: d });
-      if (reelIds.length && (i === 2 || (i > 2 && (i - 2) % 6 === 0))) {
-        const rIdx = reelCursor % reelIds.length;
-        mixed.push({ kind: 'reel', reelId: reelIds[rIdx], reelIndex: rIdx });
-        reelCursor += 1;
+      if (i === 1 || (i > 1 && (i - 1) % 5 === 0)) {
+        const customAd = customList[adCursor % customList.length];
+        mixed.push({ kind: 'ad', ad: customAd });
+        adCursor += 1;
       }
+      mixed.push({ kind: 'dish', dish: d });
     });
     return mixed;
+  }
+
+  function advanceHeroAdSlide(step = 1) {
+    heroAdState.elapsed = 0;
+    heroAdState.idx += step;
+    renderHeroAdSlide();
   }
 
   function renderHeroAdSlide() {
@@ -941,40 +959,62 @@
     const imgEl = $('heroAdImg');
     const prevEl = $('heroAdImgPrev');
     const wrapEl = $('heroAdMediaWrap');
-    const reelWrap = $('heroAdReelWrap');
-    const reelFrame = $('heroAdReelFrame');
+    const videoEl = $('heroAdVideo');
+    const muteBtn = $('heroAdMuteBtn');
 
-    if (entry.kind === 'reel') {
-      const handle = String(appState.settings.instagramHandle || 'chatkaro_the_food_hub').replace(/^@+/, '').trim() || 'chatkaro_the_food_hub';
-      heroAdState.duration = heroAdState.mode.startsWith('reel-') ? 25000 : 10000;
-      heroAdState.currentDishId = dishList[0]?.id || 'veg-angara';
+    if (entry.kind === 'ad' && entry.ad.type === 'video') {
+      const ad = entry.ad;
+      const linked = dishList.find((d) => d.id === ad.linkedDishId) || dishList[0];
+      heroAdState.isCurrentVideo = true;
+      heroAdState.currentDishId = linked?.id || 'veg-angara';
+      heroAdState.duration = 45000; // Fallback timeout; normally video onended advances immediately!
 
-      stage.classList.add('is-reel');
+      stage.classList.add('is-video');
       if (wrapEl) wrapEl.classList.add('hidden');
       if (prevEl) prevEl.classList.add('hidden');
-      if (reelWrap) reelWrap.classList.remove('hidden');
+      if (muteBtn) muteBtn.classList.remove('hidden');
 
-      if (reelFrame && heroAdState.activeReelId !== entry.reelId) {
-        reelFrame.src = `https://www.instagram.com/reel/${encodeURIComponent(entry.reelId)}/embed/`;
-        heroAdState.activeReelId = entry.reelId;
+      if (videoEl) {
+        videoEl.classList.remove('hidden');
+        videoEl.muted = heroAdState.muted;
+        videoEl.loop = false;
+        videoEl.src = ad.url;
+        videoEl.currentTime = 0;
+        videoEl.onloadedmetadata = () => {
+          if (videoEl.duration && isFinite(videoEl.duration)) {
+            heroAdState.duration = Math.min(60000, Math.max(3000, Math.round(videoEl.duration * 1000)));
+          }
+        };
+        videoEl.onended = () => advanceHeroAdSlide(1);
+        videoEl.onerror = () => advanceHeroAdSlide(1);
+        if (!heroAdState.paused) {
+          videoEl.play().catch(() => {});
+        }
       }
 
-      $('heroAdCat').textContent = `📸 INSTAGRAM REEL #${entry.reelIndex + 1}`;
+      $('heroAdCat').textContent = '🎬 VIDEO REEL AD';
       $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
-      $('heroAdTitle').textContent = `@${handle} — Live Kitchen Reel`;
-      $('heroAdServed').textContent = `▶ Tap reel to watch • Switching next ad automatically`;
-      $('heroAdPrice').textContent = 'REEL';
+      $('heroAdTitle').textContent = ad.title || 'Chatkaro Live Kitchen Video';
+      $('heroAdServed').textContent = linked ? `🍲 Featured: ${linked.name} (₹${linked.price})` : '🔥 100% Pure Veg Kitchen';
+      $('heroAdPrice').textContent = linked ? `₹${linked.price}/-` : 'LIVE AD';
     } else {
-      const dish = entry.dish;
-      heroAdState.currentDishId = dish.id;
-      heroAdState.duration = 3200 + Math.floor(Math.random() * 1100);
-
-      stage.classList.remove('is-reel');
-      if (reelWrap) reelWrap.classList.add('hidden');
+      heroAdState.isCurrentVideo = false;
+      if (videoEl) {
+        videoEl.pause();
+        videoEl.removeAttribute('src');
+        videoEl.classList.add('hidden');
+      }
+      if (muteBtn) muteBtn.classList.add('hidden');
+      stage.classList.remove('is-video');
       if (wrapEl) wrapEl.classList.remove('hidden');
       if (prevEl) prevEl.classList.remove('hidden');
 
-      const nextSrc = getDishImage(dish) || 'assets/veg-angara.jpg';
+      const isCustomImgAd = entry.kind === 'ad';
+      const dish = isCustomImgAd ? (dishList.find((d) => d.id === entry.ad.linkedDishId) || dishList[0]) : entry.dish;
+      heroAdState.currentDishId = dish?.id || 'veg-angara';
+      heroAdState.duration = 3400 + Math.floor(Math.random() * 1100);
+
+      const nextSrc = isCustomImgAd ? entry.ad.url : (getDishImage(dish) || 'assets/veg-angara.jpg');
       if (prevEl && heroAdState.lastSrc && heroAdState.lastSrc !== nextSrc) {
         prevEl.src = heroAdState.lastSrc;
       }
@@ -995,24 +1035,29 @@
       imgEl.classList.remove(...REEL_MOTIONS, 'ken-burns');
       void imgEl.offsetWidth;
       imgEl.src = nextSrc;
-      imgEl.alt = dish.name;
+      imgEl.alt = isCustomImgAd ? entry.ad.title : dish.name;
       imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; };
       imgEl.classList.add(motionClass);
       heroAdState.lastSrc = nextSrc;
 
-      $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG';
+      $('heroAdCat').textContent = isCustomImgAd ? '📸 SPECIAL PHOTO AD' : (CAT_LABELS[dish.category] || '🍲 PURE VEG');
       $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
-      $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
-      $('heroAdServed').textContent = `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
-      $('heroAdPrice').textContent = `₹${dish.price}/-`;
+      $('heroAdTitle').textContent = isCustomImgAd ? entry.ad.title : (dish.guName ? `${dish.name} (${dish.guName})` : dish.name);
+      $('heroAdServed').textContent = isCustomImgAd
+        ? (dish ? `🍲 Special: ${dish.name} (₹${dish.price})` : '🔥 100% Pure Veg')
+        : `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
+      $('heroAdPrice').textContent = dish ? `₹${dish.price}/-` : 'SPECIAL';
     }
 
-    // Preload next 2 dish photos for seamless zero-flicker video transitions
+    // Preload next 2 image slides for seamless transitions
     [1, 2].forEach((offset) => {
       const nextItem = playlist[(heroAdState.idx + offset) % playlist.length];
       if (nextItem?.kind === 'dish') {
         const u = getDishImage(nextItem.dish);
         if (u) { const pre = new Image(); pre.src = u; }
+      } else if (nextItem?.kind === 'ad' && nextItem.ad.type === 'image') {
+        const pre = new Image();
+        pre.src = nextItem.ad.url;
       }
     });
 
@@ -1041,40 +1086,35 @@
     if (heroAdState.timer) clearInterval(heroAdState.timer);
     heroAdState.timer = setInterval(() => {
       if (heroAdState.paused) return;
+      const videoEl = $('heroAdVideo');
+      if (heroAdState.isCurrentVideo && videoEl && videoEl.duration && isFinite(videoEl.duration)) {
+        const pct = Math.min(100, (videoEl.currentTime / videoEl.duration) * 100);
+        if ($('heroAdProgress')) $('heroAdProgress').style.width = `${pct}%`;
+        return;
+      }
       heroAdState.elapsed += 50;
       const pct = Math.min(100, (heroAdState.elapsed / heroAdState.duration) * 100);
       if ($('heroAdProgress')) $('heroAdProgress').style.width = `${pct}%`;
       if (heroAdState.elapsed >= heroAdState.duration) {
-        heroAdState.elapsed = 0;
-        heroAdState.idx += 1;
-        renderHeroAdSlide();
+        advanceHeroAdSlide(1);
       }
     }, 50);
 
-    $('heroAdPrevBtn')?.addEventListener('click', () => {
-      heroAdState.elapsed = 0;
-      heroAdState.idx -= 1;
-      renderHeroAdSlide();
-    });
-    $('heroAdNextBtn')?.addEventListener('click', () => {
-      heroAdState.elapsed = 0;
-      heroAdState.idx += 1;
-      renderHeroAdSlide();
-    });
+    $('heroAdPrevBtn')?.addEventListener('click', () => advanceHeroAdSlide(-1));
+    $('heroAdNextBtn')?.addEventListener('click', () => advanceHeroAdSlide(1));
     $('heroAdToggleBtn')?.addEventListener('click', () => {
       heroAdState.paused = !heroAdState.paused;
       $('heroAdToggleBtn').textContent = heroAdState.paused ? '▶' : '⏸';
+      const v = $('heroAdVideo');
+      if (heroAdState.isCurrentVideo && v) {
+        if (heroAdState.paused) v.pause();
+        else v.play().catch(() => {});
+      }
     });
-    $('heroAdModeTabs')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-ad-mode]');
-      if (!btn) return;
-      $('heroAdModeTabs').querySelectorAll('.ad-mode-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      heroAdState.mode = btn.dataset.adMode || 'all';
-      heroAdState.elapsed = 0;
-      heroAdState.idx = 0;
-      heroAdState.activeReelId = '';
-      renderHeroAdSlide();
+    $('heroAdMuteBtn')?.addEventListener('click', () => {
+      heroAdState.muted = !heroAdState.muted;
+      $('heroAdMuteBtn').textContent = heroAdState.muted ? '🔇' : '🔊';
+      if ($('heroAdVideo')) $('heroAdVideo').muted = heroAdState.muted;
     });
     $('heroAdAddBtn')?.addEventListener('click', () => {
       if (heroAdState.currentDishId) updateQty(heroAdState.currentDishId, 1);
@@ -2012,8 +2052,8 @@
         <small>Served: ${sales.servedOrdersCount} • Menu: ${appState.menu.length}</small>
       </div>`;
 
-    ['Sales', 'Orders', 'Menu', 'Tables', 'Photos', 'Reviews', 'Chat', 'Colors'].forEach((name) => {
-      $('adminTab' + name).classList.toggle('hidden', activeAdminTab !== name.toLowerCase());
+    ['Sales', 'Orders', 'Menu', 'Ads', 'Tables', 'Photos', 'Reviews', 'Chat', 'Colors'].forEach((name) => {
+      $('adminTab' + name)?.classList.toggle('hidden', activeAdminTab !== name.toLowerCase());
     });
 
     const pinHeaders = { 'X-Admin-Token': appState.adminToken };
@@ -2584,6 +2624,105 @@
         btn.addEventListener('click', async () => {
           await api(`/api/admin/menu/${btn.dataset.id}`, 'DELETE', null, pinHeaders);
           showToast('Dish deleted.');
+        });
+      });
+    }
+
+    // 2B. VIDEO & PHOTO ADS MANAGER TAB
+    if (activeAdminTab === 'ads') {
+      const adsList = appState.ads || [];
+      $('adminTabAds').innerHTML = `
+        <form id="admUploadAdForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);flex-direction:column;align-items:stretch;gap:0.65rem;">
+          <strong>🎬 Upload Video Ad (MP4/WebM/MOV) ya Photo Ad (JPG/PNG) — Direct Hero Ads Mein Chalegi!</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="newAdTitle" placeholder="Ad Title (e.g. Today's Paneer Sizzler Video)" style="flex:1;min-width:170px;" required />
+            <select id="newAdLinkedDish" style="max-width:200px;">
+              ${appState.menu.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} (₹${m.price})</option>`).join('')}
+            </select>
+          </div>
+          <div class="admin-controls-inline" style="width:100%;">
+            <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+              📁 Choose Video / Photo File <input type="file" id="newAdFile" accept="video/mp4,video/webm,video/quicktime,image/*" style="display:none;" />
+            </label>
+            <span id="newAdFileLabel" class="small muted">No file chosen</span>
+            <input type="url" id="newAdUrl" placeholder="Or paste Video (.mp4) / Photo URL..." style="flex:1;min-width:180px;" />
+            <button type="submit" class="btn btn-primary btn-sm" id="admAddAdSubmitBtn">+ Add &amp; Play in Ads</button>
+          </div>
+        </form>
+        <div class="admin-grid-list">
+          ${adsList.length === 0 ? '<p class="muted">No custom video/photo ads yet. Upload one above!</p>' : adsList.map((a) => `
+            <div class="admin-row-card" style="justify-content:space-between;gap:0.75rem;">
+              <div class="admin-controls-inline" style="flex:1;min-width:0;">
+                ${a.type === 'video'
+                  ? `<video src="${escapeHtml(a.url)}" muted playsinline style="width:72px;height:54px;object-fit:cover;border-radius:8px;background:#000;flex-shrink:0;"></video>`
+                  : `<img src="${escapeHtml(a.url)}" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />`}
+                <div style="min-width:0;flex:1;">
+                  <strong>${a.type === 'video' ? '🎬 VIDEO AD' : '📸 PHOTO AD'}: ${escapeHtml(a.title)}</strong>
+                  <div class="muted small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.url)}</div>
+                </div>
+              </div>
+              <div class="admin-controls-inline">
+                <button type="button" class="btn btn-outline btn-xs adm-toggle-ad-btn" data-id="${escapeHtml(a.id)}">${a.active === false ? '▶ Enable' : '⏸ Pause'}</button>
+                <button type="button" class="btn btn-danger btn-xs adm-del-ad-btn" data-id="${escapeHtml(a.id)}">🗑️ Delete</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+
+      $('newAdFile')?.addEventListener('change', () => {
+        const f = $('newAdFile').files?.[0];
+        if ($('newAdFileLabel')) $('newAdFileLabel').textContent = f ? `📎 ${f.name} (${(f.size / 1048576).toFixed(1)} MB)` : 'No file chosen';
+      });
+
+      $('admUploadAdForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const file = $('newAdFile')?.files?.[0];
+        const url = $('newAdUrl')?.value.trim();
+        const title = $('newAdTitle')?.value.trim() || 'Chatkaro Special Ad';
+        const linkedDishId = $('newAdLinkedDish')?.value || 'veg-angara';
+        const btn = $('admAddAdSubmitBtn');
+        if (!file && !url) return showToast('Please choose a Video/Photo file or paste a URL!');
+        if (btn) { btn.disabled = true; btn.textContent = 'Uploading...'; }
+        try {
+          if (file) {
+            const res = await fetch('/api/admin/upload-ad-media', {
+              method: 'POST',
+              headers: {
+                ...pinHeaders,
+                'Content-Type': 'application/octet-stream',
+                'X-File-Name': encodeURIComponent(file.name),
+                'X-Ad-Title': encodeURIComponent(title),
+                'X-Media-Type': file.type || '',
+                'X-Linked-Dish': linkedDishId
+              },
+              body: file
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Upload failed');
+          } else {
+            await api('/api/admin/ads', 'POST', { ad: { title, url, linkedDishId } }, pinHeaders);
+          }
+          showToast('Ad added & playing live! 🎬');
+        } catch (err) {
+          showToast(err.message);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = '+ Add & Play in Ads'; }
+        }
+      });
+
+      $('adminTabAds').querySelectorAll('.adm-toggle-ad-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const ad = (appState.ads || []).find((x) => x.id === btn.dataset.id);
+          if (!ad) return;
+          await api('/api/admin/ads', 'POST', { ad: { ...ad, active: ad.active === false } }, pinHeaders);
+          showToast(ad.active === false ? 'Ad enabled!' : 'Ad paused.');
+        });
+      });
+
+      $('adminTabAds').querySelectorAll('.adm-del-ad-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/ads/${btn.dataset.id}`, 'DELETE', null, pinHeaders);
+          showToast('Ad deleted! 🗑️');
         });
       });
     }

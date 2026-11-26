@@ -109,39 +109,24 @@
         <!-- Hero Live Video-Ad Dish Reel Showcase -->
         <div class="hero-visual reveal">
           <div class="platter-card card-hover">
-            <div class="platter-header">
-              <span class="tag-hot"><span class="reel-live-dot"></span> LIVE DISH &amp; REEL ADS</span>
-              <a class="insta-mini-pill" id="heroInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 @chatkaro_the_food_hub</a>
-              <span class="price-tag" id="heroPriceRange">₹1–300 per person</span>
-            </div>
-
-            <div class="hero-ad-mode-tabs" id="heroAdModeTabs" aria-label="Choose video ad mode">
-              <button type="button" class="ad-mode-btn active" data-ad-mode="all">🎬 Dish + Insta Ads</button>
-              <button type="button" class="ad-mode-btn" data-ad-mode="dish">🍲 Dish Ads</button>
-              <button type="button" class="ad-mode-btn" data-ad-mode="reel-0">📸 Insta Reel 1</button>
-              <button type="button" class="ad-mode-btn" data-ad-mode="reel-1">📸 Insta Reel 2</button>
-            </div>
-
-            <!-- Pure Clean Unobstructed Video Ad Screen (Zero Text Over Image / Video) -->
-            <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish and Instagram reel video ads">
+            <!-- Pure Clean Unobstructed Video & Dish Ad Screen (Zero Buttons or Text Above/Over Media) -->
+            <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish and video ads">
               <img id="heroAdImgPrev" class="hero-ad-img-prev" src="assets/veg-angara.jpg" alt="" aria-hidden="true" />
               <div class="hero-ad-media-wrap" id="heroAdMediaWrap">
                 <img id="heroAdImg" class="hero-ad-img" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
               </div>
-              <div class="hero-ad-reel-wrap hidden" id="heroAdReelWrap">
-                <iframe id="heroAdReelFrame" title="Chatkaro Food Hub Instagram Reel Ad" frameborder="0" scrolling="no" allowtransparency="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
-              </div>
+              <video id="heroAdVideo" class="hero-ad-video hidden" autoplay muted playsinline preload="auto"></video>
               <div class="hero-ad-progress-track">
                 <div class="hero-ad-progress-fill" id="heroAdProgress"></div>
               </div>
             </div>
 
-            <!-- Clean Info & Action Strip Below Video (Zero Overlap on Food Photo) -->
+            <!-- Compact Info & Action Strip Below Video -->
             <div class="hero-ad-below-bar">
               <div class="hero-ad-below-info">
                 <div class="hero-ad-meta-row">
                   <span class="hero-ad-cat-pill" id="heroAdCat">🔥 CHEF SPECIAL</span>
-                  <small id="heroAdCounter">1 / 76</small>
+                  <small id="heroAdCounter">1 / 78</small>
                 </div>
                 <h3 id="heroAdTitle">Veg Angara (વેજ અંગારા)</h3>
                 <p id="heroAdServed" class="hero-ad-below-served">🎁 Mint Dip, Laccha Onion Salad &amp; Roasted Papad</p>
@@ -151,9 +136,10 @@
                 <div class="hero-ad-btn-group">
                   <button type="button" class="btn btn-primary btn-sm" id="heroAdAddBtn">+ Order</button>
                   <div class="hero-ad-controls-below">
-                    <button type="button" id="heroAdPrevBtn" title="Previous dish" aria-label="Previous dish">◀</button>
+                    <button type="button" id="heroAdMuteBtn" class="hidden" title="Sound On / Off" aria-label="Toggle video sound">🔇</button>
+                    <button type="button" id="heroAdPrevBtn" title="Previous ad" aria-label="Previous ad">◀</button>
                     <button type="button" id="heroAdToggleBtn" title="Pause / Play" aria-label="Pause or play reel">⏸</button>
-                    <button type="button" id="heroAdNextBtn" title="Next dish" aria-label="Next dish">▶</button>
+                    <button type="button" id="heroAdNextBtn" title="Next ad" aria-label="Next ad">▶</button>
                   </div>
                 </div>
               </div>
@@ -437,20 +423,18 @@
             <button type="button" class="tab-btn" data-pcat="food">🍲 Food &amp; Drink</button>
             <button type="button" class="tab-btn" data-pcat="vibe">✨ Vibe</button>
             <button type="button" class="tab-btn" data-pcat="owner">🏠 By Owner</button>
-            <a class="tab-btn insta-follow-tab" id="momentsInstaBtn" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 Follow @chatkaro_the_food_hub</a>
           </div>
         </div>
 
         <div class="photos-grid moments-mosaic" id="mapPhotosGrid"></div>
 
-        <!-- Official Instagram Reels Video Showcase -->
+        <!-- Downloaded Native Full Video Reels Showcase (Zero Login / Zero External Popup) -->
         <div class="insta-reels-showcase" id="instaReelsShowcase">
           <div class="insta-reels-head">
             <div>
-              <span class="section-kicker">OFFICIAL INSTAGRAM REELS</span>
-              <h3>Watch Our Live <span class="crimson-accent-word">Instagram Reels</span></h3>
+              <span class="section-kicker">LIVE KITCHEN VIDEO SHOWCASE</span>
+              <h3>Featured <span class="crimson-accent-word">Video Reels</span></h3>
             </div>
-            <a class="btn btn-primary btn-sm" id="instaFollowProfileBtn" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 @chatkaro_the_food_hub</a>
           </div>
           <div class="insta-reels-grid" id="instaReelsGrid"></div>
         </div>
@@ -607,8 +591,8 @@
               <a class="btn btn-outline" id="visitCallLink" href="tel:+919054633908">
                 📞 Call 090546 33908
               </a>
-              <a class="btn btn-outline" id="visitInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">
-                📸 Instagram @chatkaro_the_food_hub
+              <a class="btn btn-instagram" id="visitInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">
+                📸 Follow @chatkaro_the_food_hub on Instagram
               </a>
             </div>
           </div>
@@ -815,6 +799,10 @@
               <span class="acru-nav-ico">🍽️</span>
               <span class="acru-nav-lbl">Menu Manager</span>
             </button>
+            <button type="button" class="acru-nav-item" data-atab="ads">
+              <span class="acru-nav-ico">🎬</span>
+              <span class="acru-nav-lbl">Ads (Video/Photo)</span>
+            </button>
             <button type="button" class="acru-nav-item" data-atab="tables">
               <span class="acru-nav-ico">🪑</span>
               <span class="acru-nav-lbl">Tables &amp; Guests</span>
@@ -874,6 +862,7 @@
             <div id="adminTabSales" class="admin-tab-pane"></div>
             <div id="adminTabOrders" class="admin-tab-pane hidden"></div>
             <div id="adminTabMenu" class="admin-tab-pane hidden"></div>
+            <div id="adminTabAds" class="admin-tab-pane hidden"></div>
             <div id="adminTabTables" class="admin-tab-pane hidden"></div>
             <div id="adminTabPhotos" class="admin-tab-pane hidden"></div>
             <div id="adminTabReviews" class="admin-tab-pane hidden"></div>
