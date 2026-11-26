@@ -20,16 +20,16 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795726112353,
+    "lastMapsSyncAt": 1795727542241,
     "announcement": "🌿 100% Pure Vegetarian • Veg, Kaju & Cheese Specials, Dosas & Chinese • Open till 12:30 AM!",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
-      "preset": "saffron-night",
-      "primary": "#f97316",
+      "preset": "greenrush-3d",
+      "primary": "#dc2626",
       "accent": "#fbbf24",
-      "bg": "#0f0a07",
-      "surface": "#1b120d",
-      "text": "#fbf4ec",
+      "bg": "#141414",
+      "surface": "#1d1d20",
+      "text": "#f9fafb",
       "fxEnabled": true
     }
   },
@@ -426,13 +426,13 @@
     },
     {
       "id": "pun-butter-naan",
-      "name": "Butter Naan (2 Pcs)",
+      "name": "Butter Naan (1 Pc)",
       "guName": "બટર નાન",
       "category": "tandoor",
       "price": 65,
       "emoji": "🫓",
       "image": "assets/dishes/pun-butter-naan.jpg",
-      "portion": "2 Soft Tandoori Naan",
+      "portion": "1 Soft Tandoori Naan",
       "servedWith": "Pure Amul Butter Brushing & Mint Chutney",
       "desc": "Soft fluffy tandoori flatbread baked crisp outside and brushed generously with butter.",
       "bestseller": true,
@@ -441,13 +441,13 @@
     },
     {
       "id": "pun-garlic-naan",
-      "name": "Garlic Cheese Naan",
+      "name": "Garlic Cheese Naan (1 Pc)",
       "guName": "ગાર્લિક ચીઝ નાન",
       "category": "tandoor",
       "price": 85,
       "emoji": "🧄",
       "image": "assets/dishes/pun-garlic-naan.jpg",
-      "portion": "2 Loaded Naan Pcs",
+      "portion": "1 Loaded Naan Pc",
       "servedWith": "Amul Butter Glaze & Green Coriander Chutney",
       "desc": "Freshly baked naan topped with roasted garlic, coriander & melted cheese.",
       "bestseller": true,
@@ -456,13 +456,13 @@
     },
     {
       "id": "tan-chilli-garlic-naan",
-      "name": "Cheese Chilli Garlic Naan",
+      "name": "Cheese Chilli Garlic Naan (1 Pc)",
       "guName": "ચીઝ ચીલી ગાર્લિક નાન",
       "category": "tandoor",
       "price": 95,
       "emoji": "🌶️",
       "image": "assets/dishes/tan-chilli-garlic-naan.jpg",
-      "portion": "2 Stuffed Naan Pcs",
+      "portion": "1 Stuffed Naan Pc",
       "servedWith": "Amul Butter Brush & Mint Yogurt Dip",
       "desc": "Gooey cheese-stuffed tandoori naan topped with green chillies & roasted garlic.",
       "bestseller": false,
@@ -1156,7 +1156,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 2,
@@ -1166,7 +1166,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 3,
@@ -1176,7 +1176,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 4,
@@ -1186,7 +1186,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 5,
@@ -1196,7 +1196,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 6,
@@ -1206,7 +1206,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 7,
@@ -1216,7 +1216,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     },
     {
       "id": 8,
@@ -1226,7 +1226,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795726112353
+      "updatedAt": 1795727542241
     }
   ],
   "customers": {},
@@ -1239,7 +1239,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795724672353
+      "createdAt": 1795726102241
     },
     {
       "id": "rev-2",
@@ -1248,7 +1248,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793134112353
+      "createdAt": 1793135542241
     },
     {
       "id": "rev-3",
@@ -1257,7 +1257,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793911712353
+      "createdAt": 1793913142241
     },
     {
       "id": "rev-4",
@@ -1266,7 +1266,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794516512353
+      "createdAt": 1794517942241
     }
   ],
   "mapPhotos": [
@@ -1276,7 +1276,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795553312353
+      "createdAt": 1795554742241
     },
     {
       "id": "mp-2",
@@ -1284,7 +1284,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795466912353
+      "createdAt": 1795468342241
     },
     {
       "id": "mp-3",
@@ -1292,7 +1292,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795380512353
+      "createdAt": 1795381942241
     },
     {
       "id": "mp-4",
@@ -1300,7 +1300,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795294112353
+      "createdAt": 1795295542241
     },
     {
       "id": "mp-5",
@@ -1308,7 +1308,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795207712353
+      "createdAt": 1795209142241
     },
     {
       "id": "mp-6",
@@ -1316,7 +1316,7 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795724672353
+      "createdAt": 1795726102241
     }
   ],
   "chatMessages": []

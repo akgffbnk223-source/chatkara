@@ -36,12 +36,12 @@
       hasGeminiKey: false,
       lastMapsSyncAt: Date.now(),
       brandTheme: {
-        preset: 'saffron-night',
-        primary: '#f97316',
+        preset: 'greenrush-3d',
+        primary: '#dc2626',
         accent: '#fbbf24',
-        bg: '#0f0a07',
-        surface: '#1b120d',
-        text: '#fbf4ec',
+        bg: '#141414',
+        surface: '#1d1d20',
+        text: '#f9fafb',
         fxEnabled: true
       }
     },
@@ -347,6 +347,7 @@
 
   // ================= LIVE BRAND THEME & DARK/WHITE TOGGLE =================
   const COLOR_PRESETS = {
+    'greenrush-3d': { label: 'GreenRush 3D Crimson', mode: 'dark', primary: '#dc2626', accent: '#fbbf24', bg: '#141414', surface: '#1d1d20', text: '#f9fafb' },
     'saffron-night': { label: 'Saffron Night', mode: 'dark', primary: '#f97316', accent: '#fbbf24', bg: '#0f0a07', surface: '#1b120d', text: '#fbf4ec' },
     'pure-white': { label: 'Pure White', mode: 'light', primary: '#ea580c', accent: '#b45309', bg: '#ffffff', surface: '#ffffff', text: '#1c130d' },
     'royal-emerald': { label: 'Royal Emerald', mode: 'dark', primary: '#10b981', accent: '#facc15', bg: '#071510', surface: '#0f241c', text: '#ecfdf5' },
@@ -1510,22 +1511,32 @@
 
   // ================= REVIEWS & MAPS SYNC =================
   function renderReviews() {
+    const revThumbsPool = [
+      ['assets/veg-angara.jpg', 'assets/dosa-platter.jpg', 'assets/kaju-curry.jpg'],
+      ['assets/cheese-masala.jpg', 'assets/dishes/pun-butter-naan.jpg', 'assets/dishes/bev-mango-lassi.jpg'],
+      ['assets/indo-chinese.jpg', 'assets/dishes/tan-paneer-tikka.jpg', 'assets/dishes/dosa-mysore.jpg'],
+      ['assets/punjabi-paneer.jpg', 'assets/dishes/chi-hakka.jpg', 'assets/dishes/bev-gulab-jamun.jpg']
+    ];
     $('reviewsGrid').innerHTML = appState.reviews
       .slice(0, 8)
-      .map((r) => {
+      .map((r, idx) => {
         const initials = r.author.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+        const thumbs = revThumbsPool[idx % revThumbsPool.length];
         return `
         <article class="review-card card-hover">
+          <div class="review-quote-mark" aria-hidden="true">“</div>
+          <p>"${escapeHtml(r.text)}"</p>
+          <div class="rev-thumb-strip" aria-hidden="true">
+            ${thumbs.map((t) => `<img src="${t}" alt="Pure Veg Dish" loading="lazy" />`).join('')}
+          </div>
           <div class="review-top">
             <div class="avatar">${escapeHtml(initials)}</div>
             <div>
               <strong>${escapeHtml(r.author)}</strong>
-              <small>${escapeHtml(r.source || 'Google Maps')}</small>
+              <small>${escapeHtml(r.source || 'Google Maps')} • ${escapeHtml(r.meta || 'Verified Guest')}</small>
             </div>
             <span class="rev-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
           </div>
-          <p>"${escapeHtml(r.text)}"</p>
-          <div class="rev-meta">${escapeHtml(r.meta || '')}</div>
         </article>`;
       })
       .join('');
@@ -2527,7 +2538,7 @@
 
     // 7. LIVE WEBSITE COLORS & SETTINGS TAB
     if (activeAdminTab === 'colors') {
-      const bt = appState.settings.brandTheme || COLOR_PRESETS['saffron-night'];
+      const bt = appState.settings.brandTheme || COLOR_PRESETS['greenrush-3d'];
       const s = appState.adminFullSettings || appState.settings;
       $('adminTabColors').innerHTML = `
         <h3>🎨 Live Website Color Studio (Visible to All Visitors Instantly!)</h3>

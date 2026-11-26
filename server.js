@@ -51,12 +51,12 @@ function createDefaultDb() {
       announcement: '🌿 100% Pure Vegetarian • Veg, Kaju & Cheese Specials, Dosas & Chinese • Open till 12:30 AM!',
       dailyDeal: '🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.',
       brandTheme: {
-        preset: 'saffron-night',
-        primary: '#f97316',
+        preset: 'greenrush-3d',
+        primary: '#dc2626',
         accent: '#fbbf24',
-        bg: '#0f0a07',
-        surface: '#1b120d',
-        text: '#fbf4ec',
+        bg: '#141414',
+        surface: '#1d1d20',
+        text: '#f9fafb',
         fxEnabled: true
       }
     },
@@ -1241,18 +1241,28 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
   try {
     const cleanQuery = String(dishName || '').replace(/\(.*?\)/g, '').trim();
     if (!cleanQuery) return fallback;
-    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(cleanQuery + ' food filetype:bitmap')}&gsrlimit=10&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=720&format=json`;
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(cleanQuery + ' indian dish food filetype:bitmap')}&gsrlimit=12&prop=imageinfo|categories&iiprop=url|mime|size&iiurlwidth=720&cllimit=20&format=json`;
     const r = await fetch(searchUrl, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
     if (!r.ok) return fallback;
     const j = await r.json();
+    const badWords = /chicken|egg|meat|fish|prawn|shrimp|mutton|beef|pork|crab|ham|bacon|sausage|turkey|salmon|tuna|duck|beer|wine|alcohol|kingfisher|bottle|burger king|mcdonald|kfc|subway|book|cookery|1919|portrait|person|man|woman|boy|girl|selfie|cosplay|japanimes|festival|event|logo|icon|map|chart/i;
+    const goodCats = /food|dish|cuisine|indian|soup|rice|dosa|curry|paneer|burger|sandwich|vegetarian|noodle|street food|meals|snacks|masala|bread|naan|roti|dessert|drink|beverage/i;
     const candidates = Object.values(j.query?.pages || {})
       .map((p) => ({
         title: p.title || '',
         url: p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url || '',
         mime: p.imageinfo?.[0]?.mime || '',
-        w: p.imageinfo?.[0]?.width || 0
+        w: p.imageinfo?.[0]?.width || 0,
+        cats: (p.categories || []).map((c) => c.title).join(' | ')
       }))
-      .filter((x) => x.url && x.mime === 'image/jpeg' && x.w >= 400 && !/chicken|egg|meat|fish|prawn|shrimp|mutton|beef|pork|crab|book|cookery|1919|portrait|person/i.test(x.title));
+      .filter((x) => (
+        x.url &&
+        x.mime === 'image/jpeg' &&
+        x.w >= 400 &&
+        !badWords.test(x.title) &&
+        !badWords.test(x.cats) &&
+        goodCats.test(`${x.cats} ${x.title}`)
+      ));
     if (!candidates.length) return fallback;
 
     const imgRes = await fetch(candidates[0].url, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
