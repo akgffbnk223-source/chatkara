@@ -35,6 +35,8 @@ function createDefaultDb() {
       plusCode: '2GWF+GJ Talala, Gujarat',
       openHoursText: '12:00 PM – 3:00 PM (Break 3–6 PM) • 6:00 PM – 11:50 PM',
       phone: '919054633908',
+      instagramHandle: 'chatkaro_the_food_hub',
+      instagramReels: 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       googleClientId: '',
       googlePlacesApiKey: '',
@@ -346,6 +348,8 @@ function getPublicSnapshot() {
       plusCode: db.settings.plusCode || '2GWF+GJ Talala, Gujarat',
       openHoursText: db.settings.openHoursText,
       phone: db.settings.phone,
+      instagramHandle: db.settings.instagramHandle || 'chatkaro_the_food_hub',
+      instagramReels: db.settings.instagramReels || 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
       googleClientId: db.settings.googleClientId,
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
@@ -1468,6 +1472,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       const s = body.settings || {};
       [
         'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
+        'instagramHandle', 'instagramReels',
         'address', 'plusCode', 'googleClientId', 'googlePlacesApiKey', 'googlePlaceId', 'geminiApiKey',
         'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret',
         'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv'

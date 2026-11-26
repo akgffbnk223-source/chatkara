@@ -30,6 +30,8 @@
       plusCode: '2GWF+GJ Talala, Gujarat',
       openHoursText: '12:00 PM – 3:00 PM (Break 3–6 PM) • 6:00 PM – 11:50 PM',
       phone: '919054633908',
+      instagramHandle: 'chatkaro_the_food_hub',
+      instagramReels: 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
       announcement: '🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • 12:00 PM–3:00 PM & 6:00 PM–11:50 PM',
       dailyDeal: '🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.',
       googleClientId: '',
@@ -569,6 +571,53 @@
     if (s.lastMapsSyncAt) {
       $('lastSyncTimeLabel').textContent = 'Synced ' + new Date(s.lastMapsSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+    const handle = String(s.instagramHandle || 'chatkaro_the_food_hub').replace(/^@+/, '').trim() || 'chatkaro_the_food_hub';
+    const instaUrl = `https://www.instagram.com/${handle}/`;
+    if ($('heroInstaLink')) { $('heroInstaLink').href = instaUrl; $('heroInstaLink').textContent = `📸 @${handle}`; }
+    if ($('momentsInstaBtn')) { $('momentsInstaBtn').href = instaUrl; $('momentsInstaBtn').textContent = `📸 Follow @${handle}`; }
+    if ($('instaFollowProfileBtn')) { $('instaFollowProfileBtn').href = instaUrl; $('instaFollowProfileBtn').textContent = `📸 @${handle}`; }
+    if ($('visitInstaLink')) { $('visitInstaLink').href = instaUrl; $('visitInstaLink').textContent = `📸 Instagram @${handle}`; }
+    if ($('footerInstaLink')) { $('footerInstaLink').href = instaUrl; }
+    renderInstagramReelsShowcase();
+  }
+
+  function parseInstagramReelIds(rawStr) {
+    const fallback = ['DeoG7QDA2O3', 'DfLrI3hzTGD'];
+    const text = String(rawStr || '').trim();
+    if (!text) return fallback;
+    const found = [];
+    const lines = text.split(/[\r\n,\s]+/).map((x) => x.trim()).filter(Boolean);
+    lines.forEach((line) => {
+      const m = line.match(/instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/i);
+      const id = m ? m[1] : (/^[A-Za-z0-9_-]{6,25}$/.test(line) ? line : '');
+      if (id && !found.includes(id)) found.push(id);
+    });
+    return found.length ? found : fallback;
+  }
+
+  let renderedReelsSig = '';
+  function renderInstagramReelsShowcase() {
+    const grid = $('instaReelsGrid');
+    if (!grid) return;
+    const handle = String(appState.settings.instagramHandle || 'chatkaro_the_food_hub').replace(/^@+/, '').trim() || 'chatkaro_the_food_hub';
+    const reelIds = parseInstagramReelIds(appState.settings.instagramReels);
+    const sig = `${handle}:${reelIds.join(',')}`;
+    if (sig === renderedReelsSig) return;
+    renderedReelsSig = sig;
+    grid.innerHTML = reelIds
+      .map(
+        (id, i) => `
+      <article class="insta-reel-card card-hover">
+        <div class="insta-reel-embed-box">
+          <iframe src="https://www.instagram.com/reel/${encodeURIComponent(id)}/embed/" title="Chatkaro Food Hub Reel ${i + 1}" frameborder="0" scrolling="no" allowtransparency="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="insta-reel-card-foot">
+          <span>📸 ${i === 0 ? `@${escapeHtml(handle)}` : 'Featured Reel'} • Reel #${i + 1}</span>
+          <a href="https://www.instagram.com/reel/${encodeURIComponent(id)}/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs">Open on Instagram ↗</a>
+        </div>
+      </article>`
+      )
+      .join('');
   }
 
   // ================= GOOGLE / GMAIL LOGIN & PROFILE =================
@@ -800,8 +849,9 @@
     'beverages': 'Freshly Prepared Chilled / Warm Serving'
   };
 
-  // ================= HERO LIVE VIDEO-AD DISH REEL (DYNAMIC VARIED TRANSITIONS) =================
+  // ================= HERO LIVE VIDEO-AD DISH & INSTAGRAM REEL ENGINE =================
   const heroAdState = {
+    mode: 'all', // 'all' (Dish + Insta Reels), 'dish', 'reel-0', 'reel-1'
     idx: 0,
     paused: false,
     elapsed: 0,
@@ -809,6 +859,7 @@
     timer: null,
     currentDishId: 'veg-angara',
     lastSrc: '',
+    activeReelId: '',
     shuffledIds: [],
     lastMotionIdx: -1,
     lastTransIdx: -1
@@ -851,69 +902,124 @@
     if (needsInit) {
       heroAdState.shuffledIds = shuffleIds(valid.map((m) => m.id));
     }
-    return heroAdState.shuffledIds.map((id) => validMap.get(id)).filter(Boolean);
+    const dishes = heroAdState.shuffledIds.map((id) => validMap.get(id)).filter(Boolean);
+    if (heroAdState.mode === 'dish') return dishes.map((d) => ({ kind: 'dish', dish: d }));
+
+    const reelIds = parseInstagramReelIds(appState.settings.instagramReels);
+    if (heroAdState.mode.startsWith('reel-')) {
+      const rIdx = Number(heroAdState.mode.split('-')[1] || 0);
+      const id = reelIds[rIdx] || reelIds[0];
+      return id ? [{ kind: 'reel', reelId: id, reelIndex: rIdx }] : dishes.map((d) => ({ kind: 'dish', dish: d }));
+    }
+
+    // 'all': Interleave Instagram Reels smoothly between Dish Video Ads
+    const mixed = [];
+    let reelCursor = 0;
+    dishes.forEach((d, i) => {
+      mixed.push({ kind: 'dish', dish: d });
+      if (reelIds.length && (i === 2 || (i > 2 && (i - 2) % 6 === 0))) {
+        const rIdx = reelCursor % reelIds.length;
+        mixed.push({ kind: 'reel', reelId: reelIds[rIdx], reelIndex: rIdx });
+        reelCursor += 1;
+      }
+    });
+    return mixed;
   }
 
   function renderHeroAdSlide() {
-    const list = getOrderedReelList();
-    if (!list.length || !$('heroAdStage')) return;
-    if (heroAdState.idx >= list.length) {
-      // Reshuffle playlist after completing all dishes so every cycle plays in a new order
-      heroAdState.shuffledIds = shuffleIds(list.map((m) => m.id));
+    const playlist = getOrderedReelList();
+    const dishList = appState.menu.filter((m) => m.available !== false && m.image !== '__NONE__');
+    if (!playlist.length || !$('heroAdStage')) return;
+    if (heroAdState.idx >= playlist.length) {
+      heroAdState.shuffledIds = shuffleIds(dishList.map((m) => m.id));
       heroAdState.idx = 0;
     }
-    heroAdState.idx = ((heroAdState.idx % list.length) + list.length) % list.length;
-    const dish = list[heroAdState.idx];
-    heroAdState.currentDishId = dish.id;
+    heroAdState.idx = ((heroAdState.idx % playlist.length) + playlist.length) % playlist.length;
+    const entry = playlist[heroAdState.idx];
 
-    // Slight random pacing (3.2s - 4.3s) so video reel feels organic and varied
-    heroAdState.duration = 3200 + Math.floor(Math.random() * 1100);
-
-    const nextSrc = getDishImage(dish) || 'assets/veg-angara.jpg';
+    const stage = $('heroAdStage');
     const imgEl = $('heroAdImg');
     const prevEl = $('heroAdImgPrev');
     const wrapEl = $('heroAdMediaWrap');
-    if (prevEl && heroAdState.lastSrc && heroAdState.lastSrc !== nextSrc) {
-      prevEl.src = heroAdState.lastSrc;
+    const reelWrap = $('heroAdReelWrap');
+    const reelFrame = $('heroAdReelFrame');
+
+    if (entry.kind === 'reel') {
+      const handle = String(appState.settings.instagramHandle || 'chatkaro_the_food_hub').replace(/^@+/, '').trim() || 'chatkaro_the_food_hub';
+      heroAdState.duration = heroAdState.mode.startsWith('reel-') ? 25000 : 10000;
+      heroAdState.currentDishId = dishList[0]?.id || 'veg-angara';
+
+      stage.classList.add('is-reel');
+      if (wrapEl) wrapEl.classList.add('hidden');
+      if (prevEl) prevEl.classList.add('hidden');
+      if (reelWrap) reelWrap.classList.remove('hidden');
+
+      if (reelFrame && heroAdState.activeReelId !== entry.reelId) {
+        reelFrame.src = `https://www.instagram.com/reel/${encodeURIComponent(entry.reelId)}/embed/`;
+        heroAdState.activeReelId = entry.reelId;
+      }
+
+      $('heroAdCat').textContent = `📸 INSTAGRAM REEL #${entry.reelIndex + 1}`;
+      $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
+      $('heroAdTitle').textContent = `@${handle} — Live Kitchen Reel`;
+      $('heroAdServed').textContent = `▶ Tap reel to watch • Switching next ad automatically`;
+      $('heroAdPrice').textContent = 'REEL';
+    } else {
+      const dish = entry.dish;
+      heroAdState.currentDishId = dish.id;
+      heroAdState.duration = 3200 + Math.floor(Math.random() * 1100);
+
+      stage.classList.remove('is-reel');
+      if (reelWrap) reelWrap.classList.add('hidden');
+      if (wrapEl) wrapEl.classList.remove('hidden');
+      if (prevEl) prevEl.classList.remove('hidden');
+
+      const nextSrc = getDishImage(dish) || 'assets/veg-angara.jpg';
+      if (prevEl && heroAdState.lastSrc && heroAdState.lastSrc !== nextSrc) {
+        prevEl.src = heroAdState.lastSrc;
+      }
+
+      const mIdx = pickDifferentIdx(REEL_MOTIONS.length, heroAdState.lastMotionIdx);
+      const tIdx = pickDifferentIdx(REEL_TRANSITIONS.length, heroAdState.lastTransIdx);
+      heroAdState.lastMotionIdx = mIdx;
+      heroAdState.lastTransIdx = tIdx;
+
+      const motionClass = REEL_MOTIONS[mIdx];
+      const transClass = REEL_TRANSITIONS[tIdx];
+
+      if (wrapEl) {
+        wrapEl.classList.remove(...REEL_TRANSITIONS);
+        void wrapEl.offsetWidth;
+        wrapEl.classList.add(transClass);
+      }
+      imgEl.classList.remove(...REEL_MOTIONS, 'ken-burns');
+      void imgEl.offsetWidth;
+      imgEl.src = nextSrc;
+      imgEl.alt = dish.name;
+      imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; };
+      imgEl.classList.add(motionClass);
+      heroAdState.lastSrc = nextSrc;
+
+      $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG';
+      $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
+      $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
+      $('heroAdServed').textContent = `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
+      $('heroAdPrice').textContent = `₹${dish.price}/-`;
     }
-
-    const mIdx = pickDifferentIdx(REEL_MOTIONS.length, heroAdState.lastMotionIdx);
-    const tIdx = pickDifferentIdx(REEL_TRANSITIONS.length, heroAdState.lastTransIdx);
-    heroAdState.lastMotionIdx = mIdx;
-    heroAdState.lastTransIdx = tIdx;
-
-    const motionClass = REEL_MOTIONS[mIdx];
-    const transClass = REEL_TRANSITIONS[tIdx];
-
-    if (wrapEl) {
-      wrapEl.classList.remove(...REEL_TRANSITIONS);
-      void wrapEl.offsetWidth;
-      wrapEl.classList.add(transClass);
-    }
-    imgEl.classList.remove(...REEL_MOTIONS, 'ken-burns');
-    void imgEl.offsetWidth;
-    imgEl.src = nextSrc;
-    imgEl.alt = dish.name;
-    imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; };
-    imgEl.classList.add(motionClass);
-    heroAdState.lastSrc = nextSrc;
 
     // Preload next 2 dish photos for seamless zero-flicker video transitions
     [1, 2].forEach((offset) => {
-      const preloadItem = list[(heroAdState.idx + offset) % list.length];
-      const u = getDishImage(preloadItem);
-      if (u) { const pre = new Image(); pre.src = u; }
+      const nextItem = playlist[(heroAdState.idx + offset) % playlist.length];
+      if (nextItem?.kind === 'dish') {
+        const u = getDishImage(nextItem.dish);
+        if (u) { const pre = new Image(); pre.src = u; }
+      }
     });
 
-    $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG';
-    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length}`;
-    $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
-    $('heroAdServed').textContent = `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
-    $('heroAdPrice').textContent = `₹${dish.price}/-`;
-
     const miniWrap = $('heroMiniReelList');
-    if (miniWrap && list.length >= 3) {
-      const nextThree = [1, 2, 3].map((offset) => list[(heroAdState.idx + offset) % list.length]);
+    if (miniWrap && dishList.length >= 3) {
+      const baseDishIdx = Math.max(0, dishList.findIndex((d) => d.id === heroAdState.currentDishId));
+      const nextThree = [1, 2, 3].map((offset) => dishList[(baseDishIdx + offset) % dishList.length]);
       miniWrap.innerHTML = nextThree
         .map(
           (d) => `
@@ -958,6 +1064,17 @@
     $('heroAdToggleBtn')?.addEventListener('click', () => {
       heroAdState.paused = !heroAdState.paused;
       $('heroAdToggleBtn').textContent = heroAdState.paused ? '▶' : '⏸';
+    });
+    $('heroAdModeTabs')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-ad-mode]');
+      if (!btn) return;
+      $('heroAdModeTabs').querySelectorAll('.ad-mode-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      heroAdState.mode = btn.dataset.adMode || 'all';
+      heroAdState.elapsed = 0;
+      heroAdState.idx = 0;
+      heroAdState.activeReelId = '';
+      renderHeroAdSlide();
     });
     $('heroAdAddBtn')?.addEventListener('click', () => {
       if (heroAdState.currentDishId) updateQty(heroAdState.currentDishId, 1);
@@ -2778,6 +2895,10 @@
             <div><label>Opening Hours Text</label><input type="text" id="admHours" value="${escapeHtml(s.openHoursText || '')}" /></div>
             <div><label>WhatsApp Number (91...)</label><input type="text" id="admPhone" value="${escapeHtml(s.phone || '919054633908')}" /></div>
           </div>
+          <label>Instagram Handle (@username)</label>
+          <input type="text" id="admInstaHandle" value="${escapeHtml(s.instagramHandle || 'chatkaro_the_food_hub')}" placeholder="chatkaro_the_food_hub" />
+          <label>Instagram Reels URLs (One per line — auto plays in Hero Ads &amp; Reels Showcase)</label>
+          <textarea id="admInstaReels" rows="2" placeholder="https://www.instagram.com/reels/DeoG7QDA2O3/">${escapeHtml(s.instagramReels || '')}</textarea>
           <label>Address</label>
           <input type="text" id="admAddress" value="${escapeHtml(s.address || '')}" />
 
@@ -2863,6 +2984,8 @@
           dailyDeal: $('admDailyDeal').value,
           openHoursText: $('admHours').value,
           phone: $('admPhone').value,
+          instagramHandle: $('admInstaHandle').value,
+          instagramReels: $('admInstaReels').value,
           address: $('admAddress').value,
           merchantUpiId: $('admMerchantUpi').value,
           razorpayKeyId: $('admRzpKeyId').value,

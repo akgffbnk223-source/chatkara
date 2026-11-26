@@ -494,6 +494,122 @@ body.no-fx * {
   display: grid;
   place-items: center;
 }
+
+/* Instagram Reel Ad Mode + Reel Showcase */
+.platter-header {
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.insta-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.22rem 0.62rem;
+  border-radius: 999px;
+}
+.hero-ad-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0.25rem;
+}
+.ad-mode-btn {
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.62rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ad-mode-btn.active,
+.ad-mode-btn:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+.hero-ad-stage {
+  transition: height 0.32s ease;
+}
+.hero-ad-stage.is-reel {
+  height: 410px;
+  background: #000;
+}
+.hero-ad-reel-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+}
+.hero-ad-reel-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.insta-follow-tab {
+  background: linear-gradient(135deg, #c13584, #e1306c) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+.insta-reels-showcase {
+  margin-top: 2.2rem;
+  padding-top: 1.6rem;
+  border-top: 1px dashed var(--border);
+}
+.insta-reels-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.insta-reels-head h3 {
+  font-family: 'Bebas Neue', 'Fraunces', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.insta-reels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 1.15rem;
+}
+.insta-reel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.insta-reel-embed-box {
+  width: 100%;
+  height: 460px;
+  background: #000;
+}
+.insta-reel-embed-box iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.insta-reel-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.72rem 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
 .hero-ad-controls-below button:hover {
   border-color: var(--primary);
   color: var(--primary);
@@ -2186,8 +2302,10 @@ body.no-fx * {
   .crimson-reviews-band { padding: 1.4rem 1rem; border-radius: 20px; }
   .crimson-story-band { border-radius: 20px; padding: 1.5rem 1rem 1.6rem; }
   .hero-ad-stage { height: 225px; }
-  .hero-ad-caption { left: 10px; right: 10px; bottom: 10px; }
-  .hero-ad-info h3 { font-size: 0.94rem; }
+  .hero-ad-stage.is-reel { height: 390px; }
+  .insta-reel-embed-box { height: 400px; }
+  .hero-ad-below-bar { flex-direction: column; align-items: stretch; }
+  .hero-ad-below-actions { flex-direction: row; justify-content: space-between; align-items: center; }
   .hero-ctas .btn { width: 100%; justify-content: center; }
   .game-stage-card { padding: 0.7rem; }
   .platter-card { padding: 0.85rem; }

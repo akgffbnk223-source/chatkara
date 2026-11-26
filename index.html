@@ -110,15 +110,26 @@
         <div class="hero-visual reveal">
           <div class="platter-card card-hover">
             <div class="platter-header">
-              <span class="tag-hot"><span class="reel-live-dot"></span> LIVE DISH VIDEO AD</span>
+              <span class="tag-hot"><span class="reel-live-dot"></span> LIVE DISH &amp; REEL ADS</span>
+              <a class="insta-mini-pill" id="heroInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 @chatkaro_the_food_hub</a>
               <span class="price-tag" id="heroPriceRange">₹1–300 per person</span>
             </div>
 
-            <!-- Pure Clean Unobstructed Video Ad Screen (Zero Text Over Image) -->
-            <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish showcase video reel">
+            <div class="hero-ad-mode-tabs" id="heroAdModeTabs" aria-label="Choose video ad mode">
+              <button type="button" class="ad-mode-btn active" data-ad-mode="all">🎬 Dish + Insta Ads</button>
+              <button type="button" class="ad-mode-btn" data-ad-mode="dish">🍲 Dish Ads</button>
+              <button type="button" class="ad-mode-btn" data-ad-mode="reel-0">📸 Insta Reel 1</button>
+              <button type="button" class="ad-mode-btn" data-ad-mode="reel-1">📸 Insta Reel 2</button>
+            </div>
+
+            <!-- Pure Clean Unobstructed Video Ad Screen (Zero Text Over Image / Video) -->
+            <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish and Instagram reel video ads">
               <img id="heroAdImgPrev" class="hero-ad-img-prev" src="assets/veg-angara.jpg" alt="" aria-hidden="true" />
               <div class="hero-ad-media-wrap" id="heroAdMediaWrap">
                 <img id="heroAdImg" class="hero-ad-img" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
+              </div>
+              <div class="hero-ad-reel-wrap hidden" id="heroAdReelWrap">
+                <iframe id="heroAdReelFrame" title="Chatkaro Food Hub Instagram Reel Ad" frameborder="0" scrolling="no" allowtransparency="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>
               </div>
               <div class="hero-ad-progress-track">
                 <div class="hero-ad-progress-fill" id="heroAdProgress"></div>
@@ -426,10 +437,23 @@
             <button type="button" class="tab-btn" data-pcat="food">🍲 Food &amp; Drink</button>
             <button type="button" class="tab-btn" data-pcat="vibe">✨ Vibe</button>
             <button type="button" class="tab-btn" data-pcat="owner">🏠 By Owner</button>
+            <a class="tab-btn insta-follow-tab" id="momentsInstaBtn" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 Follow @chatkaro_the_food_hub</a>
           </div>
         </div>
 
         <div class="photos-grid moments-mosaic" id="mapPhotosGrid"></div>
+
+        <!-- Official Instagram Reels Video Showcase -->
+        <div class="insta-reels-showcase" id="instaReelsShowcase">
+          <div class="insta-reels-head">
+            <div>
+              <span class="section-kicker">OFFICIAL INSTAGRAM REELS</span>
+              <h3>Watch Our Live <span class="crimson-accent-word">Instagram Reels</span></h3>
+            </div>
+            <a class="btn btn-primary btn-sm" id="instaFollowProfileBtn" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 @chatkaro_the_food_hub</a>
+          </div>
+          <div class="insta-reels-grid" id="instaReelsGrid"></div>
+        </div>
       </div>
     </section>
 
@@ -583,6 +607,9 @@
               <a class="btn btn-outline" id="visitCallLink" href="tel:+919054633908">
                 📞 Call 090546 33908
               </a>
+              <a class="btn btn-outline" id="visitInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">
+                📸 Instagram @chatkaro_the_food_hub
+              </a>
             </div>
           </div>
         </div>
@@ -603,6 +630,7 @@
         <a href="#maps-gallery">Maps Photos</a>
         <a href="#reviews">Reviews</a>
         <a href="#location">Map</a>
+        <a id="footerInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 Instagram</a>
       </div>
     </div>
   </footer>
