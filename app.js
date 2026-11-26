@@ -743,8 +743,34 @@
   };
 
   function getDishImage(item) {
+    if (!item || item.image === '__NONE__') return '';
     const raw = item.image || CATEGORY_FALLBACK_IMG[item.category] || 'assets/veg-kadai.jpg';
     return String(raw).startsWith('/assets/') ? raw.slice(1) : raw;
+  }
+
+  function compressImageFile(file, maxDim = 900) {
+    return new Promise((resolve, reject) => {
+      if (!file) return reject(new Error('No file selected'));
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Invalid image file'));
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.86));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   const DEFAULT_SERVED_WITH = {
@@ -760,7 +786,8 @@
   };
 
   // ================= HERO LIVE VIDEO-AD DISH REEL =================
-  const heroAdState = { idx: 0, paused: false, elapsed: 0, duration: 4200, timer: null, currentDishId: 'veg-angara' };
+  const heroAdState = { idx: 0, paused: false, elapsed: 0, duration: 3800, timer: null, currentDishId: 'veg-angara', lastSrc: '' };
+  const REEL_MOTIONS = ['ken-zoom-in', 'ken-pan-left', 'ken-pan-right', 'ken-zoom-out'];
   const CAT_LABELS = {
     'veg-prep': '🥘 VEG PREPARATION',
     'kaju-prep': '🥜 KAJU SPECIAL',
@@ -774,36 +801,58 @@
   };
 
   function renderHeroAdSlide() {
-    const list = appState.menu.filter((m) => m.available !== false);
+    const list = appState.menu.filter((m) => m.available !== false && m.image !== '__NONE__');
     if (!list.length || !$('heroAdStage')) return;
     heroAdState.idx = ((heroAdState.idx % list.length) + list.length) % list.length;
     const dish = list[heroAdState.idx];
     heroAdState.currentDishId = dish.id;
 
+    const nextSrc = getDishImage(dish) || 'assets/veg-angara.jpg';
     const imgEl = $('heroAdImg');
-    imgEl.style.opacity = '0.35';
-    imgEl.src = getDishImage(dish);
-    imgEl.alt = dish.name;
-    imgEl.classList.remove('ken-burns');
-    void imgEl.offsetWidth; // trigger CSS animation reset for video-like Ken Burns motion
-    imgEl.classList.add('ken-burns');
-    imgEl.onload = () => { imgEl.style.opacity = '1'; };
-    setTimeout(() => { imgEl.style.opacity = '1'; }, 120);
+    const prevEl = $('heroAdImgPrev');
+    if (prevEl && heroAdState.lastSrc && heroAdState.lastSrc !== nextSrc) {
+      prevEl.src = heroAdState.lastSrc;
+    }
+
+    const motionClass = REEL_MOTIONS[heroAdState.idx % REEL_MOTIONS.length];
+    imgEl.style.transition = 'none';
+    imgEl.style.opacity = heroAdState.lastSrc ? '0' : '1';
+    imgEl.classList.remove(...REEL_MOTIONS, 'ken-burns');
+    void imgEl.offsetWidth;
+    imgEl.classList.add(motionClass);
+
+    const revealFrame = () => {
+      requestAnimationFrame(() => {
+        imgEl.style.transition = 'opacity 0.65s ease';
+        imgEl.style.opacity = '1';
+      });
+    };
+    imgEl.onload = revealFrame;
+    imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; revealFrame(); };
+    imgEl.src = nextSrc;
+    if (imgEl.complete) revealFrame();
+    heroAdState.lastSrc = nextSrc;
+
+    // Preload next 2 dish photos for seamless zero-flicker video transitions
+    [1, 2].forEach((offset) => {
+      const preloadItem = list[(heroAdState.idx + offset) % list.length];
+      const u = getDishImage(preloadItem);
+      if (u) { const pre = new Image(); pre.src = u; }
+    });
 
     $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG SPECIAL';
-    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length} • 100% Pure Veg${dish.bestseller ? ' • ⭐ Bestseller' : ''}`;
+    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length} • ${heroAdState.paused ? '⏸ Paused' : '▶ Live Video Ad'}${dish.bestseller ? ' • ⭐ Bestseller' : ''}`;
     $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
     $('heroAdServed').textContent = `🎁 Saath Mein: ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
     $('heroAdPrice').textContent = `₹${dish.price}/-`;
 
-    // Update 3 upcoming quick-add dishes below the video stage
     const miniWrap = $('heroMiniReelList');
     if (miniWrap && list.length >= 3) {
       const nextThree = [1, 2, 3].map((offset) => list[(heroAdState.idx + offset) % list.length]);
       miniWrap.innerHTML = nextThree
         .map(
           (d) => `
-        <div class="mini-dish hover-pop" data-quick-add="${escapeHtml(d.id)}">
+        <div class="mini-dish" data-quick-add="${escapeHtml(d.id)}">
           <span>${escapeHtml(d.emoji)} ${escapeHtml(d.name)}${d.guName ? ' (' + escapeHtml(d.guName) + ')' : ''}</span>
           <strong>₹${d.price} <button type="button" class="mini-add-btn">+ Add</button></strong>
         </div>`
@@ -821,7 +870,7 @@
     if (heroAdState.timer) clearInterval(heroAdState.timer);
     heroAdState.timer = setInterval(() => {
       if (heroAdState.paused) return;
-      heroAdState.elapsed += 100;
+      heroAdState.elapsed += 50;
       const pct = Math.min(100, (heroAdState.elapsed / heroAdState.duration) * 100);
       if ($('heroAdProgress')) $('heroAdProgress').style.width = `${pct}%`;
       if (heroAdState.elapsed >= heroAdState.duration) {
@@ -829,7 +878,7 @@
         heroAdState.idx += 1;
         renderHeroAdSlide();
       }
-    }, 100);
+    }, 50);
 
     $('heroAdPrevBtn')?.addEventListener('click', () => {
       heroAdState.elapsed = 0;
@@ -885,12 +934,16 @@
                <span>${qty}</span>
                <button type="button" data-action="inc" data-id="${item.id}">+</button>
              </div>`
-          : `<button type="button" class="btn btn-primary btn-sm hover-pop" data-action="inc" data-id="${item.id}">+ Order Now</button>`;
+          : `<button type="button" class="btn btn-primary btn-sm menu-order-btn" data-action="inc" data-id="${item.id}">+ Order Now</button>`;
+
+        const mediaHtml = dishImg
+          ? `<img class="dish-photo-img" src="${escapeHtml(dishImg)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='assets/veg-kadai.jpg';" />`
+          : `<div class="dish-no-photo-placeholder" aria-label="No dish photo"><span>${escapeHtml(item.emoji)}</span><small>100% Pure Veg</small></div>`;
 
         return `
           <article class="menu-card ${soldOut ? 'sold-out' : ''}">
             <div class="dish-photo-wrap">
-              <img class="dish-photo-img" src="${escapeHtml(dishImg)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='assets/veg-kadai.jpg';" />
+              ${mediaHtml}
               <div class="dish-photo-overlay"></div>
               <div class="dish-photo-top-badges">
                 <div class="dish-photo-badges-left">
@@ -2171,7 +2224,7 @@
       const cats = ['veg-prep', 'kaju-prep', 'cheese-prep', 'tandoor', 'south-indian', 'chinese', 'punjabi', 'fast-food', 'beverages'];
       $('adminTabMenu').innerHTML = `
         <form id="admAddDishForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
-          <strong style="width:100%;">➕ Add New Dish <small class="muted" style="font-weight:500;">(Photo URL khali chhodne par dish ke naam se automatic photo ban kar add ho jayegi!)</small></strong>
+          <strong style="width:100%;">➕ Add New Dish <small class="muted" style="font-weight:500;">(Photo Upload karein, URL daalein, ya khali chhodein to automatic photo ban kar add hogi!)</small></strong>
           <div class="admin-controls-inline" style="width:100%;">
             <input type="text" id="newDishName" placeholder="Dish Name *" required />
             <input type="number" id="newDishPrice" placeholder="Price ₹ *" required style="width:85px;" />
@@ -2189,43 +2242,69 @@
             <input type="text" id="newDishEmoji" value="🍲" style="width:55px;" />
             <input type="text" id="newDishServed" placeholder="Saath Mein Milega (e.g. Chutney &amp; Salad)" style="flex:1;min-width:170px;" />
             <input type="text" id="newDishDesc" placeholder="Description" style="flex:1;min-width:160px;" />
-            <input type="url" id="newDishImg" placeholder="Photo URL (Optional — auto-fetch if empty)" style="flex:1;min-width:180px;" />
+            <input type="url" id="newDishImg" placeholder="Photo URL (Optional — auto if empty)" style="flex:1;min-width:180px;" />
+            <label class="btn btn-outline btn-xs" style="cursor:pointer;">
+              📁 Choose Photo <input type="file" id="newDishFile" accept="image/*" style="display:none;" />
+            </label>
+            <span id="newDishFileLabel" class="small muted"></span>
             <label class="small"><input type="checkbox" id="newDishBest" /> ⭐ Best</label>
             <label class="small"><input type="checkbox" id="newDishSpicy" /> 🌶️ Spicy</label>
-            <button type="submit" class="btn btn-primary btn-sm" id="admAddDishSubmitBtn">Add Dish + Auto Photo</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="admAddDishSubmitBtn">Add Dish + Photo</button>
           </div>
         </form>
         <div class="admin-grid-list">
           ${appState.menu
             .map(
-              (m) => `
-            <div class="admin-row-card">
-              <div class="admin-controls-inline" style="flex:1;">
-                <img src="${escapeHtml(getDishImage(m))}" alt="" style="width:42px;height:36px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+              (m) => {
+                const thumbSrc = getDishImage(m);
+                const thumbHtml = thumbSrc
+                  ? `<img src="${escapeHtml(thumbSrc)}" alt="" style="width:48px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #d1d5db;" />`
+                  : `<div style="width:48px;height:40px;border-radius:8px;background:#f3f4f6;border:1px dashed #9ca3af;display:grid;place-items:center;font-size:1.1rem;flex-shrink:0;" title="Photo Deleted">${escapeHtml(m.emoji)}</div>`;
+                return `
+            <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.55rem;">
+              <div class="admin-controls-inline" style="width:100%;">
+                ${thumbHtml}
                 <input type="text" class="adm-demoji" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.emoji)}" style="width:44px;text-align:center;" />
-                <input type="text" class="adm-dname" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.name)}" style="min-width:150px;flex:1;" />
+                <input type="text" class="adm-dname" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.name)}" style="min-width:140px;flex:1;" />
                 <select class="adm-dcat" data-id="${escapeHtml(m.id)}">
                   ${cats.map((c) => `<option value="${c}" ${m.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                 </select>
                 <span>₹</span>
-                <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:70px;" />
+                <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:72px;" />
               </div>
-              <div class="admin-controls-inline">
-                <button type="button" class="btn btn-primary btn-xs adm-save-dish-btn" data-id="${escapeHtml(m.id)}">Save</button>
-                <button type="button" class="btn btn-outline btn-xs adm-toggle-avail-btn" data-id="${escapeHtml(m.id)}">${m.available === false ? 'Enable' : 'Sold Out'}</button>
-                <button type="button" class="btn btn-danger btn-xs adm-del-dish-btn" data-id="${escapeHtml(m.id)}">✕</button>
+              <div class="admin-controls-inline" style="width:100%;justify-content:space-between;">
+                <div class="admin-controls-inline" style="flex:1;">
+                  <input type="text" class="adm-dimg" data-id="${escapeHtml(m.id)}" value="${m.image === '__NONE__' ? '' : escapeHtml(m.image || '')}" placeholder="Photo path or URL..." style="flex:1;min-width:160px;" />
+                  <label class="btn btn-outline btn-xs" style="cursor:pointer;" title="Upload new photo from device">
+                    📁 Upload Photo <input type="file" accept="image/*" class="adm-photo-file" data-id="${escapeHtml(m.id)}" style="display:none;" />
+                  </label>
+                  <button type="button" class="btn btn-outline btn-xs adm-auto-photo-btn" data-id="${escapeHtml(m.id)}" title="Auto fetch fresh dish photo">✨ Auto Photo</button>
+                  <button type="button" class="btn btn-danger btn-xs adm-del-photo-btn" data-id="${escapeHtml(m.id)}" title="Delete dish photo">🗑️ Del Photo</button>
+                </div>
+                <div class="admin-controls-inline">
+                  <button type="button" class="btn btn-primary btn-xs adm-save-dish-btn" data-id="${escapeHtml(m.id)}">Save</button>
+                  <button type="button" class="btn btn-outline btn-xs adm-toggle-avail-btn" data-id="${escapeHtml(m.id)}">${m.available === false ? 'Enable' : 'Sold Out'}</button>
+                  <button type="button" class="btn btn-danger btn-xs adm-del-dish-btn" data-id="${escapeHtml(m.id)}" title="Delete full dish">✕</button>
+                </div>
               </div>
-            </div>`
+            </div>`;
+              }
             )
             .join('')}
         </div>`;
 
+      let pendingNewDishFile = null;
+      $('newDishFile')?.addEventListener('change', () => {
+        pendingNewDishFile = $('newDishFile').files?.[0] || null;
+        if ($('newDishFileLabel')) $('newDishFileLabel').textContent = pendingNewDishFile ? `📎 ${pendingNewDishFile.name}` : '';
+      });
+
       $('admAddDishForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = $('admAddDishSubmitBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Adding + Finding Photo...'; }
+        if (btn) { btn.disabled = true; btn.textContent = 'Adding + Saving Photo...'; }
         try {
-          await api('/api/admin/menu', 'POST', {
+          const res = await api('/api/admin/menu', 'POST', {
             item: {
               name: $('newDishName').value.trim(),
               price: Number($('newDishPrice').value),
@@ -2238,9 +2317,16 @@
               spicy: $('newDishSpicy').checked
             }
           }, pinHeaders);
+          const createdDish = res?.menu?.[0];
+          if (pendingNewDishFile && createdDish?.id) {
+            const dataUrl = await compressImageFile(pendingNewDishFile);
+            await api('/api/admin/upload-dish-photo', 'POST', { dishId: createdDish.id, dataUrl, filename: pendingNewDishFile.name }, pinHeaders);
+          }
           showToast('New dish added with photo! 📸');
+        } catch (err) {
+          showToast(err.message);
         } finally {
-          if (btn) { btn.disabled = false; btn.textContent = 'Add Dish + Auto Photo'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Add Dish + Photo'; }
         }
       });
 
@@ -2252,8 +2338,55 @@
           const emoji = $('adminTabMenu').querySelector(`.adm-demoji[data-id="${id}"]`).value.trim();
           const category = $('adminTabMenu').querySelector(`.adm-dcat[data-id="${id}"]`).value;
           const price = Number($('adminTabMenu').querySelector(`.adm-price-input[data-id="${id}"]`).value);
-          await api('/api/admin/menu', 'POST', { item: { ...dish, name, emoji, category, price } }, pinHeaders);
+          const imgVal = $('adminTabMenu').querySelector(`.adm-dimg[data-id="${id}"]`).value.trim();
+          const image = imgVal === '' ? '__NONE__' : imgVal;
+          await api('/api/admin/menu', 'POST', { item: { ...dish, name, emoji, category, price, image } }, pinHeaders);
           showToast(`Saved ${name} (₹${price})`);
+        });
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-photo-file').forEach((inp) => {
+        inp.addEventListener('change', async () => {
+          const file = inp.files?.[0];
+          const id = inp.dataset.id;
+          if (!file || !id) return;
+          try {
+            showToast('Uploading dish photo...');
+            const dataUrl = await compressImageFile(file);
+            await api('/api/admin/upload-dish-photo', 'POST', { dishId: id, dataUrl, filename: file.name }, pinHeaders);
+            showToast('Dish photo updated! 📸');
+          } catch (err) {
+            showToast(err.message || 'Upload failed');
+          }
+        });
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-auto-photo-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          btn.disabled = true;
+          btn.textContent = 'Finding...';
+          try {
+            await api(`/api/admin/menu/${id}/auto-photo`, 'POST', {}, pinHeaders);
+            showToast('Fresh dish photo set automatically! ✨');
+          } catch (err) {
+            showToast(err.message);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = '✨ Auto Photo';
+          }
+        });
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-del-photo-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          try {
+            await api(`/api/admin/menu/${id}/photo`, 'DELETE', null, pinHeaders);
+            showToast('Dish photo deleted! 🗑️');
+          } catch (err) {
+            showToast(err.message);
+          }
         });
       });
 

@@ -467,7 +467,7 @@ function readJsonBody(req) {
     let raw = '';
     req.on('data', (chunk) => {
       raw += chunk;
-      if (raw.length > 4e6) reject(new Error('Body too large'));
+      if (raw.length > 6e6) reject(new Error('Body too large'));
     });
     req.on('end', () => {
       if (!raw) return resolve({});
@@ -1311,6 +1311,61 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       }
       recalculateTopAndBroadcast();
       return sendJson(res, 200, { menu: db.menu });
+    }
+
+    if (pathname === '/api/admin/upload-dish-photo' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const dishId = String(body.dishId || '').trim();
+      const dataUrl = String(body.dataUrl || '').trim();
+      const match = dataUrl.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) return sendJson(res, 400, { error: 'Invalid image format. Please choose JPG, PNG, or WebP.' });
+      const buf = Buffer.from(match[2], 'base64');
+      if (buf.length > 5e6) return sendJson(res, 400, { error: 'Image must be under 5 MB.' });
+
+      const ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+      const dishesDir = path.join(ROOT_DIR, 'assets', 'dishes');
+      if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
+      const safeId = (dishId || 'dish').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 28) || 'dish';
+      const fileName = `upload-${safeId}-${Date.now()}.${ext}`;
+      fs.writeFileSync(path.join(dishesDir, fileName), buf);
+      const imagePath = `assets/dishes/${fileName}`;
+
+      if (dishId) {
+        db.menu = db.menu.map((m) => (m.id === dishId ? { ...m, image: imagePath } : m));
+        recalculateTopAndBroadcast();
+      }
+      return sendJson(res, 200, { ok: true, image: imagePath, menu: db.menu });
+    }
+
+    if (pathname.startsWith('/api/admin/menu/') && pathname.endsWith('/auto-photo') && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const parts = pathname.split('/').filter(Boolean);
+      const id = parts[parts.length - 2];
+      const dish = db.menu.find((m) => m.id === id);
+      if (!dish) return sendJson(res, 404, { error: 'Dish not found.' });
+      const newImg = await autoFetchDishPhoto(dish.name, dish.category, dish.id);
+      dish.image = newImg;
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, image: newImg, menu: db.menu });
+    }
+
+    if (pathname.startsWith('/api/admin/menu/') && pathname.endsWith('/photo') && req.method === 'DELETE') {
+      if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const parts = pathname.split('/').filter(Boolean);
+      const id = parts[parts.length - 2];
+      const dish = db.menu.find((m) => m.id === id);
+      if (!dish) return sendJson(res, 404, { error: 'Dish not found.' });
+      if (dish.image && String(dish.image).startsWith('assets/dishes/upload-')) {
+        const oldPath = path.join(ROOT_DIR, dish.image);
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch {}
+        }
+      }
+      dish.image = '__NONE__';
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, menu: db.menu });
     }
 
     if (pathname.startsWith('/api/admin/menu/') && req.method === 'DELETE') {
