@@ -342,7 +342,7 @@ body.no-fx * {
 .menu-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: var(--shadow-md); }
 .menu-card.sold-out { opacity: 0.55; }
 .dish-photo-wrap {
-  position: relative; width: 100%; height: 170px; overflow: hidden; background: var(--surface-alt);
+  position: relative; width: 100%; height: 192px; overflow: hidden; background: var(--surface-alt);
 }
 .dish-photo-img {
   width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.45s ease;
@@ -350,7 +350,7 @@ body.no-fx * {
 .menu-card:hover .dish-photo-img { transform: scale(1.07); }
 .dish-photo-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.08) 20%, rgba(15,10,7,0.82) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.12) 15%, rgba(15,10,7,0.88) 100%);
   pointer-events: none;
 }
 .dish-photo-top-badges {
@@ -359,13 +359,38 @@ body.no-fx * {
 .dish-photo-badges-left { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .dish-photo-price {
   position: absolute; bottom: 10px; right: 12px;
-  background: rgba(15, 10, 7, 0.88); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.45);
-  padding: 0.25rem 0.65rem; border-radius: 999px; font-weight: 800; font-size: 0.96rem;
+  background: rgba(15, 10, 7, 0.9); color: #fbbf24; border: 1.5px solid rgba(251, 191, 36, 0.55);
+  padding: 0.25rem 0.7rem; border-radius: 999px; font-weight: 800; font-size: 0.98rem;
   backdrop-filter: blur(6px);
 }
 .dish-gu-badge {
   position: absolute; bottom: 10px; left: 12px;
-  color: #fff7ed; font-weight: 700; font-size: 0.84rem; text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  color: #fff7ed; font-weight: 700; font-size: 0.86rem; text-shadow: 0 2px 6px rgba(0,0,0,0.85);
+}
+.dish-portion-pill {
+  display: inline-block;
+  font-size: 0.69rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 999px;
+  padding: 0.12rem 0.52rem;
+  margin-top: 0.3rem;
+}
+.dish-served-box {
+  margin-top: 0.55rem;
+  background: rgba(34, 197, 94, 0.09);
+  border: 1px dashed rgba(34, 197, 94, 0.4);
+  border-radius: 10px;
+  padding: 0.42rem 0.6rem;
+  font-size: 0.76rem;
+  line-height: 1.38;
+  color: var(--text-strong);
+}
+.dish-served-box strong {
+  color: var(--veg);
+  font-weight: 800;
 }
 .menu-card-body {
   padding: 0.95rem 1.05rem 1.05rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; flex: 1;

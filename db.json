@@ -20,7 +20,7 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795722568923,
+    "lastMapsSyncAt": 1795724131762,
     "announcement": "🌿 100% Pure Vegetarian • Veg, Kaju & Cheese Specials, Dosas & Chinese • Open till 12:30 AM!",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
@@ -42,7 +42,9 @@
       "price": 230,
       "emoji": "🥗",
       "image": "assets/veg-mix.jpg",
-      "desc": "Garden-fresh seasonal veggies & soft paneer simmered in rich, aromatic royal North Indian masala gravy.",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Onion-Lemon Salad, Green Mint Chutney & Punjabi Achar",
+      "desc": "Garden-fresh carrots, peas, beans, cauliflower & paneer simmered in rich aromatic royal masala gravy.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -55,7 +57,9 @@
       "price": 210,
       "emoji": "🥘",
       "image": "assets/veg-kadai.jpg",
-      "desc": "Crunchy bell peppers, paneer & mixed veggies wok-tossed in freshly pounded kadai spices and sizzling tomato gravy.",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Onion-Lemon Salad, Mint Chutney & Roasted Masala Papad",
+      "desc": "Crunchy bell peppers, paneer & mixed veggies wok-tossed in freshly pounded kadai spices & sizzling gravy.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -68,7 +72,9 @@
       "price": 230,
       "emoji": "🍲",
       "image": "assets/veg-handi.jpg",
-      "desc": "Slow-cooked creamy handi curry packed with tender vegetables, cashews, butter & fragrant whole spices.",
+      "portion": "320g Handi • Serves 2",
+      "servedWith": "Kachumber Salad, Green Chutney & Mango Pickle",
+      "desc": "Slow-cooked creamy clay-pot handi curry packed with tender vegetables, cashews, butter & whole spices.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -81,7 +87,9 @@
       "price": 240,
       "emoji": "🌶️",
       "image": "assets/veg-kolhapuri.jpg",
-      "desc": "Bold & fiery Kolhapuri-style masala bursting with roasted coconut, red chillies & smoky spices.",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Cooling Cucumber-Onion Salad, Mint Chutney & Lemon",
+      "desc": "Bold & fiery Kolhapuri-style masala bursting with roasted coconut, sesame, red chillies & smoky spices.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -94,7 +102,9 @@
       "price": 250,
       "emoji": "👑",
       "image": "assets/veg-maharaja.jpg",
-      "desc": "A royal double-layered feast of exotic veggies, paneer & rich velvety cashew-cream gravy fit for kings.",
+      "portion": "350g Royal Bowl • Serves 2",
+      "servedWith": "Vinegar Onion Salad, Mint Chutney & Crispy Papad",
+      "desc": "A royal double-layered feast of exotic veggies, soft paneer & velvety saffron-cashew cream gravy.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -107,6 +117,8 @@
       "price": 240,
       "emoji": "🔥",
       "image": "assets/veg-tawa-masala.jpg",
+      "portion": "300g Tawa • Serves 2",
+      "servedWith": "Fresh Lemon Wedges, Masala Onion Rings & Green Chutney",
       "desc": "Char-seared veggies & paneer roasted on a hot iron tawa with tangy onion-tomato bhuna masala & butter.",
       "bestseller": false,
       "spicy": true,
@@ -120,7 +132,9 @@
       "price": 240,
       "emoji": "✨",
       "image": "assets/veg-diwani-handi.jpg",
-      "desc": "Silky spinach-cashew & vegetable delicacy slow-simmered in a traditional earthen handi with aromatic herbs.",
+      "portion": "320g Handi • Serves 2",
+      "servedWith": "Onion-Lemon Salad, Mint Chutney & Achar",
+      "desc": "Silky spinach-cashew & vegetable delicacy slow-simmered in an earthen handi with roasted garlic & herbs.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -133,7 +147,9 @@
       "price": 260,
       "emoji": "🔥",
       "image": "assets/veg-angara.jpg",
-      "desc": "Signature charcoal-smoked sizzling curry with bold spices, roasted peppers & unforgettable smoky dhungar aroma.",
+      "portion": "320g Smoky • Serves 2",
+      "servedWith": "Mint Dip, Laccha Onion Salad & Roasted Papad",
+      "desc": "Signature charcoal-smoked sizzling curry with bold spices, roasted peppers & unforgettable dhungar aroma.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -146,7 +162,9 @@
       "price": 260,
       "emoji": "⚡",
       "image": "assets/veg-tufani.jpg",
-      "desc": "Stormy, high-flavor spicy gravy loaded with crisp veggies, ginger-garlic tadka & rich fiery red masala.",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Onion-Tomato Salad, Green Chutney & Lemon",
+      "desc": "Stormy, high-flavor spicy gravy loaded with crisp veggies, ginger-garlic tadka & fiery red masala.",
       "bestseller": false,
       "spicy": true,
       "available": true
@@ -158,8 +176,10 @@
       "category": "veg-prep",
       "price": 280,
       "emoji": "🌿",
-      "image": "assets/veg-diwani-handi.jpg",
-      "desc": "Nizami-style green herb, mint, coriander & royal spice gravy with rich cashew paste and paneer.",
+      "image": "assets/dishes/veg-hyderabadi.jpg",
+      "portion": "320g Nizami • Serves 2",
+      "servedWith": "Vinegar Onion, Mint Chutney & Roasted Papad",
+      "desc": "Nizami-style green herb, mint, coriander & royal spice gravy with rich cashew paste and soft paneer.",
       "bestseller": false,
       "spicy": true,
       "available": true
@@ -172,7 +192,9 @@
       "price": 280,
       "emoji": "🥜",
       "image": "assets/kaju-curry.jpg",
-      "desc": "Generous whole golden-roasted cashews simmered in a luscious, mildly spiced royal onion-tomato & cream curry.",
+      "portion": "320g Rich • Serves 2",
+      "servedWith": "Onion-Lemon Salad, Green Chutney & Achar",
+      "desc": "Generous whole golden-roasted cashews simmered in a luscious, mildly spiced royal onion-tomato curry.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -184,8 +206,10 @@
       "category": "kaju-prep",
       "price": 260,
       "emoji": "🧈",
-      "image": "assets/kaju-curry.jpg",
-      "desc": "Melt-in-mouth roasted cashews bathed in rich Amul butter, velvety tomato makhani gravy & aromatic kasuri methi.",
+      "image": "assets/dishes/kaju-butter-masala.jpg",
+      "portion": "320g Buttery • Serves 2",
+      "servedWith": "Kachumber Salad, Mint Chutney & Roasted Papad",
+      "desc": "Melt-in-mouth roasted cashews bathed in rich Amul butter, velvety tomato makhani gravy & kasuri methi.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -198,7 +222,9 @@
       "price": 280,
       "emoji": "🍛",
       "image": "assets/kaju-paneer.jpg",
-      "desc": "Best of both worlds — crunchy roasted cashews & pillowy fresh paneer cubes in a decadent saffron-cashew masala.",
+      "portion": "340g Special • Serves 2",
+      "servedWith": "Laccha Onion Salad, Green Chutney & Lemon",
+      "desc": "Best of both worlds — crunchy roasted cashews & pillowy fresh paneer cubes in a decadent saffron masala.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -210,7 +236,9 @@
       "category": "kaju-prep",
       "price": 280,
       "emoji": "🧀",
-      "image": "assets/kaju-paneer.jpg",
+      "image": "assets/dishes/kaju-cheese-butter.jpg",
+      "portion": "340g Creamy • Serves 2",
+      "servedWith": "Onion Salad, Mint Chutney & Punjabi Pickle",
       "desc": "Indulgent triple-rich gravy blending golden cashews, melted cheese & creamy butter for pure comfort.",
       "bestseller": false,
       "spicy": false,
@@ -223,7 +251,9 @@
       "category": "kaju-prep",
       "price": 260,
       "emoji": "🍮",
-      "image": "assets/kaju-paneer.jpg",
+      "image": "assets/dishes/kaju-koya.jpg",
+      "portion": "320g Shahi • Serves 2",
+      "servedWith": "Sweet-Spiced Chutney, Onion Salad & Papad",
       "desc": "Royal Shahi white-gold gravy crafted with rich mawa (khoya), whole cashews, cardamom & mild sweetness.",
       "bestseller": false,
       "spicy": false,
@@ -237,7 +267,9 @@
       "price": 280,
       "emoji": "🧀",
       "image": "assets/cheese-masala.jpg",
-      "desc": "Creamy, bubbling tomato-butter makhani loaded with soft melting cheese cubes & rich grated cheese topping!",
+      "portion": "320g Cheesy • Serves 2",
+      "servedWith": "Onion-Lemon Salad, Mint Chutney & Roasted Papad",
+      "desc": "Creamy, bubbling tomato-butter makhani loaded with soft melting cheese cubes & grated cheese topping!",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -249,7 +281,9 @@
       "category": "cheese-prep",
       "price": 280,
       "emoji": "🧈",
-      "image": "assets/cheese-masala.jpg",
+      "image": "assets/dishes/cheese-paneer-masala.jpg",
+      "portion": "340g Full • Serves 2",
+      "servedWith": "Vinegar Onion Salad, Green Chutney & Pickle",
       "desc": "Fresh malai paneer & gooey cheese cubes tossed in a luscious spiced butter gravy that cheese lovers crave.",
       "bestseller": false,
       "spicy": false,
@@ -262,8 +296,10 @@
       "category": "cheese-prep",
       "price": 300,
       "emoji": "✨",
-      "image": "assets/cheese-masala.jpg",
-      "desc": "Chef’s showstopper! Bite-sized golden cheese-kofta pearls floating in ultra-creamy, buttery royal masala gravy.",
+      "image": "assets/dishes/cheese-anguri.jpg",
+      "portion": "350g Chef Special • Serves 2",
+      "servedWith": "Kachumber Salad, Mint Chutney & Masala Papad",
+      "desc": "Chef’s showstopper! Bite-sized golden cheese-kofta pearls floating in ultra-creamy, buttery royal gravy.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -275,7 +311,9 @@
       "price": 90,
       "emoji": "🥞",
       "image": "assets/dosa-platter.jpg",
-      "desc": "Golden crispy crepe stuffed with spiced potato masala, served with hot sambar & fresh coconut chutney.",
+      "portion": "1 Full Crispy Dosa",
+      "servedWith": "Piping Hot Sambar, Fresh Coconut Chutney & Red Garlic Chutney",
+      "desc": "Golden crispy crepe stuffed with spiced potato masala, roasted in ghee to perfection.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -286,8 +324,10 @@
       "category": "south-indian",
       "price": 110,
       "emoji": "🌶️",
-      "image": "assets/dosa-platter.jpg",
-      "desc": "Fiery red garlic-chilli spread inside a crunchy dosa with butter & classic potato filling.",
+      "image": "assets/dishes/dosa-mysore.jpg",
+      "portion": "1 Spicy Dosa",
+      "servedWith": "Hot Toor-Dal Sambar, Coconut Chutney & Mysore Red Chutney",
+      "desc": "Fiery red garlic-chilli spread inside a crunchy butter dosa with classic potato masala filling.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -298,8 +338,10 @@
       "category": "south-indian",
       "price": 135,
       "emoji": "🧀",
-      "image": "assets/dosa-platter.jpg",
-      "desc": "Generous Amul butter & melted mozzarella cheese over crispy golden masala dosa.",
+      "image": "assets/dishes/dosa-cheese-butter.jpg",
+      "portion": "1 Loaded Dosa",
+      "servedWith": "Hot Sambar, Coconut Chutney & Tomato-Garlic Chutney",
+      "desc": "Generous Amul butter & melted mozzarella cheese grated generously over crispy golden masala dosa.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -310,8 +352,10 @@
       "category": "south-indian",
       "price": 75,
       "emoji": "🫓",
-      "image": "assets/dosa-platter.jpg",
-      "desc": "Extra-thin, extra-crisp golden dosa served with double chutney and aromatic sambar.",
+      "image": "assets/dishes/dosa-paper.jpg",
+      "portion": "1 Extra-Long Crisp Dosa",
+      "servedWith": "Double Bowl Hot Sambar, Coconut & Ginger Chutneys",
+      "desc": "Extra-thin, extra-crisp golden paper dosa roasted light and crunchy.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -322,7 +366,9 @@
       "category": "south-indian",
       "price": 150,
       "emoji": "🔥",
-      "image": "assets/dosa-platter.jpg",
+      "image": "assets/dishes/dosa-jinni.jpg",
+      "portion": "4-Piece Roll Platter",
+      "servedWith": "Hot Sambar, Fresh Coconut Chutney & Schezwan Cheese Dip",
       "desc": "Signature fusion roll dosa loaded with veggies, schezwan tang, paneer & melted cheese.",
       "bestseller": true,
       "spicy": true,
@@ -334,8 +380,10 @@
       "category": "south-indian",
       "price": 60,
       "emoji": "⚪",
-      "image": "assets/dosa-platter.jpg",
-      "desc": "Fluffy, cloud-soft steamed rice cakes dipped in aromatic lentil sambar & fresh chutney.",
+      "image": "assets/dishes/idli-sambar.jpg",
+      "portion": "3 Soft Steamed Idlis",
+      "servedWith": "Hot Drumstick Sambar, Coconut Chutney & Gunpowder Podi",
+      "desc": "Fluffy, cloud-soft steamed rice cakes dipped in aromatic lentil sambar.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -346,8 +394,10 @@
       "category": "south-indian",
       "price": 70,
       "emoji": "🍩",
-      "image": "assets/dosa-platter.jpg",
-      "desc": "Crunchy golden lentil fritters with curry leaves, served piping hot with sambar.",
+      "image": "assets/dishes/medu-vada.jpg",
+      "portion": "3 Crunchy Vadas",
+      "servedWith": "Hot Sambar, Fresh Coconut Chutney & Tomato Chutney",
+      "desc": "Crunchy golden lentil fritters tempered with curry leaves & black pepper.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -358,7 +408,9 @@
       "category": "south-indian",
       "price": 95,
       "emoji": "🥞",
-      "image": "assets/dosa-platter.jpg",
+      "image": "assets/dishes/uttapam-onion.jpg",
+      "portion": "1 Thick Uttapam",
+      "servedWith": "Hot Sambar, Coconut Chutney & Red Chilli Chutney",
       "desc": "Thick savory rice pancake topped with caramelized onions, tomatoes & fresh coriander.",
       "bestseller": false,
       "spicy": false,
@@ -371,6 +423,8 @@
       "price": 110,
       "emoji": "🥡",
       "image": "assets/indo-chinese.jpg",
+      "portion": "8 Crispy Balls • Full Plate",
+      "servedWith": "Spicy Schezwan Sauce, Spring Onion & Vinegar Green Chillies",
       "desc": "Crispy mixed-veg balls tossed in smoky garlic, soy & spring onion Manchurian sauce.",
       "bestseller": true,
       "spicy": true,
@@ -382,8 +436,10 @@
       "category": "chinese",
       "price": 105,
       "emoji": "🍜",
-      "image": "assets/indo-chinese.jpg",
-      "desc": "Street-style wok-tossed noodles with crunchy cabbage, bell peppers & carrots.",
+      "image": "assets/dishes/chi-hakka.jpg",
+      "portion": "450g Full Wok Bowl",
+      "servedWith": "Hot Schezwan Chutney, Soy-Vinegar Dip & Crispy Noodles",
+      "desc": "Street-style wok-tossed noodles with crunchy cabbage, bell peppers & julienne carrots.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -394,8 +450,10 @@
       "category": "chinese",
       "price": 115,
       "emoji": "🍚",
-      "image": "assets/indo-chinese.jpg",
-      "desc": "Bold spicy schezwan tossed rice with sweet corn, beans & crispy garnish.",
+      "image": "assets/dishes/chi-schezwan-rice.jpg",
+      "portion": "450g Full Bowl",
+      "servedWith": "Manchurian Gravy Cup, Schezwan Sauce & Pickled Chillies",
+      "desc": "Bold spicy schezwan tossed rice with sweet corn, beans, spring onion & crispy garnish.",
       "bestseller": false,
       "spicy": true,
       "available": true
@@ -406,8 +464,10 @@
       "category": "chinese",
       "price": 145,
       "emoji": "🌶️",
-      "image": "assets/indo-chinese.jpg",
-      "desc": "Tender paneer cubes wok-seared with capsicum, green chillies & tangy soy glaze.",
+      "image": "assets/dishes/chi-paneer-chilli.jpg",
+      "portion": "10-12 Paneer Cubes",
+      "servedWith": "Garlic-Chilli Dip, Fresh Spring Onion & Lemon",
+      "desc": "Tender paneer cubes wok-seared with capsicum, green chillies & tangy soy-garlic glaze.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -418,7 +478,9 @@
       "category": "chinese",
       "price": 85,
       "emoji": "🥗",
-      "image": "assets/indo-chinese.jpg",
+      "image": "assets/dishes/chi-bhel.jpg",
+      "portion": "1 Large Crunch Bowl",
+      "servedWith": "Extra Schezwan & Sweet-Tangy Sauce Sachets",
       "desc": "Crunchy fried noodles tossed in spicy schezwan, sweet-sour sauces & fresh veggies.",
       "bestseller": false,
       "spicy": true,
@@ -430,8 +492,10 @@
       "category": "chinese",
       "price": 75,
       "emoji": "🥣",
-      "image": "assets/indo-chinese.jpg",
-      "desc": "Steaming dark vegetable broth topped with crispy fried noodles & roasted garlic.",
+      "image": "assets/dishes/chi-soup.jpg",
+      "portion": "350ml Hot Bowl",
+      "servedWith": "Packet of Crispy Fried Noodles, Soy & Chilli Vinegar",
+      "desc": "Steaming dark vegetable broth loaded with minced veggies & roasted garlic.",
       "bestseller": false,
       "spicy": true,
       "available": true
@@ -443,7 +507,9 @@
       "price": 160,
       "emoji": "🍛",
       "image": "assets/punjabi-paneer.jpg",
-      "desc": "Soft paneer simmered in rich, velvety tomato-cashew butter gravy.",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Vinegar Onion Salad, Green Mint Chutney & Roasted Papad",
+      "desc": "Soft paneer cubes simmered in rich, velvety tomato-cashew Amul butter gravy.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -454,8 +520,10 @@
       "category": "punjabi",
       "price": 175,
       "emoji": "🔥",
-      "image": "assets/punjabi-paneer.jpg",
-      "desc": "Char-grilled spiced paneer cubes in a robust onion-tomato masala gravy.",
+      "image": "assets/dishes/pun-paneer-tikka.jpg",
+      "portion": "300g Full • Serves 2",
+      "servedWith": "Laccha Onion Rings, Mint Chutney & Lemon Wedges",
+      "desc": "Char-grilled spiced paneer cubes in a robust onion-tomato smoky masala gravy.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -466,7 +534,9 @@
       "category": "punjabi",
       "price": 125,
       "emoji": "🍲",
-      "image": "assets/punjabi-paneer.jpg",
+      "image": "assets/dishes/pun-dal-tadka.jpg",
+      "portion": "Combo Bowl • Serves 1–2",
+      "servedWith": "Roasted Masala Papad, Onion Salad & Mango Pickle",
       "desc": "Comforting yellow lentils tempered with cumin & garlic, paired with fragrant jeera rice.",
       "bestseller": false,
       "spicy": false,
@@ -478,8 +548,10 @@
       "category": "punjabi",
       "price": 65,
       "emoji": "🫓",
-      "image": "assets/punjabi-paneer.jpg",
-      "desc": "Soft tandoori flatbread brushed generously with melted Amul butter.",
+      "image": "assets/dishes/pun-butter-naan.jpg",
+      "portion": "2 Soft Tandoori Naan",
+      "servedWith": "Pure Amul Butter Brushing & Mint Chutney",
+      "desc": "Soft fluffy tandoori flatbread baked crisp outside and brushed generously with butter.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -490,7 +562,9 @@
       "category": "punjabi",
       "price": 85,
       "emoji": "🧄",
-      "image": "assets/punjabi-paneer.jpg",
+      "image": "assets/dishes/pun-garlic-naan.jpg",
+      "portion": "2 Loaded Naan Pcs",
+      "servedWith": "Amul Butter Glaze & Green Coriander Chutney",
       "desc": "Freshly baked naan topped with roasted garlic, coriander & melted cheese.",
       "bestseller": false,
       "spicy": false,
@@ -502,8 +576,10 @@
       "category": "punjabi",
       "price": 195,
       "emoji": "🍽️",
-      "image": "assets/punjabi-paneer.jpg",
-      "desc": "Complete meal: Paneer sabzi, Veg sabzi, Dal Fry, Jeera Rice, 3 Butter Roti, Chaas & Sweet.",
+      "image": "assets/dishes/pun-thali.jpg",
+      "portion": "Complete Feast • 1 Person",
+      "servedWith": "Includes: Paneer Sabzi, Veg Sabzi, Dal Fry, Jeera Rice, 3 Butter Roti, Chaas, Papad, Salad & Gulab Jamun",
+      "desc": "Our all-in-one signature wholesome Punjabi platter freshly packed with 9 delicious items!",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -515,7 +591,9 @@
       "price": 95,
       "emoji": "🥘",
       "image": "assets/fastfood-drinks.jpg",
-      "desc": "Spiced mashed veggie bhaji topped with melting butter, served with 2 toasted pav & onion salad.",
+      "portion": "Full Bhaji + 2 Pav",
+      "servedWith": "2 Butter-Toasted Pav, Chopped Onion, Lemon & Green Chutney",
+      "desc": "Spiced mashed veggie bhaji topped with melting butter cube and Mumbai-style masala.",
       "bestseller": true,
       "spicy": true,
       "available": true
@@ -526,7 +604,9 @@
       "category": "fast-food",
       "price": 90,
       "emoji": "🥪",
-      "image": "assets/fastfood-drinks.jpg",
+      "image": "assets/dishes/ff-bombay-sandwich.jpg",
+      "portion": "3-Layer Jumbo (4 Pcs)",
+      "servedWith": "Crispy Potato Wafers, Spicy Mint Chutney & Tomato Ketchup",
       "desc": "Triple-layer grilled sandwich with mint chutney, veggies, chaat masala & melted cheese.",
       "bestseller": false,
       "spicy": false,
@@ -538,8 +618,10 @@
       "category": "fast-food",
       "price": 150,
       "emoji": "🍕",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Freshly baked crust loaded with bell peppers, sweet corn, olives & mozzarella.",
+      "image": "assets/dishes/ff-pizza.jpg",
+      "portion": "8\" Medium (6 Slices)",
+      "servedWith": "Oregano Herb Packets, Chilli Flakes & Tomato Ketchup",
+      "desc": "Freshly baked crust loaded with bell peppers, sweet corn, onions, olives & mozzarella.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -550,8 +632,10 @@
       "category": "fast-food",
       "price": 65,
       "emoji": "🍔",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Crunchy herb-spiced patty, creamy mayo, lettuce & cheese slice in a toasted bun.",
+      "image": "assets/dishes/ff-burger.jpg",
+      "portion": "1 Jumbo Burger",
+      "servedWith": "Creamy Mint Mayo Dip & Tomato Ketchup",
+      "desc": "Crunchy herb-spiced patty, creamy mayo, fresh lettuce & cheese slice in a toasted bun.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -562,7 +646,9 @@
       "category": "fast-food",
       "price": 75,
       "emoji": "🍟",
-      "image": "assets/fastfood-drinks.jpg",
+      "image": "assets/dishes/ff-fries.jpg",
+      "portion": "Large Sharing Pack",
+      "servedWith": "Cheesy Jalapeno Dip & Tomato Ketchup",
       "desc": "Golden crisp potato fries dusted with zesty peri-peri spice mix.",
       "bestseller": false,
       "spicy": true,
@@ -574,8 +660,10 @@
       "category": "beverages",
       "price": 30,
       "emoji": "🥛",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Chilled traditional Kathiyawadi spiced buttermilk with roasted jeera & mint.",
+      "image": "assets/dishes/bev-chaas.jpg",
+      "portion": "300ml Chilled Glass",
+      "servedWith": "Roasted Jeera-Mint Tadka & Fresh Coriander Topping",
+      "desc": "Chilled traditional Kathiyawadi spiced buttermilk—perfect cooling partner for meals.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -586,8 +674,10 @@
       "category": "beverages",
       "price": 75,
       "emoji": "🥤",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Creamy blended iced coffee topped with rich chocolate drizzle.",
+      "image": "assets/dishes/bev-cold-coffee.jpg",
+      "portion": "350ml Tall Glass",
+      "servedWith": "Rich Chocolate Drizzle, Choco Chips & Creamy Foam",
+      "desc": "Creamy blended iced coffee—thick, frothy and café-style.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -598,8 +688,10 @@
       "category": "beverages",
       "price": 80,
       "emoji": "🥭",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Rich sweet yogurt lassi infused with Talala-famous Kesar mango flavor.",
+      "image": "assets/dishes/bev-mango-lassi.jpg",
+      "portion": "350ml Tall Glass",
+      "servedWith": "Crushed Pistachio-Almond Garnish & Mango Pulp Swirl",
+      "desc": "Rich sweet yogurt lassi infused with authentic Talala-famous Gir Kesar mango flavor.",
       "bestseller": true,
       "spicy": false,
       "available": true
@@ -610,8 +702,10 @@
       "category": "beverages",
       "price": 45,
       "emoji": "🍋",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Refreshing fizzy lemon cooler (Sweet / Salted / Mix).",
+      "image": "assets/dishes/bev-lime-soda.jpg",
+      "portion": "300ml Sparkling Glass",
+      "servedWith": "Fresh Mint Leaves, Lemon Slice & Black Salt Rim (Sweet/Salted/Mix)",
+      "desc": "Refreshing fizzy lemon cooler made fresh on order.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -622,8 +716,10 @@
       "category": "beverages",
       "price": 50,
       "emoji": "🍯",
-      "image": "assets/fastfood-drinks.jpg",
-      "desc": "Melt-in-mouth warm khoya dumplings soaked in cardamom rose syrup.",
+      "image": "assets/dishes/bev-gulab-jamun.jpg",
+      "portion": "2 Warm Pcs",
+      "servedWith": "Warm Cardamom-Saffron Sugar Syrup & Sliced Pistachios",
+      "desc": "Melt-in-mouth warm khoya dumplings soaked in aromatic rose-cardamom syrup.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -638,7 +734,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 2,
@@ -648,7 +744,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 3,
@@ -658,7 +754,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 4,
@@ -668,7 +764,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 5,
@@ -678,7 +774,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 6,
@@ -688,7 +784,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 7,
@@ -698,7 +794,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     },
     {
       "id": 8,
@@ -708,7 +804,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795722568923
+      "updatedAt": 1795724131762
     }
   ],
   "customers": {},
@@ -721,7 +817,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795721128923
+      "createdAt": 1795722691762
     },
     {
       "id": "rev-2",
@@ -730,7 +826,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793130568923
+      "createdAt": 1793132131762
     },
     {
       "id": "rev-3",
@@ -739,7 +835,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793908168923
+      "createdAt": 1793909731762
     },
     {
       "id": "rev-4",
@@ -748,7 +844,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794512968923
+      "createdAt": 1794514531762
     }
   ],
   "mapPhotos": [
@@ -758,7 +854,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795549768923
+      "createdAt": 1795551331762
     },
     {
       "id": "mp-2",
@@ -766,7 +862,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795463368923
+      "createdAt": 1795464931762
     },
     {
       "id": "mp-3",
@@ -774,7 +870,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795376968923
+      "createdAt": 1795378531762
     },
     {
       "id": "mp-4",
@@ -782,7 +878,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795290568923
+      "createdAt": 1795292131762
     },
     {
       "id": "mp-5",
@@ -790,7 +886,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795204168923
+      "createdAt": 1795205731762
     },
     {
       "id": "mp-6",
@@ -798,7 +894,7 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795721128923
+      "createdAt": 1795722691762
     }
   ],
   "chatMessages": []

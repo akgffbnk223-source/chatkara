@@ -181,7 +181,7 @@ function loadDb() {
       const existingById = new Map(parsed.menu.map((m) => [m.id, m]));
       const mergedMenu = DEFAULT_MENU.map((dm) => {
         const existing = existingById.get(dm.id);
-        return existing ? { ...dm, ...existing, image: dm.image || existing.image, guName: dm.guName || existing.guName } : { ...dm };
+        return existing ? { ...dm, ...existing, image: dm.image || existing.image, guName: dm.guName || existing.guName, portion: existing.portion || dm.portion, servedWith: existing.servedWith || dm.servedWith } : { ...dm };
       });
       const defaultIds = new Set(DEFAULT_MENU.map((m) => m.id));
       parsed.menu.forEach((m) => {

@@ -744,6 +744,17 @@
     return String(raw).startsWith('/assets/') ? raw.slice(1) : raw;
   }
 
+  const DEFAULT_SERVED_WITH = {
+    'veg-prep': 'Onion-Lemon Salad, Green Mint Chutney & Achar',
+    'kaju-prep': 'Kachumber Salad, Mint Chutney & Roasted Papad',
+    'cheese-prep': 'Onion-Lemon Salad, Mint Chutney & Pickle',
+    'south-indian': 'Piping Hot Sambar, Fresh Coconut Chutney & Red Chutney',
+    'chinese': 'Spicy Schezwan Dip, Spring Onion & Vinegar Chillies',
+    'punjabi': 'Vinegar Onion Salad, Mint Chutney & Roasted Papad',
+    'fast-food': 'Tangy Green Chutney, Tomato Ketchup & Masala Seasoning',
+    'beverages': 'Freshly Prepared Chilled / Warm Serving'
+  };
+
   function renderMenu() {
     const q = appState.search.trim().toLowerCase();
     const filtered = appState.menu.filter((item) => {
@@ -751,7 +762,7 @@
       if (appState.filter === 'bestseller' && !item.bestseller) return false;
       if (appState.filter === 'under100' && item.price > 100) return false;
       if (appState.filter === 'spicy' && !item.spicy) return false;
-      if (q && !`${item.name} ${item.guName || ''} ${item.desc} ${item.category}`.toLowerCase().includes(q)) return false;
+      if (q && !`${item.name} ${item.guName || ''} ${item.desc} ${item.servedWith || ''} ${item.category}`.toLowerCase().includes(q)) return false;
       return true;
     });
     $('menuCount').textContent = `Showing ${filtered.length} pure veg dishes`;
@@ -765,6 +776,8 @@
         const qty = appState.cart[item.id] || 0;
         const soldOut = item.available === false;
         const dishImg = getDishImage(item);
+        const servedWith = item.servedWith || DEFAULT_SERVED_WITH[item.category] || 'Fresh Chutney & Salad';
+        const portion = item.portion || (item.category === 'beverages' ? '1 Glass / 2 Pcs' : 'Full Portion');
         const actionHtml = soldOut
           ? `<span class="dish-tag spicy">Sold Out</span>`
           : qty > 0
@@ -793,12 +806,18 @@
             <div class="menu-card-body">
               <div>
                 <div class="menu-card-top">
-                  <div class="dish-title-row">
-                    <h3>${escapeHtml(item.name)}</h3>
+                  <div>
+                    <div class="dish-title-row">
+                      <h3>${escapeHtml(item.name)}</h3>
+                    </div>
+                    <span class="dish-portion-pill">🍽️ ${escapeHtml(portion)}</span>
                   </div>
                   <span class="dish-emoji">${escapeHtml(item.emoji)}</span>
                 </div>
                 <p class="dish-desc">${escapeHtml(item.desc)}</p>
+                <div class="dish-served-box">
+                  <strong>🎁 Saath Mein Milega:</strong> ${escapeHtml(servedWith)}
+                </div>
               </div>
               <div class="menu-card-bottom">
                 <span class="dish-price">₹${item.price} <small class="muted" style="font-size:0.74rem;font-weight:600;">Pure Veg</small></span>
