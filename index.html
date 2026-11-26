@@ -106,49 +106,42 @@
           </div>
         </div>
 
-        <!-- Hero Visual Platter Showcase -->
+        <!-- Hero Live Video-Ad Dish Reel Showcase -->
         <div class="hero-visual reveal">
           <div class="platter-card card-hover">
             <div class="platter-header">
-              <span class="tag-hot">🔥 Most Loved in Talala</span>
-              <span class="price-tag" id="heroPriceRange">₹1–200 per person</span>
+              <span class="tag-hot">🎬 Live Dish Showcase • Pure Veg</span>
+              <span class="price-tag" id="heroPriceRange">₹1–300 per person</span>
             </div>
 
-            <div class="platter-svg-wrap" aria-hidden="true">
-              <svg viewBox="0 0 360 240" class="hero-svg floating-slow" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <radialGradient id="plateGrad" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#fff8eb" />
-                    <stop offset="85%" stop-color="#f3e2c7" />
-                    <stop offset="100%" stop-color="#d7b98e" />
-                  </radialGradient>
-                  <linearGradient id="dosaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#f6b94e" />
-                    <stop offset="50%" stop-color="#d97706" />
-                    <stop offset="100%" stop-color="#92400e" />
-                  </linearGradient>
-                </defs>
-                <ellipse cx="180" cy="138" rx="152" ry="92" fill="rgba(0,0,0,0.28)" />
-                <ellipse cx="180" cy="130" rx="150" ry="90" fill="url(#plateGrad)" stroke="#c59d67" stroke-width="4" />
-                <g transform="rotate(-12 165 158)">
-                  <path d="M55,148 Q165,108 285,144 Q295,160 282,171 Q165,194 58,172 Q46,160 55,148 Z" fill="url(#dosaGrad)" stroke="#78350f" stroke-width="2" />
-                  <ellipse cx="278" cy="157" rx="10" ry="13" fill="#78350f" />
-                  <circle cx="278" cy="157" r="7" fill="#facc15" />
-                </g>
-                <circle cx="110" cy="90" r="30" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
-                <circle cx="110" cy="90" r="24" fill="#ea580c" />
-                <circle cx="190" cy="80" r="32" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
-                <circle cx="190" cy="80" r="26" fill="#f97316" />
-                <rect x="178" y="70" width="9" height="9" rx="2" fill="#fffbeb" />
-                <rect x="193" y="78" width="10" height="9" rx="2" fill="#fffbeb" />
-                <circle cx="265" cy="94" r="28" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
-                <circle cx="265" cy="94" r="22" fill="#7c2d12" />
-                <circle cx="260" cy="92" r="6" fill="#b45309" />
-                <circle cx="272" cy="95" r="6" fill="#9a3412" />
-              </svg>
+            <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish showcase reel">
+              <img id="heroAdImg" class="hero-ad-img ken-burns" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
+              <div class="hero-ad-vignette"></div>
+              <div class="hero-ad-progress-track">
+                <div class="hero-ad-progress-fill" id="heroAdProgress"></div>
+              </div>
+              <div class="hero-ad-top">
+                <span class="hero-ad-cat" id="heroAdCat">🔥 CHEF SPECIAL</span>
+                <div class="hero-ad-controls">
+                  <button type="button" id="heroAdPrevBtn" title="Previous dish" aria-label="Previous dish">◀</button>
+                  <button type="button" id="heroAdToggleBtn" title="Pause / Play" aria-label="Pause or play reel">⏸</button>
+                  <button type="button" id="heroAdNextBtn" title="Next dish" aria-label="Next dish">▶</button>
+                </div>
+              </div>
+              <div class="hero-ad-caption">
+                <div class="hero-ad-info">
+                  <small id="heroAdCounter">1 / 48 • 100% Pure Veg</small>
+                  <h3 id="heroAdTitle">Veg Angara (વેજ અંગારા)</h3>
+                  <p id="heroAdServed">🎁 Saath Mein: Mint Dip, Laccha Onion Salad &amp; Roasted Papad</p>
+                </div>
+                <div class="hero-ad-cta">
+                  <strong id="heroAdPrice">₹260/-</strong>
+                  <button type="button" class="btn btn-primary btn-sm glow-btn" id="heroAdAddBtn">+ Order</button>
+                </div>
+              </div>
             </div>
 
-            <div class="platter-dishes">
+            <div class="platter-dishes" id="heroMiniReelList">
               <div class="mini-dish hover-pop" data-quick-add="veg-angara">
                 <span>🔥 Veg Angara (વેજ અંગારા)</span>
                 <strong>₹260 <button type="button" class="mini-add-btn">+ Add</button></strong>
@@ -186,7 +179,8 @@
           <button class="tab-btn" data-category="veg-prep" role="tab">🥘 Veg Preparation</button>
           <button class="tab-btn" data-category="kaju-prep" role="tab">🥜 Kaju Preparation</button>
           <button class="tab-btn" data-category="cheese-prep" role="tab">🧀 Cheese Preparation</button>
-          <button class="tab-btn" data-category="south-indian" role="tab">🥞 South Indian</button>
+          <button class="tab-btn" data-category="tandoor" role="tab">🔥 Tandoor, Roti &amp; Naan</button>
+          <button class="tab-btn" data-category="south-indian" role="tab">🥞 South Indian Dosas</button>
           <button class="tab-btn" data-category="chinese" role="tab">🥡 Indo-Chinese</button>
           <button class="tab-btn" data-category="punjabi" role="tab">🍛 Punjabi Specials</button>
           <button class="tab-btn" data-category="fast-food" role="tab">🍔 Fast Food &amp; Chaat</button>

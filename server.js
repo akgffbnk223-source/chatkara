@@ -181,7 +181,7 @@ function loadDb() {
       const existingById = new Map(parsed.menu.map((m) => [m.id, m]));
       const mergedMenu = DEFAULT_MENU.map((dm) => {
         const existing = existingById.get(dm.id);
-        return existing ? { ...dm, ...existing, image: dm.image || existing.image, guName: dm.guName || existing.guName, portion: existing.portion || dm.portion, servedWith: existing.servedWith || dm.servedWith } : { ...dm };
+        return existing ? { ...dm, ...existing, category: dm.category || existing.category, image: dm.image || existing.image, guName: dm.guName || existing.guName, portion: existing.portion || dm.portion, servedWith: existing.servedWith || dm.servedWith } : { ...dm };
       });
       const defaultIds = new Set(DEFAULT_MENU.map((m) => m.id));
       parsed.menu.forEach((m) => {
@@ -1224,6 +1224,53 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { brandTheme: db.settings.brandTheme });
     }
 
+const CATEGORY_DEFAULT_PHOTO = {
+  'veg-prep': 'assets/veg-kadai.jpg',
+  'kaju-prep': 'assets/kaju-curry.jpg',
+  'cheese-prep': 'assets/cheese-masala.jpg',
+  'tandoor': 'assets/dishes/pun-butter-naan.jpg',
+  'south-indian': 'assets/dosa-platter.jpg',
+  'chinese': 'assets/indo-chinese.jpg',
+  'punjabi': 'assets/punjabi-paneer.jpg',
+  'fast-food': 'assets/fastfood-drinks.jpg',
+  'beverages': 'assets/dishes/bev-mango-lassi.jpg'
+};
+
+async function autoFetchDishPhoto(dishName, category, dishId) {
+  const fallback = CATEGORY_DEFAULT_PHOTO[category] || 'assets/veg-kadai.jpg';
+  try {
+    const cleanQuery = String(dishName || '').replace(/\(.*?\)/g, '').trim();
+    if (!cleanQuery) return fallback;
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(cleanQuery + ' food filetype:bitmap')}&gsrlimit=10&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=720&format=json`;
+    const r = await fetch(searchUrl, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
+    if (!r.ok) return fallback;
+    const j = await r.json();
+    const candidates = Object.values(j.query?.pages || {})
+      .map((p) => ({
+        title: p.title || '',
+        url: p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url || '',
+        mime: p.imageinfo?.[0]?.mime || '',
+        w: p.imageinfo?.[0]?.width || 0
+      }))
+      .filter((x) => x.url && x.mime === 'image/jpeg' && x.w >= 400 && !/chicken|egg|meat|fish|prawn|shrimp|mutton|beef|pork|crab|book|cookery|1919|portrait|person/i.test(x.title));
+    if (!candidates.length) return fallback;
+
+    const imgRes = await fetch(candidates[0].url, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
+    if (!imgRes.ok) return fallback;
+    const buf = Buffer.from(await imgRes.arrayBuffer());
+    if (buf.length < 7000) return fallback;
+
+    const dishesDir = path.join(ROOT_DIR, 'assets', 'dishes');
+    if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
+    const slug = cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'dish';
+    const fileName = `${slug}-${String(dishId).slice(-5)}.jpg`;
+    fs.writeFileSync(path.join(dishesDir, fileName), buf);
+    return `assets/dishes/${fileName}`;
+  } catch {
+    return fallback;
+  }
+}
+
     if (pathname === '/api/admin/menu' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
@@ -1232,11 +1279,24 @@ const server = http.createServer(async (req, res) => {
       if (item.id && db.menu.some((m) => m.id === item.id)) {
         db.menu = db.menu.map((m) => (m.id === item.id ? { ...m, ...item, price: Number(item.price) } : m));
       } else {
+        const newId = 'dish-' + Date.now();
+        const cat = item.category || 'fast-food';
+        const customImg = String(item.image || '').trim();
+        const resolvedImg = customImg || (await autoFetchDishPhoto(item.name, cat, newId));
         db.menu.unshift({
-          id: 'dish-' + Date.now(), name: String(item.name).trim(), category: item.category || 'fast-food',
-          price: Number(item.price), emoji: item.emoji || '🍲',
+          id: newId,
+          name: String(item.name).trim(),
+          guName: String(item.guName || '').trim(),
+          category: cat,
+          price: Number(item.price),
+          emoji: item.emoji || '🍲',
+          image: resolvedImg,
+          portion: String(item.portion || 'Full Portion').trim(),
+          servedWith: String(item.servedWith || 'Fresh Chutney & Onion-Lemon Salad').trim(),
           desc: String(item.desc || 'Freshly prepared pure vegetarian dish at Chatkaro Food Hub.'),
-          bestseller: Boolean(item.bestseller), spicy: Boolean(item.spicy), available: item.available !== false
+          bestseller: Boolean(item.bestseller),
+          spicy: Boolean(item.spicy),
+          available: item.available !== false
         });
       }
       recalculateTopAndBroadcast();

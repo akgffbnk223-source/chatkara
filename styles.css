@@ -295,7 +295,144 @@ body.no-fx * {
 .tag-hot { background: var(--primary); color: #fff; font-size: 0.76rem; font-weight: 700; padding: 0.24rem 0.7rem; border-radius: 999px; }
 .price-tag { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
 .hero-svg { width: 100%; height: auto; display: block; }
-.platter-dishes { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.platter-dishes { display: grid; gap: 0.5rem; margin-top: 0.65rem; }
+
+/* Hero Live Video-Ad Dish Reel */
+.hero-ad-stage {
+  position: relative;
+  width: 100%;
+  height: 270px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0f0a07;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  margin-top: 0.45rem;
+}
+.hero-ad-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.35s ease;
+}
+.hero-ad-img.ken-burns {
+  animation: kenBurnsAd 4.4s ease-in-out infinite alternate;
+}
+@keyframes kenBurnsAd {
+  0% { transform: scale(1) translate3d(0, 0, 0); }
+  100% { transform: scale(1.12) translate3d(-1.5%, -1.5%, 0); }
+}
+.hero-ad-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.08) 42%, rgba(12, 8, 5, 0.92) 100%);
+  pointer-events: none;
+}
+.hero-ad-progress-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  z-index: 3;
+}
+.hero-ad-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #f97316, #fbbf24);
+  transition: width 0.1s linear;
+}
+.hero-ad-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 3;
+}
+.hero-ad-cat {
+  background: rgba(15, 10, 7, 0.78);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+}
+.hero-ad-controls {
+  display: flex;
+  gap: 0.3rem;
+}
+.hero-ad-controls button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(15, 10, 7, 0.72);
+  color: #fff;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(6px);
+}
+.hero-ad-caption {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem;
+  z-index: 3;
+}
+.hero-ad-info {
+  min-width: 0;
+  flex: 1;
+}
+.hero-ad-info small {
+  display: block;
+  color: #fde68a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+.hero-ad-info h3 {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hero-ad-info p {
+  margin: 0.2rem 0 0;
+  font-size: 0.73rem;
+  color: #e2e8f0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hero-ad-cta {
+  text-align: right;
+  flex-shrink: 0;
+}
+.hero-ad-cta strong {
+  display: block;
+  color: #fbbf24;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
 .mini-dish {
   display: flex; justify-content: space-between; align-items: center;
   background: var(--surface-alt); border: 1px solid var(--border);

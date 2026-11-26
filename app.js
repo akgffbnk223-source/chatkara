@@ -491,6 +491,7 @@
     applyBrandColors(appState.settings.brandTheme);
     renderSettingsBanner();
     renderMenu();
+    refreshHeroAdReel();
     renderCart();
     renderTables();
     renderLiveOrders();
@@ -732,11 +733,12 @@
     'veg-prep': 'assets/veg-kadai.jpg',
     'kaju-prep': 'assets/kaju-curry.jpg',
     'cheese-prep': 'assets/cheese-masala.jpg',
+    'tandoor': 'assets/dishes/pun-butter-naan.jpg',
     'south-indian': 'assets/dosa-platter.jpg',
     'chinese': 'assets/indo-chinese.jpg',
     'punjabi': 'assets/punjabi-paneer.jpg',
     'fast-food': 'assets/fastfood-drinks.jpg',
-    'beverages': 'assets/fastfood-drinks.jpg'
+    'beverages': 'assets/dishes/bev-mango-lassi.jpg'
   };
 
   function getDishImage(item) {
@@ -748,12 +750,108 @@
     'veg-prep': 'Onion-Lemon Salad, Green Mint Chutney & Achar',
     'kaju-prep': 'Kachumber Salad, Mint Chutney & Roasted Papad',
     'cheese-prep': 'Onion-Lemon Salad, Mint Chutney & Pickle',
+    'tandoor': 'Green Mint Chutney, Laccha Onion Salad & Amul Butter',
     'south-indian': 'Piping Hot Sambar, Fresh Coconut Chutney & Red Chutney',
     'chinese': 'Spicy Schezwan Dip, Spring Onion & Vinegar Chillies',
     'punjabi': 'Vinegar Onion Salad, Mint Chutney & Roasted Papad',
     'fast-food': 'Tangy Green Chutney, Tomato Ketchup & Masala Seasoning',
     'beverages': 'Freshly Prepared Chilled / Warm Serving'
   };
+
+  // ================= HERO LIVE VIDEO-AD DISH REEL =================
+  const heroAdState = { idx: 0, paused: false, elapsed: 0, duration: 4200, timer: null, currentDishId: 'veg-angara' };
+  const CAT_LABELS = {
+    'veg-prep': '🥘 VEG PREPARATION',
+    'kaju-prep': '🥜 KAJU SPECIAL',
+    'cheese-prep': '🧀 CHEESE SPECIAL',
+    'tandoor': '🔥 TANDOOR & ROTI-NAAN',
+    'south-indian': '🥞 SOUTH INDIAN DOSA',
+    'chinese': '🥡 INDO-CHINESE',
+    'punjabi': '🍛 PUNJABI SPECIAL',
+    'fast-food': '🍔 FAST FOOD',
+    'beverages': '🥤 DRINKS & SWEETS'
+  };
+
+  function renderHeroAdSlide() {
+    const list = appState.menu.filter((m) => m.available !== false);
+    if (!list.length || !$('heroAdStage')) return;
+    heroAdState.idx = ((heroAdState.idx % list.length) + list.length) % list.length;
+    const dish = list[heroAdState.idx];
+    heroAdState.currentDishId = dish.id;
+
+    const imgEl = $('heroAdImg');
+    imgEl.style.opacity = '0.35';
+    imgEl.src = getDishImage(dish);
+    imgEl.alt = dish.name;
+    imgEl.classList.remove('ken-burns');
+    void imgEl.offsetWidth; // trigger CSS animation reset for video-like Ken Burns motion
+    imgEl.classList.add('ken-burns');
+    imgEl.onload = () => { imgEl.style.opacity = '1'; };
+    setTimeout(() => { imgEl.style.opacity = '1'; }, 120);
+
+    $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG SPECIAL';
+    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length} • 100% Pure Veg${dish.bestseller ? ' • ⭐ Bestseller' : ''}`;
+    $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
+    $('heroAdServed').textContent = `🎁 Saath Mein: ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
+    $('heroAdPrice').textContent = `₹${dish.price}/-`;
+
+    // Update 3 upcoming quick-add dishes below the video stage
+    const miniWrap = $('heroMiniReelList');
+    if (miniWrap && list.length >= 3) {
+      const nextThree = [1, 2, 3].map((offset) => list[(heroAdState.idx + offset) % list.length]);
+      miniWrap.innerHTML = nextThree
+        .map(
+          (d) => `
+        <div class="mini-dish hover-pop" data-quick-add="${escapeHtml(d.id)}">
+          <span>${escapeHtml(d.emoji)} ${escapeHtml(d.name)}${d.guName ? ' (' + escapeHtml(d.guName) + ')' : ''}</span>
+          <strong>₹${d.price} <button type="button" class="mini-add-btn">+ Add</button></strong>
+        </div>`
+        )
+        .join('');
+    }
+  }
+
+  function refreshHeroAdReel() {
+    renderHeroAdSlide();
+  }
+
+  function initHeroAdReel() {
+    if (!$('heroAdStage')) return;
+    if (heroAdState.timer) clearInterval(heroAdState.timer);
+    heroAdState.timer = setInterval(() => {
+      if (heroAdState.paused) return;
+      heroAdState.elapsed += 100;
+      const pct = Math.min(100, (heroAdState.elapsed / heroAdState.duration) * 100);
+      if ($('heroAdProgress')) $('heroAdProgress').style.width = `${pct}%`;
+      if (heroAdState.elapsed >= heroAdState.duration) {
+        heroAdState.elapsed = 0;
+        heroAdState.idx += 1;
+        renderHeroAdSlide();
+      }
+    }, 100);
+
+    $('heroAdPrevBtn')?.addEventListener('click', () => {
+      heroAdState.elapsed = 0;
+      heroAdState.idx -= 1;
+      renderHeroAdSlide();
+    });
+    $('heroAdNextBtn')?.addEventListener('click', () => {
+      heroAdState.elapsed = 0;
+      heroAdState.idx += 1;
+      renderHeroAdSlide();
+    });
+    $('heroAdToggleBtn')?.addEventListener('click', () => {
+      heroAdState.paused = !heroAdState.paused;
+      $('heroAdToggleBtn').textContent = heroAdState.paused ? '▶' : '⏸';
+    });
+    $('heroAdAddBtn')?.addEventListener('click', () => {
+      if (heroAdState.currentDishId) updateQty(heroAdState.currentDishId, 1);
+    });
+    $('heroMiniReelList')?.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-quick-add]');
+      if (card) updateQty(card.dataset.quickAdd, 1);
+    });
+  }
 
   function renderMenu() {
     const q = appState.search.trim().toLowerCase();
@@ -2057,12 +2155,12 @@
       });
     }
 
-    // 2. MENU MANAGER TAB (Full Add / Edit Name, Price, Category, Flags, Sold-Out / Delete)
+    // 2. MENU MANAGER TAB (Full Add / Auto-Photo / Edit Name, Price, Category, Flags, Sold-Out / Delete)
     if (activeAdminTab === 'menu') {
-      const cats = ['veg-prep', 'kaju-prep', 'cheese-prep', 'south-indian', 'chinese', 'punjabi', 'fast-food', 'beverages'];
+      const cats = ['veg-prep', 'kaju-prep', 'cheese-prep', 'tandoor', 'south-indian', 'chinese', 'punjabi', 'fast-food', 'beverages'];
       $('adminTabMenu').innerHTML = `
         <form id="admAddDishForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
-          <strong style="width:100%;">➕ Add / Upgrade Dish</strong>
+          <strong style="width:100%;">➕ Add New Dish <small class="muted" style="font-weight:500;">(Photo URL khali chhodne par dish ke naam se automatic photo ban kar add ho jayegi!)</small></strong>
           <div class="admin-controls-inline" style="width:100%;">
             <input type="text" id="newDishName" placeholder="Dish Name *" required />
             <input type="number" id="newDishPrice" placeholder="Price ₹ *" required style="width:85px;" />
@@ -2070,17 +2168,20 @@
               <option value="veg-prep">Veg Preparation</option>
               <option value="kaju-prep">Kaju Preparation</option>
               <option value="cheese-prep">Cheese Preparation</option>
-              <option value="south-indian">South Indian</option>
+              <option value="tandoor">Tandoor, Roti &amp; Naan</option>
+              <option value="south-indian">South Indian Dosas</option>
               <option value="chinese">Indo-Chinese</option>
               <option value="punjabi">Punjabi</option>
               <option value="fast-food">Fast Food</option>
               <option value="beverages">Beverages</option>
             </select>
-            <input type="text" id="newDishEmoji" value="🍲" style="width:60px;" />
+            <input type="text" id="newDishEmoji" value="🍲" style="width:55px;" />
+            <input type="text" id="newDishServed" placeholder="Saath Mein Milega (e.g. Chutney &amp; Salad)" style="flex:1;min-width:170px;" />
             <input type="text" id="newDishDesc" placeholder="Description" style="flex:1;min-width:160px;" />
+            <input type="url" id="newDishImg" placeholder="Photo URL (Optional — auto-fetch if empty)" style="flex:1;min-width:180px;" />
             <label class="small"><input type="checkbox" id="newDishBest" /> ⭐ Best</label>
             <label class="small"><input type="checkbox" id="newDishSpicy" /> 🌶️ Spicy</label>
-            <button type="submit" class="btn btn-primary btn-sm">Add Dish</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="admAddDishSubmitBtn">Add Dish + Auto Photo</button>
           </div>
         </form>
         <div class="admin-grid-list">
@@ -2089,13 +2190,14 @@
               (m) => `
             <div class="admin-row-card">
               <div class="admin-controls-inline" style="flex:1;">
-                <input type="text" class="adm-demoji" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.emoji)}" style="width:46px;text-align:center;" />
-                <input type="text" class="adm-dname" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.name)}" style="min-width:160px;flex:1;" />
+                <img src="${escapeHtml(getDishImage(m))}" alt="" style="width:42px;height:36px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                <input type="text" class="adm-demoji" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.emoji)}" style="width:44px;text-align:center;" />
+                <input type="text" class="adm-dname" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.name)}" style="min-width:150px;flex:1;" />
                 <select class="adm-dcat" data-id="${escapeHtml(m.id)}">
                   ${cats.map((c) => `<option value="${c}" ${m.category === c ? 'selected' : ''}>${c}</option>`).join('')}
                 </select>
                 <span>₹</span>
-                <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:74px;" />
+                <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:70px;" />
               </div>
               <div class="admin-controls-inline">
                 <button type="button" class="btn btn-primary btn-xs adm-save-dish-btn" data-id="${escapeHtml(m.id)}">Save</button>
@@ -2109,18 +2211,26 @@
 
       $('admAddDishForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        await api('/api/admin/menu', 'POST', {
-          item: {
-            name: $('newDishName').value.trim(),
-            price: Number($('newDishPrice').value),
-            category: $('newDishCat').value,
-            emoji: $('newDishEmoji').value || '🍲',
-            desc: $('newDishDesc').value.trim(),
-            bestseller: $('newDishBest').checked,
-            spicy: $('newDishSpicy').checked
-          }
-        }, pinHeaders);
-        showToast('New dish added!');
+        const btn = $('admAddDishSubmitBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Adding + Finding Photo...'; }
+        try {
+          await api('/api/admin/menu', 'POST', {
+            item: {
+              name: $('newDishName').value.trim(),
+              price: Number($('newDishPrice').value),
+              category: $('newDishCat').value,
+              emoji: $('newDishEmoji').value || '🍲',
+              servedWith: $('newDishServed').value.trim(),
+              desc: $('newDishDesc').value.trim(),
+              image: $('newDishImg').value.trim(),
+              bestseller: $('newDishBest').checked,
+              spicy: $('newDishSpicy').checked
+            }
+          }, pinHeaders);
+          showToast('New dish added with photo! 📸');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Add Dish + Auto Photo'; }
+        }
       });
 
       $('adminTabMenu').querySelectorAll('.adm-save-dish-btn').forEach((btn) => {
@@ -2631,7 +2741,6 @@
     const btn = e.target.closest('[data-action]');
     if (btn) updateQty(btn.dataset.id, btn.dataset.action === 'inc' ? 1 : -1);
   });
-  document.querySelectorAll('[data-quick-add]').forEach((el) => el.addEventListener('click', () => updateQty(el.dataset.quickAdd, 1)));
   $('menuTabs').addEventListener('click', (e) => {
     const tab = e.target.closest('.tab-btn');
     if (!tab) return;
@@ -2803,6 +2912,7 @@
   initClientProtection();
   initScrollReveal();
   initHeroParticles();
+  initHeroAdReel();
   syncCouponUI();
   renderAuthUI();
   initialFetch().then(() => checkPhonePeRedirectReturn());

@@ -20,7 +20,7 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795724131762,
+    "lastMapsSyncAt": 1795726112353,
     "announcement": "🌿 100% Pure Vegetarian • Veg, Kaju & Cheese Specials, Dosas & Chinese • Open till 12:30 AM!",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
@@ -305,6 +305,231 @@
       "available": true
     },
     {
+      "id": "tan-paneer-tikka",
+      "name": "Tandoori Paneer Tikka (Dry)",
+      "guName": "તંદૂરી પનીર ટીક્કા",
+      "category": "tandoor",
+      "price": 170,
+      "emoji": "🔥",
+      "image": "assets/dishes/tan-paneer-tikka.jpg",
+      "portion": "8 Smoky Skewered Cubes",
+      "servedWith": "Green Mint Chutney, Laccha Onion Salad & Chaat Lemon",
+      "desc": "Marinated malai paneer, capsicum & onion cubes char-grilled over glowing tandoor coals.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "tan-paneer-malai",
+      "name": "Paneer Malai Tikka",
+      "guName": "પનીર મલાઈ ટીક્કા",
+      "category": "tandoor",
+      "price": 185,
+      "emoji": "🤍",
+      "image": "assets/dishes/tan-paneer-malai.jpg",
+      "portion": "8 Creamy Cubes",
+      "servedWith": "Creamy Mint Dip, Onion Rings & Roasted Masala",
+      "desc": "Melt-in-mouth paneer marinated in fresh cream, cashew paste, cardamom & mild white pepper.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-hara-bhara",
+      "name": "Hara Bhara Kabab (6 Pcs)",
+      "guName": "હરા ભરા કબાબ",
+      "category": "tandoor",
+      "price": 130,
+      "emoji": "🥬",
+      "image": "assets/dishes/tan-hara-bhara.jpg",
+      "portion": "6 Crispy Cutlets",
+      "servedWith": "Green Coriander Chutney, Tamarind Dip & Cashew Garnish",
+      "desc": "Healthy & crisp spinach, green peas & potato patties topped with roasted cashew halves.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-seekh-kabab",
+      "name": "Tandoori Veg Seekh Kabab",
+      "guName": "વેજ સીખ કબાબ",
+      "category": "tandoor",
+      "price": 150,
+      "emoji": "🍢",
+      "image": "assets/dishes/tan-seekh-kabab.jpg",
+      "portion": "4 Smoky Skewers",
+      "servedWith": "Mint-Yogurt Chutney, Masala Onion & Lemon Wedge",
+      "desc": "Minced garden veggies, paneer & aromatic tandoori spices grilled golden on iron skewers.",
+      "bestseller": false,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "tan-stuffed-aloo",
+      "name": "Tandoori Stuffed Aloo",
+      "guName": "તંદૂરી સ્ટફ્ડ આલૂ",
+      "category": "tandoor",
+      "price": 140,
+      "emoji": "🥔",
+      "image": "assets/dishes/tan-stuffed-aloo.jpg",
+      "portion": "6 Stuffed Shells",
+      "servedWith": "Pudina Chutney, Kachumber Salad & Chaat Masala",
+      "desc": "Scooped golden potatoes stuffed with spiced paneer, cashews & raisins, roasted in tandoor.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-crispy-corn",
+      "name": "Tandoori Crispy Corn",
+      "guName": "ક્રિસ્પી કોર્ન",
+      "category": "tandoor",
+      "price": 135,
+      "emoji": "🌽",
+      "image": "assets/dishes/tan-crispy-corn.jpg",
+      "portion": "1 Full Crunch Bowl",
+      "servedWith": "Spring Onion, Lemon Wedge & Spicy Mint Dip",
+      "desc": "Golden crunchy sweet corn kernels tossed in smoky tandoori chaat spices & peppers.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "tan-plain-roti",
+      "name": "Tandoori Plain Roti",
+      "guName": "તંદૂરી રોટી",
+      "category": "tandoor",
+      "price": 20,
+      "emoji": "🫓",
+      "image": "assets/dishes/tan-plain-roti.jpg",
+      "portion": "1 Fresh Clay-Oven Roti",
+      "servedWith": "Crisp Clay-Oven Baked Whole Wheat",
+      "desc": "Hot whole-wheat flatbread slapped fresh onto glowing clay tandoor walls.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-butter-roti",
+      "name": "Tandoori Butter Roti",
+      "guName": "બટર તંદૂરી રોટી",
+      "category": "tandoor",
+      "price": 25,
+      "emoji": "🧈",
+      "image": "assets/dishes/tan-butter-roti.jpg",
+      "portion": "1 Buttered Roti",
+      "servedWith": "Pure Amul Butter Glaze",
+      "desc": "Crisp clay-oven roti generously brushed with melting Amul butter.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "pun-butter-naan",
+      "name": "Butter Naan (2 Pcs)",
+      "guName": "બટર નાન",
+      "category": "tandoor",
+      "price": 65,
+      "emoji": "🫓",
+      "image": "assets/dishes/pun-butter-naan.jpg",
+      "portion": "2 Soft Tandoori Naan",
+      "servedWith": "Pure Amul Butter Brushing & Mint Chutney",
+      "desc": "Soft fluffy tandoori flatbread baked crisp outside and brushed generously with butter.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "pun-garlic-naan",
+      "name": "Garlic Cheese Naan",
+      "guName": "ગાર્લિક ચીઝ નાન",
+      "category": "tandoor",
+      "price": 85,
+      "emoji": "🧄",
+      "image": "assets/dishes/pun-garlic-naan.jpg",
+      "portion": "2 Loaded Naan Pcs",
+      "servedWith": "Amul Butter Glaze & Green Coriander Chutney",
+      "desc": "Freshly baked naan topped with roasted garlic, coriander & melted cheese.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-chilli-garlic-naan",
+      "name": "Cheese Chilli Garlic Naan",
+      "guName": "ચીઝ ચીલી ગાર્લિક નાન",
+      "category": "tandoor",
+      "price": 95,
+      "emoji": "🌶️",
+      "image": "assets/dishes/tan-chilli-garlic-naan.jpg",
+      "portion": "2 Stuffed Naan Pcs",
+      "servedWith": "Amul Butter Brush & Mint Yogurt Dip",
+      "desc": "Gooey cheese-stuffed tandoori naan topped with green chillies & roasted garlic.",
+      "bestseller": false,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "tan-butter-kulcha",
+      "name": "Amritsari Butter Kulcha",
+      "guName": "અમૃતસરી કુલચા",
+      "category": "tandoor",
+      "price": 60,
+      "emoji": "🥙",
+      "image": "assets/dishes/tan-butter-kulcha.jpg",
+      "portion": "1 Stuffed Crisp Kulcha",
+      "servedWith": "Amul Butter, Mint Chutney & Pickle",
+      "desc": "Flaky tandoori kulcha stuffed with spiced potato-onion masala and crushed coriander.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-laccha-paratha",
+      "name": "Crispy Laccha Paratha",
+      "guName": "લચ્છા પરાઠા",
+      "category": "tandoor",
+      "price": 45,
+      "emoji": "🌀",
+      "image": "assets/dishes/tan-laccha-paratha.jpg",
+      "portion": "1 Multi-Layered Paratha",
+      "servedWith": "Amul Butter & Mango Pickle",
+      "desc": "Flaky, golden multi-layered tandoori whole-wheat paratha with crisp edges.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-aloo-paratha",
+      "name": "Stuffed Aloo Paratha + Curd",
+      "guName": "આલૂ પરાઠા + દહીં",
+      "category": "tandoor",
+      "price": 80,
+      "emoji": "🫓",
+      "image": "assets/dishes/tan-aloo-paratha.jpg",
+      "portion": "2 Stuffed Parathas",
+      "servedWith": "Fresh Creamy Curd Bowl, Amul Butter & Achar",
+      "desc": "Hearty whole-wheat parathas stuffed with spiced mashed potatoes, served hot with curd.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "tan-missi-roti",
+      "name": "Traditional Missi Roti",
+      "guName": "મિસ્સી રોટી",
+      "category": "tandoor",
+      "price": 40,
+      "emoji": "🌾",
+      "image": "assets/dishes/tan-missi-roti.jpg",
+      "portion": "1 Spiced Besan Roti",
+      "servedWith": "Amul Butter & Green Chutney",
+      "desc": "Rustic tandoori flatbread of besan, wheat, ajwain, onion & fresh kasuri methi.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
       "id": "dosa-masala",
       "name": "Classic Masala Dosa",
       "category": "south-indian",
@@ -417,6 +642,111 @@
       "available": true
     },
     {
+      "id": "dosa-ghee-roast",
+      "name": "Ghee Roast Masala Dosa",
+      "guName": "ઘી રોસ્ટ મસાલા ઢોસા",
+      "category": "south-indian",
+      "price": 120,
+      "emoji": "🧈",
+      "image": "assets/dishes/dosa-ghee-roast.jpg",
+      "portion": "1 Golden Cone Dosa",
+      "servedWith": "Piping Hot Sambar, Coconut Chutney & Red Garlic Chutney",
+      "desc": "Extra-crispy cone dosa slow-roasted in pure desi ghee with spiced potato masala.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "dosa-rava-masala",
+      "name": "Crispy Rava Masala Dosa",
+      "guName": "રવા મસાલા ઢોસા",
+      "category": "south-indian",
+      "price": 115,
+      "emoji": "✨",
+      "image": "assets/dishes/dosa-rava-masala.jpg",
+      "portion": "1 Lacy Crisp Dosa",
+      "servedWith": "Hot Sambar, Coconut Chutney & Tomato Chutney",
+      "desc": "Lacy semolina crepe tempered with jeera, curry leaves & pepper, stuffed with masala.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "dosa-paneer-masala",
+      "name": "Paneer Butter Masala Dosa",
+      "guName": "પનીર બટર ઢોસા",
+      "category": "south-indian",
+      "price": 135,
+      "emoji": "🍛",
+      "image": "assets/dishes/dosa-paneer-masala.jpg",
+      "portion": "1 Loaded Paneer Dosa",
+      "servedWith": "Hot Sambar, Fresh Coconut Chutney & Mint Chutney",
+      "desc": "Crispy butter dosa generously stuffed with spiced grated paneer bhurji & potato masala.",
+      "bestseller": true,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "dosa-schezwan",
+      "name": "Schezwan Masala Dosa",
+      "guName": "શેઝવાન મસાલા ઢોસા",
+      "category": "south-indian",
+      "price": 125,
+      "emoji": "🌶️",
+      "image": "assets/dishes/dosa-schezwan.jpg",
+      "portion": "1 Fiery Fusion Dosa",
+      "servedWith": "Hot Sambar, Coconut Chutney & Extra Schezwan Dip",
+      "desc": "Crunchy dosa smeared with zesty Indo-Chinese schezwan sauce, crunchy veggies & masala.",
+      "bestseller": false,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "dosa-spring-roll",
+      "name": "Chinese Spring Roll Dosa",
+      "guName": "સ્પ્રિંગ રોલ ઢોસા",
+      "category": "south-indian",
+      "price": 140,
+      "emoji": "🌯",
+      "image": "assets/dishes/dosa-spring-roll.jpg",
+      "portion": "6 Cut Dosa Rolls",
+      "servedWith": "Schezwan Dip, Coconut Chutney & Hot Sambar",
+      "desc": "Crispy dosa rolled around stir-fried noodles, cabbage, capsicum & soy spices, sliced into bites.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "dosa-cheese-corn",
+      "name": "Sweet Corn Cheese Dosa",
+      "guName": "સ્વીટ કોર્ન ચીઝ ઢોસા",
+      "category": "south-indian",
+      "price": 135,
+      "emoji": "🌽",
+      "image": "assets/dishes/dosa-cheese-corn.jpg",
+      "portion": "1 Cheesy Corn Dosa",
+      "servedWith": "Hot Sambar, Coconut Chutney & Tomato Chutney",
+      "desc": "Melted mozzarella cheese, juicy sweet corn & butter herbs folded inside a crispy dosa.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "dosa-chocolate",
+      "name": "Kids Choco Crunch Dosa",
+      "guName": "ચોકલેટ ઢોસા",
+      "category": "south-indian",
+      "price": 110,
+      "emoji": "🍫",
+      "image": "assets/dishes/dosa-chocolate.jpg",
+      "portion": "1 Sweet Crispy Dosa",
+      "servedWith": "Chocolate Syrup Drizzle & Choco Sprinkles",
+      "desc": "Kids favorite! Thin crispy butter dosa filled with warm melted chocolate & choco chips.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
       "id": "chi-manchurian",
       "name": "Veg Manchurian (Dry / Gravy)",
       "category": "chinese",
@@ -501,6 +831,126 @@
       "available": true
     },
     {
+      "id": "chi-triple-schezwan",
+      "name": "Veg Triple Schezwan Rice",
+      "guName": "ટ્રિપલ શેઝવાન રાઈસ",
+      "category": "chinese",
+      "price": 155,
+      "emoji": "🍛",
+      "image": "assets/dishes/chi-triple-schezwan.jpg",
+      "portion": "600g Rice + Noodles + Gravy",
+      "servedWith": "Hot Manchurian Gravy Bowl, Crispy Noodles & Schezwan Dip",
+      "desc": "Ultimate Indo-Chinese feast: fried rice & noodles tossed in schezwan with separate gravy!",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "chi-veg-crispy",
+      "name": "Veg Crispy (Crunchy Veg)",
+      "guName": "વેજ ક્રિસ્પી",
+      "category": "chinese",
+      "price": 135,
+      "emoji": "🥦",
+      "image": "assets/dishes/chi-veg-crispy.jpg",
+      "portion": "1 Full Starter Plate",
+      "servedWith": "Spicy Garlic-Chilli Sauce & Spring Onion Garnish",
+      "desc": "Crispy batter-fried cauliflower, baby corn & peppers tossed in tangy chilli-garlic glaze.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "chi-spring-rolls",
+      "name": "Veg Spring Rolls (6 Pcs)",
+      "guName": "વેજ સ્પ્રિંગ રોલ્સ",
+      "category": "chinese",
+      "price": 120,
+      "emoji": "🥢",
+      "image": "assets/dishes/chi-spring-rolls.jpg",
+      "portion": "6 Golden Cut Rolls",
+      "servedWith": "Sweet-Chilli Dip & Hot Schezwan Sauce",
+      "desc": "Paper-thin golden fried rolls packed with crunchy seasoned noodles & vegetables.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "chi-paneer-65",
+      "name": "Spicy Paneer 65 (Dry)",
+      "guName": "પનીર ૬૫",
+      "category": "chinese",
+      "price": 150,
+      "emoji": "🔥",
+      "image": "assets/dishes/chi-paneer-65.jpg",
+      "portion": "12 Spicy Paneer Bites",
+      "servedWith": "Curry-Leaf Tadka, Lemon Wedge & Mint-Chilli Dip",
+      "desc": "Crispy spiced paneer cubes tossed with curry leaves, green chillies & tangy 65 masala.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "chi-honey-chilli-potato",
+      "name": "Honey Chilli Potato",
+      "guName": "હની ચીલી પોટેટો",
+      "category": "chinese",
+      "price": 130,
+      "emoji": "🍯",
+      "image": "assets/dishes/chi-honey-chilli-potato.jpg",
+      "portion": "1 Full Glazed Plate",
+      "servedWith": "Toasted Sesame Seeds, Spring Onion & Schezwan Dip",
+      "desc": "Super crispy potato fingers glazed in sweet-spicy honey chilli sauce & sesame.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "chi-chilli-garlic-noodles",
+      "name": "Chilli Garlic Noodles",
+      "guName": "ચીલી ગાર્લિક નૂડલ્સ",
+      "category": "chinese",
+      "price": 120,
+      "emoji": "🍝",
+      "image": "assets/dishes/chi-chilli-garlic-noodles.jpg",
+      "portion": "450g Full Wok Bowl",
+      "servedWith": "Burnt Garlic Topping, Schezwan Dip & Vinegar Chillies",
+      "desc": "Fiery wok-tossed noodles infused with loads of roasted garlic, red chilli flakes & veggies.",
+      "bestseller": false,
+      "spicy": true,
+      "available": true
+    },
+    {
+      "id": "chi-sweet-corn-soup",
+      "name": "Sweet Corn Veg Soup",
+      "guName": "સ્વીટ કોર્ન સૂપ",
+      "category": "chinese",
+      "price": 75,
+      "emoji": "🥣",
+      "image": "assets/dishes/chi-sweet-corn-soup.jpg",
+      "portion": "350ml Comfort Bowl",
+      "servedWith": "Crispy Soup Croutons, Soy & Green Chilli Vinegar",
+      "desc": "Mild, velvety golden sweet corn broth with finely diced carrots & beans.",
+      "bestseller": false,
+      "spicy": false,
+      "available": true
+    },
+    {
+      "id": "chi-manchurian-rice",
+      "name": "Manchurian Fried Rice Combo",
+      "guName": "મંચુરિયન ફ્રાઈડ રાઈસ",
+      "category": "chinese",
+      "price": 140,
+      "emoji": "🥡",
+      "image": "assets/dishes/chi-manchurian-rice.jpg",
+      "portion": "500g Combo Platter",
+      "servedWith": "4 Hot Veg Manchurian Gravy Balls & Schezwan Chutney",
+      "desc": "Aromatic veg fried rice served together with rich, piping-hot Manchurian gravy.",
+      "bestseller": true,
+      "spicy": true,
+      "available": true
+    },
+    {
       "id": "pun-paneer-butter",
       "name": "Paneer Butter Masala",
       "category": "punjabi",
@@ -538,34 +988,6 @@
       "portion": "Combo Bowl • Serves 1–2",
       "servedWith": "Roasted Masala Papad, Onion Salad & Mango Pickle",
       "desc": "Comforting yellow lentils tempered with cumin & garlic, paired with fragrant jeera rice.",
-      "bestseller": false,
-      "spicy": false,
-      "available": true
-    },
-    {
-      "id": "pun-butter-naan",
-      "name": "Butter Naan (2 Pcs)",
-      "category": "punjabi",
-      "price": 65,
-      "emoji": "🫓",
-      "image": "assets/dishes/pun-butter-naan.jpg",
-      "portion": "2 Soft Tandoori Naan",
-      "servedWith": "Pure Amul Butter Brushing & Mint Chutney",
-      "desc": "Soft fluffy tandoori flatbread baked crisp outside and brushed generously with butter.",
-      "bestseller": false,
-      "spicy": false,
-      "available": true
-    },
-    {
-      "id": "pun-garlic-naan",
-      "name": "Garlic Cheese Naan",
-      "category": "punjabi",
-      "price": 85,
-      "emoji": "🧄",
-      "image": "assets/dishes/pun-garlic-naan.jpg",
-      "portion": "2 Loaded Naan Pcs",
-      "servedWith": "Amul Butter Glaze & Green Coriander Chutney",
-      "desc": "Freshly baked naan topped with roasted garlic, coriander & melted cheese.",
       "bestseller": false,
       "spicy": false,
       "available": true
@@ -734,7 +1156,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 2,
@@ -744,7 +1166,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 3,
@@ -754,7 +1176,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 4,
@@ -764,7 +1186,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 5,
@@ -774,7 +1196,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 6,
@@ -784,7 +1206,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 7,
@@ -794,7 +1216,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     },
     {
       "id": 8,
@@ -804,7 +1226,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795724131762
+      "updatedAt": 1795726112353
     }
   ],
   "customers": {},
@@ -817,7 +1239,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795722691762
+      "createdAt": 1795724672353
     },
     {
       "id": "rev-2",
@@ -826,7 +1248,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793132131762
+      "createdAt": 1793134112353
     },
     {
       "id": "rev-3",
@@ -835,7 +1257,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793909731762
+      "createdAt": 1793911712353
     },
     {
       "id": "rev-4",
@@ -844,7 +1266,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794514531762
+      "createdAt": 1794516512353
     }
   ],
   "mapPhotos": [
@@ -854,7 +1276,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795551331762
+      "createdAt": 1795553312353
     },
     {
       "id": "mp-2",
@@ -862,7 +1284,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795464931762
+      "createdAt": 1795466912353
     },
     {
       "id": "mp-3",
@@ -870,7 +1292,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795378531762
+      "createdAt": 1795380512353
     },
     {
       "id": "mp-4",
@@ -878,7 +1300,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795292131762
+      "createdAt": 1795294112353
     },
     {
       "id": "mp-5",
@@ -886,7 +1308,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795205731762
+      "createdAt": 1795207712353
     },
     {
       "id": "mp-6",
@@ -894,7 +1316,7 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795722691762
+      "createdAt": 1795724672353
     }
   ],
   "chatMessages": []
