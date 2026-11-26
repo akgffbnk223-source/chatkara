@@ -19,7 +19,7 @@
       <span id="topAnnouncement">🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • ₹1–200 Per Person</span>
       <span class="top-strip-right">
         <span class="live-dot-badge" id="syncStatusBadge">● Live Sync</span>
-        <span id="topHoursText">Open · Closes 12:30 AM</span> • 📞 <a id="topPhoneLink" href="tel:+919054633908">090546 33908</a>
+        <span id="topHoursText">12:00 PM–3:00 PM • 6:00 PM–11:50 PM</span> • 📞 <a id="topPhoneLink" href="tel:+919054633908">090546 33908</a>
       </span>
     </div>
   </div>
@@ -71,7 +71,7 @@
           <div class="hero-badges">
             <span class="badge badge-veg shimmer-badge"><span class="veg-dot"></span> 100% Pure Veg</span>
             <span class="badge badge-rating" id="heroRatingBadge">⭐ 4.9 <span>(113 Reviews)</span></span>
-            <span class="badge badge-open" id="heroHoursBadge">● Open till 12:30 AM</span>
+            <span class="badge badge-open" id="heroHoursBadge">🕒 12:00–3:00 PM • 6:00–11:50 PM</span>
           </div>
 
           <h1>PURE VEG THAT’S <span class="gradient-text">ACTUALLY UNFORGETTABLE.</span></h1>
@@ -110,34 +110,40 @@
         <div class="hero-visual reveal">
           <div class="platter-card card-hover">
             <div class="platter-header">
-              <span class="tag-hot"><span class="reel-live-dot"></span> LIVE DISH VIDEO AD • PURE VEG</span>
+              <span class="tag-hot"><span class="reel-live-dot"></span> LIVE DISH VIDEO AD</span>
               <span class="price-tag" id="heroPriceRange">₹1–300 per person</span>
             </div>
 
+            <!-- Pure Clean Unobstructed Video Ad Screen (Zero Text Over Image) -->
             <div class="hero-ad-stage" id="heroAdStage" aria-label="Live dish showcase video reel">
               <img id="heroAdImgPrev" class="hero-ad-img-prev" src="assets/veg-angara.jpg" alt="" aria-hidden="true" />
-              <img id="heroAdImg" class="hero-ad-img ken-zoom-in" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
-              <div class="hero-ad-vignette"></div>
+              <div class="hero-ad-media-wrap" id="heroAdMediaWrap">
+                <img id="heroAdImg" class="hero-ad-img" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
+              </div>
               <div class="hero-ad-progress-track">
                 <div class="hero-ad-progress-fill" id="heroAdProgress"></div>
               </div>
-              <div class="hero-ad-top">
-                <span class="hero-ad-cat" id="heroAdCat">🔥 CHEF SPECIAL</span>
-                <div class="hero-ad-controls">
-                  <button type="button" id="heroAdPrevBtn" title="Previous dish" aria-label="Previous dish">◀</button>
-                  <button type="button" id="heroAdToggleBtn" title="Pause / Play" aria-label="Pause or play reel">⏸</button>
-                  <button type="button" id="heroAdNextBtn" title="Next dish" aria-label="Next dish">▶</button>
+            </div>
+
+            <!-- Clean Info & Action Strip Below Video (Zero Overlap on Food Photo) -->
+            <div class="hero-ad-below-bar">
+              <div class="hero-ad-below-info">
+                <div class="hero-ad-meta-row">
+                  <span class="hero-ad-cat-pill" id="heroAdCat">🔥 CHEF SPECIAL</span>
+                  <small id="heroAdCounter">1 / 76</small>
                 </div>
+                <h3 id="heroAdTitle">Veg Angara (વેજ અંગારા)</h3>
+                <p id="heroAdServed" class="hero-ad-below-served">🎁 Mint Dip, Laccha Onion Salad &amp; Roasted Papad</p>
               </div>
-              <div class="hero-ad-caption">
-                <div class="hero-ad-info">
-                  <small id="heroAdCounter">1 / 76 • ▶ Live Reel • 100% Pure Veg</small>
-                  <h3 id="heroAdTitle">Veg Angara (વેજ અંગારા)</h3>
-                  <p id="heroAdServed">🎁 Saath Mein: Mint Dip, Laccha Onion Salad &amp; Roasted Papad</p>
-                </div>
-                <div class="hero-ad-cta">
-                  <strong id="heroAdPrice">₹260/-</strong>
+              <div class="hero-ad-below-actions">
+                <strong id="heroAdPrice">₹260/-</strong>
+                <div class="hero-ad-btn-group">
                   <button type="button" class="btn btn-primary btn-sm" id="heroAdAddBtn">+ Order</button>
+                  <div class="hero-ad-controls-below">
+                    <button type="button" id="heroAdPrevBtn" title="Previous dish" aria-label="Previous dish">◀</button>
+                    <button type="button" id="heroAdToggleBtn" title="Pause / Play" aria-label="Pause or play reel">⏸</button>
+                    <button type="button" id="heroAdNextBtn" title="Next dish" aria-label="Next dish">▶</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -545,7 +551,7 @@
                     <text x="542" y="110" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">🅿️ Free Parking</text>
                     <text x="542" y="126" text-anchor="middle" fill="#dcfce7" font-size="10.5">Cars &amp; Bikes</text>
                   </g>
-                  <g class="map-pin-node active-pin" data-info="Chatkaro Food Hub — Open daily till 12:30 AM! 2GWF+GJ Talala.">
+                  <g class="map-pin-node active-pin" data-info="Chatkaro Food Hub — Open 12:00–3:00 PM &amp; 6:00–11:50 PM (Break 3–6 PM). 2GWF+GJ Talala.">
                     <rect x="315" y="66" width="160" height="72" rx="14" fill="#ea580c" stroke="#fff" stroke-width="3" />
                     <text x="395" y="94" text-anchor="middle" fill="#fff" font-size="14" font-weight="800">🍲 CHATKARO</text>
                     <text x="395" y="112" text-anchor="middle" fill="#ffedd5" font-size="11.5" font-weight="700">FOOD HUB ★ 4.9</text>
@@ -568,7 +574,7 @@
             </div>
             <div class="visit-block">
               <span class="visit-label">OPENING HOURS &amp; PRICE</span>
-              <p><strong id="visitHoursText">Open · Closes 12:30 AM</strong><br /><small class="muted" id="visitPriceText">₹1–200 per person • All Vegetarian</small></p>
+              <p><strong id="visitHoursText">12:00 PM – 3:00 PM (Break 3:00–6:00 PM) • 6:00 PM – 11:50 PM</strong><br /><small class="muted" id="visitPriceText">₹1–300 per person • 100% Pure Vegetarian</small></p>
             </div>
             <div class="visit-actions">
               <a class="btn btn-primary glow-btn" href="https://www.google.com/maps/search/?api=1&query=Chatkaro+food+hub,+opp.+Shreeji+Super+Mart,+Talala,+Gujarat+362150" target="_blank" rel="noopener noreferrer">

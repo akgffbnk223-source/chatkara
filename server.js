@@ -33,7 +33,7 @@ function createDefaultDb() {
       priceRange: '₹1–300 per person',
       address: 'Near Essar Petrol Pump, Opp. Shreeji Super Mart, Talala, Gujarat 362150',
       plusCode: '2GWF+GJ Talala, Gujarat',
-      openHoursText: 'Open · Closes 12:30 AM',
+      openHoursText: '12:00 PM – 3:00 PM (Break 3–6 PM) • 6:00 PM – 11:50 PM',
       phone: '919054633908',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       googleClientId: '',
@@ -48,7 +48,7 @@ function createDefaultDb() {
       phonepeSaltIndex: '1',
       phonepeEnv: 'sandbox',
       lastMapsSyncAt: now,
-      announcement: '🌿 100% Pure Vegetarian • Veg, Kaju & Cheese Specials, Dosas & Chinese • Open till 12:30 AM!',
+      announcement: '🌿 100% Pure Vegetarian • 🕒 12:00 PM–3:00 PM & 6:00 PM–11:50 PM (Break 3–6 PM)',
       dailyDeal: '🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.',
       brandTheme: {
         preset: 'greenrush-3d',

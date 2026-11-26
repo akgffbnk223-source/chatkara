@@ -25,12 +25,12 @@
       restaurantName: 'Chatkaro Food Hub',
       rating: 4.9,
       reviewCount: 113,
-      priceRange: '₹1–200 per person',
+      priceRange: '₹1–300 per person',
       address: 'Near Essar Petrol Pump, Opp. Shreeji Super Mart, Talala, Gujarat 362150',
       plusCode: '2GWF+GJ Talala, Gujarat',
-      openHoursText: 'Open · Closes 12:30 AM',
+      openHoursText: '12:00 PM – 3:00 PM (Break 3–6 PM) • 6:00 PM – 11:50 PM',
       phone: '919054633908',
-      announcement: '🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • ₹1–200 Per Person',
+      announcement: '🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • 12:00 PM–3:00 PM & 6:00 PM–11:50 PM',
       dailyDeal: '🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.',
       googleClientId: '',
       hasGeminiKey: false,
@@ -526,8 +526,23 @@
     }
   }
 
+  function getLiveOpenStatusText() {
+    try {
+      const istStr = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit' });
+      const [hh, mm] = istStr.split(':').map(Number);
+      const mins = hh * 60 + mm;
+      if (mins >= 720 && mins < 900) return '🟢 Open Now (Lunch till 3:00 PM)';
+      if (mins >= 900 && mins < 1080) return '☕ Break (3–6 PM) • Opens 6:00 PM';
+      if (mins >= 1080 && mins <= 1430) return '🟢 Open Now (Dinner till 11:50 PM)';
+      return '🕒 Opens 12:00 PM • 12–3 PM & 6–11:50 PM';
+    } catch {
+      return '🕒 12:00 PM–3:00 PM & 6:00 PM–11:50 PM';
+    }
+  }
+
   function renderSettingsBanner() {
     const s = appState.settings;
+    const defaultHours = '12:00 PM – 3:00 PM (Break 3–6 PM) • 6:00 PM – 11:50 PM';
     $('brandTitle').textContent = (s.restaurantName || 'Chatkaro').split(' ')[0];
     $('topAnnouncement').textContent = s.announcement || '';
     if ($('dailyDealBanner')) {
@@ -537,11 +552,11 @@
     if ($('aiEngineBadge')) {
       $('aiEngineBadge').textContent = s.hasGeminiKey ? 'Powered by Gemini AI ✨' : 'Live Menu & Ordering Helper';
     }
-    $('topHoursText').textContent = s.openHoursText || 'Open · Closes 12:30 AM';
-    $('heroHoursBadge').textContent = '● ' + (s.openHoursText || 'Open till 12:30 AM');
-    $('heroPriceRange').textContent = s.priceRange || '₹1–200 per person';
-    $('visitHoursText').textContent = s.openHoursText || 'Open · Closes 12:30 AM';
-    $('visitPriceText').textContent = `${s.priceRange || '₹1–200 per person'} • All Vegetarian`;
+    $('topHoursText').textContent = s.openHoursText || defaultHours;
+    $('heroHoursBadge').textContent = getLiveOpenStatusText();
+    $('heroPriceRange').textContent = s.priceRange || '₹1–300 per person';
+    $('visitHoursText').textContent = s.openHoursText || defaultHours;
+    $('visitPriceText').textContent = `${s.priceRange || '₹1–300 per person'} • 100% Pure Vegetarian`;
     $('visitRestName').textContent = s.restaurantName || 'Chatkaro Food Hub';
     $('visitFullAddress').textContent = s.address || '';
     $('visitAddressLead').textContent = s.address || '';
@@ -785,9 +800,21 @@
     'beverages': 'Freshly Prepared Chilled / Warm Serving'
   };
 
-  // ================= HERO LIVE VIDEO-AD DISH REEL =================
-  const heroAdState = { idx: 0, paused: false, elapsed: 0, duration: 3800, timer: null, currentDishId: 'veg-angara', lastSrc: '' };
-  const REEL_MOTIONS = ['ken-zoom-in', 'ken-pan-left', 'ken-pan-right', 'ken-zoom-out'];
+  // ================= HERO LIVE VIDEO-AD DISH REEL (DYNAMIC VARIED TRANSITIONS) =================
+  const heroAdState = {
+    idx: 0,
+    paused: false,
+    elapsed: 0,
+    duration: 3600,
+    timer: null,
+    currentDishId: 'veg-angara',
+    lastSrc: '',
+    shuffledIds: [],
+    lastMotionIdx: -1,
+    lastTransIdx: -1
+  };
+  const REEL_MOTIONS = ['ken-zoom-in', 'ken-pan-left', 'ken-pan-right', 'ken-zoom-out', 'ken-diag-tl', 'ken-diag-br'];
+  const REEL_TRANSITIONS = ['trans-fade', 'trans-slide-right', 'trans-slide-left', 'trans-slide-up', 'trans-zoom-burst', 'trans-blur-focus', 'trans-tilt-flip', 'trans-wipe-curtain'];
   const CAT_LABELS = {
     'veg-prep': '🥘 VEG PREPARATION',
     'kaju-prep': '🥜 KAJU SPECIAL',
@@ -800,37 +827,75 @@
     'beverages': '🥤 DRINKS & SWEETS'
   };
 
+  function pickDifferentIdx(len, lastIdx) {
+    if (len <= 1) return 0;
+    let next = Math.floor(Math.random() * len);
+    if (next === lastIdx) next = (next + 1 + Math.floor(Math.random() * (len - 1))) % len;
+    return next;
+  }
+
+  function shuffleIds(ids) {
+    const arr = [...ids];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function getOrderedReelList() {
+    const valid = appState.menu.filter((m) => m.available !== false && m.image !== '__NONE__');
+    if (!valid.length) return [];
+    const validMap = new Map(valid.map((m) => [m.id, m]));
+    const needsInit = !heroAdState.shuffledIds.length || heroAdState.shuffledIds.some((id) => !validMap.has(id)) || heroAdState.shuffledIds.length !== valid.length;
+    if (needsInit) {
+      heroAdState.shuffledIds = shuffleIds(valid.map((m) => m.id));
+    }
+    return heroAdState.shuffledIds.map((id) => validMap.get(id)).filter(Boolean);
+  }
+
   function renderHeroAdSlide() {
-    const list = appState.menu.filter((m) => m.available !== false && m.image !== '__NONE__');
+    const list = getOrderedReelList();
     if (!list.length || !$('heroAdStage')) return;
+    if (heroAdState.idx >= list.length) {
+      // Reshuffle playlist after completing all dishes so every cycle plays in a new order
+      heroAdState.shuffledIds = shuffleIds(list.map((m) => m.id));
+      heroAdState.idx = 0;
+    }
     heroAdState.idx = ((heroAdState.idx % list.length) + list.length) % list.length;
     const dish = list[heroAdState.idx];
     heroAdState.currentDishId = dish.id;
 
+    // Slight random pacing (3.2s - 4.3s) so video reel feels organic and varied
+    heroAdState.duration = 3200 + Math.floor(Math.random() * 1100);
+
     const nextSrc = getDishImage(dish) || 'assets/veg-angara.jpg';
     const imgEl = $('heroAdImg');
     const prevEl = $('heroAdImgPrev');
+    const wrapEl = $('heroAdMediaWrap');
     if (prevEl && heroAdState.lastSrc && heroAdState.lastSrc !== nextSrc) {
       prevEl.src = heroAdState.lastSrc;
     }
 
-    const motionClass = REEL_MOTIONS[heroAdState.idx % REEL_MOTIONS.length];
-    imgEl.style.transition = 'none';
-    imgEl.style.opacity = heroAdState.lastSrc ? '0' : '1';
+    const mIdx = pickDifferentIdx(REEL_MOTIONS.length, heroAdState.lastMotionIdx);
+    const tIdx = pickDifferentIdx(REEL_TRANSITIONS.length, heroAdState.lastTransIdx);
+    heroAdState.lastMotionIdx = mIdx;
+    heroAdState.lastTransIdx = tIdx;
+
+    const motionClass = REEL_MOTIONS[mIdx];
+    const transClass = REEL_TRANSITIONS[tIdx];
+
+    if (wrapEl) {
+      wrapEl.classList.remove(...REEL_TRANSITIONS);
+      void wrapEl.offsetWidth;
+      wrapEl.classList.add(transClass);
+    }
     imgEl.classList.remove(...REEL_MOTIONS, 'ken-burns');
     void imgEl.offsetWidth;
-    imgEl.classList.add(motionClass);
-
-    const revealFrame = () => {
-      requestAnimationFrame(() => {
-        imgEl.style.transition = 'opacity 0.65s ease';
-        imgEl.style.opacity = '1';
-      });
-    };
-    imgEl.onload = revealFrame;
-    imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; revealFrame(); };
     imgEl.src = nextSrc;
-    if (imgEl.complete) revealFrame();
+    imgEl.alt = dish.name;
+    imgEl.onerror = () => { imgEl.src = 'assets/veg-angara.jpg'; };
+    imgEl.classList.add(motionClass);
     heroAdState.lastSrc = nextSrc;
 
     // Preload next 2 dish photos for seamless zero-flicker video transitions
@@ -840,10 +905,10 @@
       if (u) { const pre = new Image(); pre.src = u; }
     });
 
-    $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG SPECIAL';
-    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length} • ${heroAdState.paused ? '⏸ Paused' : '▶ Live Video Ad'}${dish.bestseller ? ' • ⭐ Bestseller' : ''}`;
+    $('heroAdCat').textContent = CAT_LABELS[dish.category] || '🍲 PURE VEG';
+    $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${list.length}`;
     $('heroAdTitle').textContent = dish.guName ? `${dish.name} (${dish.guName})` : dish.name;
-    $('heroAdServed').textContent = `🎁 Saath Mein: ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
+    $('heroAdServed').textContent = `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
     $('heroAdPrice').textContent = `₹${dish.price}/-`;
 
     const miniWrap = $('heroMiniReelList');
