@@ -1,0 +1,2790 @@
+(function () {
+  const isHttp = window.location.protocol.startsWith('http');
+  const API_BASE = isHttp ? '' : null;
+
+  const appState = {
+    theme: localStorage.getItem('chatkaro_theme') || 'dark',
+    userOverrideTheme: localStorage.getItem('chatkaro_user_theme_override') === '1',
+    user: JSON.parse(localStorage.getItem('chatkaro_user') || 'null'),
+    adminToken: sessionStorage.getItem('chatkaro_admin_token') || '',
+    salesData: null,
+    aiHistory: [],
+    category: 'all',
+    filter: null,
+    search: '',
+    photoCategory: 'all',
+    cart: JSON.parse(localStorage.getItem('chatkaro_cart') || '{}'),
+    orderType: 'dine-in',
+    paymentMethod: 'cod',
+    adminOrderFilter: 'all',
+    pendingPhonepeTxn: null,
+    promoCode: localStorage.getItem('chatkaro_active_promo') || '',
+    unlockedCoupons: JSON.parse(localStorage.getItem('chatkaro_coupons') || '[]'),
+    pendingOrderAfterLogin: false,
+    settings: {
+      restaurantName: 'Chatkaro Food Hub',
+      rating: 4.9,
+      reviewCount: 113,
+      priceRange: '₹1–200 per person',
+      address: 'Near Essar Petrol Pump, Opp. Shreeji Super Mart, Talala, Gujarat 362150',
+      plusCode: '2GWF+GJ Talala, Gujarat',
+      openHoursText: 'Open · Closes 12:30 AM',
+      phone: '919054633908',
+      announcement: '🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • ₹1–200 Per Person',
+      dailyDeal: '🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.',
+      googleClientId: '',
+      hasGeminiKey: false,
+      lastMapsSyncAt: Date.now(),
+      brandTheme: {
+        preset: 'saffron-night',
+        primary: '#f97316',
+        accent: '#fbbf24',
+        bg: '#0f0a07',
+        surface: '#1b120d',
+        text: '#fbf4ec',
+        fxEnabled: true
+      }
+    },
+    menu: [],
+    tables: [],
+    orders: [],
+    reviews: [],
+    mapPhotos: [],
+    chatMessages: [],
+    topCustomers: [],
+    customersAll: [],
+    gameRooms: [],
+    staticMode: !isHttp
+  };
+
+  window.ChatkaroBridge = {
+    getUser: () => appState.user,
+    getTables: () => appState.tables,
+    getApiBase: () => API_BASE,
+    onGameRoomsUpdate: null,
+    unlockCoupon: (code) => {
+      unlockCoupon(code);
+      launchConfetti();
+    },
+    showToast: (msg) => showToast(msg),
+    reportScore: async (score) => {
+      if (!API_BASE || !appState.user) return;
+      try {
+        await api('/api/game/score', 'POST', { email: appState.user.email, score });
+      } catch {}
+    }
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const escapeHtml = (str) =>
+    String(str ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), 2800);
+  }
+
+  function handleStaticApi(url, method, body) {
+    if (url === '/api/auth/login' && method === 'POST') {
+      const email = String(body?.email || '').trim().toLowerCase();
+      if (!email || !/^[^\s@]+@(gmail|googlemail)\.com$/i.test(email)) {
+        throw new Error('Please sign in with a valid @gmail.com email address.');
+      }
+      const customer = {
+        ...(appState.user && appState.user.email === email ? appState.user : {}),
+        email,
+        name: String(body?.name || email.split('@')[0]).trim(),
+        phone: String(body?.phone || '').trim(),
+        picture: body?.picture || '',
+        bio: appState.user?.bio || 'Chatkaro Foodie',
+        favoriteDish: appState.user?.favoriteDish || 'Mix Veg',
+        avatarColor: appState.user?.avatarColor || '#ea580c',
+        ordersCount: appState.user?.ordersCount || 0,
+        totalSpent: appState.user?.totalSpent || 0,
+        bestGameScore: appState.user?.bestGameScore || 0,
+        tableId: appState.user?.tableId || null
+      };
+      return { customer };
+    }
+    if (url === '/api/profile' && method === 'POST') {
+      const customer = { ...(appState.user || {}), ...body };
+      return { customer };
+    }
+    if (url === '/api/orders' && method === 'POST') {
+      const items = Array.isArray(body?.items) ? body.items : [];
+      const subtotal = items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 0), 0);
+      const discountAmt = Number(body?.discountAmt || 0);
+      const deliveryFee = Number(body?.deliveryFee || 0);
+      const order = {
+        id: 'CFH-' + String(Date.now()).slice(-4),
+        customerName: body?.customerName || 'Guest',
+        customerEmail: body?.customerEmail || '',
+        customerPhone: body?.customerPhone || '',
+        orderType: body?.orderType || 'dine-in',
+        tableId: body?.tableId || null,
+        detail: body?.detail || '',
+        items,
+        subtotal,
+        discountAmt,
+        deliveryFee,
+        total: Math.max(0, subtotal - discountAmt + deliveryFee),
+        promoCode: body?.promoCode || '',
+        paymentMethod: body?.paymentMethod || 'cod',
+        paymentStatus: body?.paymentStatus || 'cod',
+        paymentId: body?.paymentId || '',
+        isFake: false,
+        status: 'confirmed',
+        etaMinutes: Number(body?.etaMinutes || 18),
+        etaEndsAt: Date.now() + Number(body?.etaMinutes || 18) * 60000,
+        createdAt: Date.now()
+      };
+      appState.orders.unshift(order);
+      renderLiveOrders();
+      renderMyOrderBanner();
+      return { order };
+    }
+    if (url === '/api/tables/checkin' && method === 'POST') {
+      const tbl = appState.tables.find((t) => t.id === Number(body?.tableId));
+      if (!tbl) throw new Error('Table not found.');
+      if (body?.action === 'leave') {
+        tbl.status = 'available';
+        tbl.occupantName = '';
+        tbl.occupantEmail = '';
+        tbl.dishSummary = '';
+      } else {
+        appState.tables.forEach((t) => {
+          if (t.occupantEmail === body?.email) {
+            t.status = 'available';
+            t.occupantName = '';
+            t.occupantEmail = '';
+            t.dishSummary = '';
+          }
+        });
+        tbl.status = 'occupied';
+        tbl.occupantName = body?.name || 'Guest';
+        tbl.occupantEmail = body?.email || '';
+        tbl.dishSummary = 'Dining in';
+      }
+      renderTables();
+      renderCart();
+      return { ok: true };
+    }
+    if (url === '/api/chat' && method === 'POST') {
+      appState.chatMessages.push({
+        id: 'msg-' + Date.now(),
+        senderName: body?.senderName || 'Guest',
+        senderEmail: body?.senderEmail || '',
+        tableId: body?.tableId || null,
+        text: String(body?.text || '').trim(),
+        createdAt: Date.now()
+      });
+      renderChat();
+      return { ok: true };
+    }
+    if (url === '/api/reviews' && method === 'POST') {
+      appState.reviews.unshift({
+        id: 'rev-' + Date.now(),
+        author: String(body?.author || 'Guest').trim(),
+        rating: Math.min(5, Math.max(1, Number(body?.rating || 5))),
+        text: String(body?.text || '').trim(),
+        source: body?.source || 'Website Guest',
+        meta: 'Guest Review',
+        createdAt: Date.now()
+      });
+      renderReviews();
+      return { ok: true };
+    }
+    if (url === '/api/ai-chat' && method === 'POST') {
+      const q = String(body?.message || '').toLowerCase();
+      const avail = appState.menu.filter((m) => m.available !== false);
+      const freeTables = appState.tables.filter((t) => t.status === 'available');
+      let reply = `Namaste! 🙏 Chatkaro Food Hub mein ${avail.length} pure-veg dishes available hain (South Indian, Chinese, Punjabi, Fast Food & Beverages). Order karne ke liye dishes '+' karke Cart se WhatsApp par bhej sakte hain!`;
+      if (q.includes('sold') || q.includes('khatam')) {
+        const soldOut = appState.menu.filter((m) => m.available === false);
+        reply = soldOut.length ? `Sold out items: ${soldOut.map((m) => m.name).join(', ')}.` : 'Abhi saare menu items available hain! 😊';
+      } else if (q.includes('table') || q.includes('khali') || q.includes('seat')) {
+        reply = freeTables.length ? `Abhi ${freeTables.length} tables khali hain: ${freeTables.map((t) => t.label).join(', ')}.` : 'Abhi saari tables occupied hain, par aap Takeaway ya Delivery order kar sakte hain!';
+      } else if (q.includes('menu') || q.includes('milega') || q.includes('price')) {
+        const top = avail.slice(0, 6).map((m) => `${m.name} (₹${m.price})`).join(', ');
+        reply = `Popular dishes: ${top}. Poore menu ke liye upar Menu section dekhein!`;
+      }
+      return { reply, engine: 'local-helper' };
+    }
+    if (url === '/api/game/score' && method === 'POST') {
+      return { ok: true };
+    }
+    throw new Error('This live feature requires Node server (deploy on Render/Railway).');
+  }
+
+  async function api(url, method = 'GET', body = null, headers = {}) {
+    if (appState.staticMode || !API_BASE && API_BASE !== '') {
+      return handleStaticApi(url, method, body);
+    }
+    const opts = { method, headers: { 'Content-Type': 'application/json', ...headers } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Live server unavailable.');
+    }
+    if (!res.ok) throw new Error(data?.error || 'Request failed');
+    return data;
+  }
+
+  // ================= VISUAL EFFECTS: HERO PARTICLES, SCROLL REVEAL & CONFETTI =================
+  function initScrollReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach((el) => el.classList.add('visible'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08 }
+    );
+    els.forEach((el) => io.observe(el));
+  }
+
+  function initHeroParticles() {
+    const canvas = $('heroFxCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let sparks = [];
+
+    function resize() {
+      canvas.width = canvas.offsetWidth || 1000;
+      canvas.height = canvas.offsetHeight || 500;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < 28; i++) {
+      sparks.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: 1.5 + Math.random() * 3,
+        vy: -0.35 - Math.random() * 0.65,
+        vx: (Math.random() - 0.5) * 0.4,
+        alpha: 0.15 + Math.random() * 0.45
+      });
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!document.body.classList.contains('no-fx')) {
+        const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#f97316';
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#fbbf24';
+        sparks.forEach((s, idx) => {
+          s.y += s.vy;
+          s.x += s.vx;
+          if (s.y < -10) {
+            s.y = canvas.height + 10;
+            s.x = Math.random() * canvas.width;
+          }
+          ctx.globalAlpha = s.alpha;
+          ctx.fillStyle = idx % 2 === 0 ? primary : accent;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function launchConfetti() {
+    if (document.body.classList.contains('no-fx')) return;
+    const canvas = $('confettiCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const colors = ['#f97316', '#fbbf24', '#22c55e', '#38bdf8', '#f43f5e'];
+    const bits = Array.from({ length: 75 }, () => ({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * 80,
+      w: 6 + Math.random() * 6,
+      h: 8 + Math.random() * 6,
+      vx: (Math.random() - 0.5) * 4,
+      vy: 3 + Math.random() * 4.5,
+      rot: Math.random() * Math.PI,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    let frames = 0;
+    function step() {
+      frames++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      bits.forEach((b) => {
+        b.x += b.vx;
+        b.y += b.vy;
+        b.rot += 0.08;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rot);
+        ctx.fillStyle = b.color;
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+        ctx.restore();
+      });
+      if (frames < 110) requestAnimationFrame(step);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ================= LIVE BRAND THEME & DARK/WHITE TOGGLE =================
+  const COLOR_PRESETS = {
+    'saffron-night': { label: 'Saffron Night', mode: 'dark', primary: '#f97316', accent: '#fbbf24', bg: '#0f0a07', surface: '#1b120d', text: '#fbf4ec' },
+    'pure-white': { label: 'Pure White', mode: 'light', primary: '#ea580c', accent: '#b45309', bg: '#ffffff', surface: '#ffffff', text: '#1c130d' },
+    'royal-emerald': { label: 'Royal Emerald', mode: 'dark', primary: '#10b981', accent: '#facc15', bg: '#071510', surface: '#0f241c', text: '#ecfdf5' },
+    'midnight-berry': { label: 'Midnight Berry', mode: 'dark', primary: '#ec4899', accent: '#a855f7', bg: '#130716', surface: '#220f26', text: '#fdf2f8' },
+    'tandoori-gold': { label: 'Tandoori Gold', mode: 'dark', primary: '#dc2626', accent: '#f59e0b', bg: '#160908', surface: '#261210', text: '#fff5f5' }
+  };
+
+  function isLightColor(hex) {
+    const c = (hex || '#000000').replace('#', '');
+    if (c.length !== 6) return false;
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 145;
+  }
+
+  function applyBrandColors(bt) {
+    if (!bt) return;
+    const root = document.documentElement;
+    document.body.classList.toggle('no-fx', bt.fxEnabled === false);
+
+    if (appState.userOverrideTheme) {
+      // User manually clicked Dark/White toggle — keep primary/accent from Admin, use crisp Dark/White surface
+      root.style.setProperty('--primary', bt.primary || '#f97316');
+      root.style.setProperty('--accent', bt.accent || '#fbbf24');
+      root.style.removeProperty('--bg');
+      root.style.removeProperty('--surface');
+      root.style.removeProperty('--surface-alt');
+      root.style.removeProperty('--text');
+      root.style.removeProperty('--text-strong');
+      root.style.removeProperty('--border');
+      root.setAttribute('data-theme', appState.theme);
+      $('themeToggleBtn').textContent = appState.theme === 'dark' ? '☀️ White' : '🌙 Dark';
+      return;
+    }
+
+    const light = isLightColor(bt.bg);
+    root.setAttribute('data-theme', light ? 'light' : 'dark');
+    appState.theme = light ? 'light' : 'dark';
+    $('themeToggleBtn').textContent = light ? '🌙 Dark' : '☀️ White';
+
+    root.style.setProperty('--primary', bt.primary);
+    root.style.setProperty('--accent', bt.accent);
+    root.style.setProperty('--bg', bt.bg);
+    root.style.setProperty('--surface', bt.surface);
+    root.style.setProperty('--text', bt.text);
+    root.style.setProperty('--text-strong', bt.text);
+    root.style.setProperty('--surface-alt', light ? '#f3ece3' : 'rgba(255,255,255,0.06)');
+    root.style.setProperty('--border', light ? '#d5c4b1' : 'rgba(255,255,255,0.14)');
+  }
+
+  $('themeToggleBtn').addEventListener('click', () => {
+    appState.userOverrideTheme = true;
+    localStorage.setItem('chatkaro_user_theme_override', '1');
+    appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('chatkaro_theme', appState.theme);
+    applyBrandColors(appState.settings.brandTheme);
+  });
+
+  // ================= SSE REAL-TIME SYNC =================
+  function connectRealtime() {
+    if (!isHttp || appState.staticMode) {
+      $('syncStatusBadge').textContent = '● Static Mode';
+      return;
+    }
+    const es = new EventSource('/api/events');
+    es.addEventListener('state', (ev) => {
+      try {
+        applySnapshot(JSON.parse(ev.data));
+        $('syncStatusBadge').textContent = '● Live Sync';
+      } catch {}
+    });
+    es.addEventListener('game', (ev) => {
+      try {
+        const room = JSON.parse(ev.data);
+        if (window.ChatkaroBridge.onGameRoomsUpdate) window.ChatkaroBridge.onGameRoomsUpdate(room);
+      } catch {}
+    });
+    es.onerror = () => {
+      $('syncStatusBadge').textContent = '● Reconnecting...';
+    };
+  }
+
+  function activateStaticMode() {
+    appState.staticMode = true;
+    $('syncStatusBadge').textContent = '● Static Mode';
+    const menuItems = Array.isArray(window.CHATKARO_MENU)
+      ? window.CHATKARO_MENU.map((m) => ({ ...m, available: m.available !== false }))
+      : [];
+    const now = Date.now();
+    applySnapshot({
+      settings: appState.settings,
+      menu: menuItems,
+      tables: [
+        { id: 1, label: 'Table 1', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 2, label: 'Table 2', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 3, label: 'Table 3', seats: 6, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 4, label: 'Table 4', seats: 2, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 5, label: 'Table 5', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 6, label: 'Table 6', seats: 6, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 7, label: 'Table 7', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+        { id: 8, label: 'Table 8 (Family)', seats: 8, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now }
+      ],
+      orders: [],
+      reviews: [
+        { id: 'rev-1', author: 'Aman Kumar', rating: 5, text: 'Chatkaro Food Hub is an amazing place! Delicious pure-veg food and wonderful atmosphere.', source: 'Google Maps', meta: 'Dine-in • ₹1–200', createdAt: now - 3600000 },
+        { id: 'rev-2', author: 'Devanshi Unadkat', rating: 5, text: 'Everything was top notch and Dosa was just amazing! ❤️', source: 'Google Maps', meta: 'Local Foodie', createdAt: now - 86400000 },
+        { id: 'rev-3', author: 'Piyu Kanabar', rating: 5, text: 'The taste of food is just too good 😄 Chinese, Punjabi & South Indian all great!', source: 'Google Maps', meta: 'Pure Vegetarian', createdAt: now - 172800000 },
+        { id: 'rev-4', author: 'Manish Kakani', rating: 5, text: 'Super food and satisfied! Peaceful atmosphere and quick family service.', source: 'Google Maps', meta: 'Free Parking', createdAt: now - 259200000 }
+      ],
+      mapPhotos: [
+        { id: 'mp-1', title: 'Veg Kadai & Mix Veg Preparation (વેજ કડાઈ)', category: 'food', uploader: 'By Owner • Signature Menu', url: 'assets/veg-kadai.jpg', createdAt: now },
+        { id: 'mp-2', title: 'Sizzling Veg Angara & Veg Kolhapuri (વેજ અંગારા)', category: 'food', uploader: 'By Owner • Signature Menu', url: 'assets/veg-angara.jpg', createdAt: now },
+        { id: 'mp-3', title: 'Royal Kaju Curry & Kaju Butter Masala (કાજુ કરી)', category: 'food', uploader: 'By Owner • Signature Menu', url: 'assets/kaju-curry.jpg', createdAt: now },
+        { id: 'mp-4', title: 'Cheese Butter Masala & Cheese Anguri (ચીઝ અંગુરી)', category: 'food', uploader: 'By Owner • Signature Menu', url: 'assets/cheese-masala.jpg', createdAt: now },
+        { id: 'mp-5', title: 'Crispy Masala Dosa with Hot Sambar & Chutneys', category: 'food', uploader: 'Google Maps Photo', url: 'assets/dosa-platter.jpg', createdAt: now },
+        { id: 'mp-6', title: 'Peaceful Family Dining Lounge & Warm Vibe', category: 'vibe', uploader: 'Google Maps Photo', url: 'assets/dining-vibe.jpg', createdAt: now }
+      ],
+      chatMessages: [],
+      topCustomers: []
+    });
+  }
+
+  function applySnapshot(snap) {
+    if (snap.settings) appState.settings = snap.settings;
+    if (snap.menu) appState.menu = snap.menu;
+    if (snap.tables) appState.tables = snap.tables;
+    if (snap.orders) appState.orders = snap.orders;
+    if (snap.reviews) appState.reviews = snap.reviews;
+    if (snap.mapPhotos) appState.mapPhotos = snap.mapPhotos;
+    if (snap.chatMessages) appState.chatMessages = snap.chatMessages;
+    if (snap.topCustomers) appState.topCustomers = snap.topCustomers;
+    if (snap.customersAll) appState.customersAll = snap.customersAll;
+    if (snap.gameRooms) appState.gameRooms = snap.gameRooms;
+
+    if (appState.user) {
+      const userTable = appState.tables.find((t) => t.occupantEmail === appState.user.email);
+      appState.user.tableId = userTable ? userTable.id : null;
+      localStorage.setItem('chatkaro_user', JSON.stringify(appState.user));
+    }
+
+    applyBrandColors(appState.settings.brandTheme);
+    renderSettingsBanner();
+    renderMenu();
+    renderCart();
+    renderTables();
+    renderLiveOrders();
+    renderTopCustomers();
+    renderChat();
+    renderMapPhotos();
+    renderReviews();
+    renderMyOrderBanner();
+    renderAuthUI();
+    if (!$('adminModal').classList.contains('hidden') && appState.adminToken) {
+      refreshSalesAndRenderAdmin();
+    }
+    if (!$('profileModal').classList.contains('hidden')) {
+      renderMyOrdersList();
+    }
+    initGoogleIdentityIfConfigured();
+  }
+
+  async function initialFetch() {
+    if (!isHttp) {
+      activateStaticMode();
+      return;
+    }
+    try {
+      const snap = await api('/api/state');
+      appState.staticMode = false;
+      applySnapshot(snap);
+      connectRealtime();
+    } catch {
+      activateStaticMode();
+    }
+  }
+
+  function renderSettingsBanner() {
+    const s = appState.settings;
+    $('brandTitle').textContent = (s.restaurantName || 'Chatkaro').split(' ')[0];
+    $('topAnnouncement').textContent = s.announcement || '';
+    if ($('dailyDealBanner')) {
+      $('dailyDealBanner').textContent = s.dailyDeal || '';
+      $('dailyDealBanner').classList.toggle('hidden', !s.dailyDeal);
+    }
+    if ($('aiEngineBadge')) {
+      $('aiEngineBadge').textContent = s.hasGeminiKey ? 'Powered by Gemini AI ✨' : 'Live Menu & Ordering Helper';
+    }
+    $('topHoursText').textContent = s.openHoursText || 'Open · Closes 12:30 AM';
+    $('heroHoursBadge').textContent = '● ' + (s.openHoursText || 'Open till 12:30 AM');
+    $('heroPriceRange').textContent = s.priceRange || '₹1–200 per person';
+    $('visitHoursText').textContent = s.openHoursText || 'Open · Closes 12:30 AM';
+    $('visitPriceText').textContent = `${s.priceRange || '₹1–200 per person'} • All Vegetarian`;
+    $('visitRestName').textContent = s.restaurantName || 'Chatkaro Food Hub';
+    $('visitFullAddress').textContent = s.address || '';
+    $('visitAddressLead').textContent = s.address || '';
+    $('visitPlusCode').textContent = s.plusCode || '2GWF+GJ Talala, Gujarat';
+    $('topPhoneLink').href = `tel:+${s.phone || '919054633908'}`;
+    $('visitCallLink').href = `tel:+${s.phone || '919054633908'}`;
+    $('heroRatingBadge').innerHTML = `⭐ ${s.rating || 4.9} <span>(${s.reviewCount || 113} Reviews)</span>`;
+    $('reviewsAvgRating').textContent = s.rating || 4.9;
+    $('reviewsTotalCount').textContent = `Based on ${s.reviewCount || 113} Google & Guest Reviews`;
+    if (s.lastMapsSyncAt) {
+      $('lastSyncTimeLabel').textContent = 'Synced ' + new Date(s.lastMapsSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+
+  // ================= GOOGLE / GMAIL LOGIN & PROFILE =================
+  let gisInitializedFor = '';
+  function initGoogleIdentityIfConfigured() {
+    const cid = appState.settings.googleClientId;
+    if (!cid || cid === gisInitializedFor || !window.google?.accounts?.id) return;
+    gisInitializedFor = cid;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: cid,
+        callback: async (response) => {
+          const payload = JSON.parse(atob(response.credential.split('.')[1]));
+          await performLogin({
+            name: payload.name,
+            email: payload.email,
+            picture: payload.picture,
+            credential: response.credential
+          });
+        }
+      });
+      const wrap = $('realGoogleBtnWrap');
+      wrap.classList.remove('hidden');
+      wrap.innerHTML = '';
+      window.google.accounts.id.renderButton(wrap, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'continue_with' });
+      if ($('googleClientDivider')) $('googleClientDivider').classList.remove('hidden');
+    } catch {}
+  }
+
+  async function performLogin({ name, email, phone = '', picture = '', credential = '' }) {
+    try {
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      if (!credential && !/^[^\s@]+@(gmail|googlemail)\.com$/i.test(cleanEmail)) {
+        return showToast('Please enter a valid @gmail.com email address.');
+      }
+      const res = await api('/api/auth/login', 'POST', { name, email: cleanEmail, phone, picture, credential });
+      appState.user = res.customer;
+      localStorage.setItem('chatkaro_user', JSON.stringify(appState.user));
+      $('googleLoginModal').classList.add('hidden');
+      renderAuthUI();
+      renderCart();
+      renderMyOrderBanner();
+      showToast(`Welcome ${appState.user.name}! Signed in with Gmail.`);
+      if (appState.pendingOrderAfterLogin) {
+        appState.pendingOrderAfterLogin = false;
+        openCart();
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  function renderAuthUI() {
+    const u = appState.user;
+    if (u) {
+      const tBadge = u.tableId ? ` • T${u.tableId}` : '';
+      $('authHeaderLabel').textContent = `${u.name.split(' ')[0]}${tBadge}`;
+      $('cartAuthStatusLabel').textContent = `Signed in as ${u.name} (${u.email})`;
+      $('chatIdentityBadge').textContent = `${u.name}${u.tableId ? ' • Table ' + u.tableId : ''}`;
+    } else {
+      $('authHeaderLabel').textContent = 'Sign in';
+      $('cartAuthStatusLabel').textContent = 'Gmail Sign-In required to order';
+      $('chatIdentityBadge').textContent = 'Sign in to chat';
+    }
+  }
+
+  $('authHeaderBtn').addEventListener('click', () => {
+    if (!appState.user) $('googleLoginModal').classList.remove('hidden');
+    else openProfileModal('profile');
+  });
+  $('closeGoogleLoginBtn').addEventListener('click', () => $('googleLoginModal').classList.add('hidden'));
+  $('googleQuickForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    performLogin({ name: $('gNameInput').value.trim(), email: $('gEmailInput').value.trim(), phone: $('gPhoneInput').value.trim() });
+  });
+
+  function openProfileModal(defaultTab = 'profile') {
+    if (!appState.user) return $('googleLoginModal').classList.remove('hidden');
+    $('profName').value = appState.user.name || '';
+    $('profPhone').value = appState.user.phone || '';
+    $('profFavDish').value = appState.user.favoriteDish || '';
+    $('profBio').value = appState.user.bio || '';
+    $('profColor').value = appState.user.avatarColor || '#ea580c';
+    switchProfileTab(defaultTab);
+    renderMyOrdersList();
+    $('profileModal').classList.remove('hidden');
+  }
+  function switchProfileTab(tab) {
+    document.querySelectorAll('[data-ptab]').forEach((b) => b.classList.toggle('active', b.dataset.ptab === tab));
+    $('profileTabContent').classList.toggle('hidden', tab !== 'profile');
+    $('myOrdersTabContent').classList.toggle('hidden', tab !== 'orders');
+  }
+  document.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => switchProfileTab(b.dataset.ptab)));
+  $('closeProfileModalBtn').addEventListener('click', () => $('profileModal').classList.add('hidden'));
+
+  $('profileUpdateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!appState.user) return;
+    try {
+      const res = await api('/api/profile', 'POST', {
+        email: appState.user.email,
+        name: $('profName').value.trim(),
+        phone: $('profPhone').value.trim(),
+        favoriteDish: $('profFavDish').value.trim(),
+        bio: $('profBio').value.trim(),
+        avatarColor: $('profColor').value
+      });
+      appState.user = res.customer;
+      localStorage.setItem('chatkaro_user', JSON.stringify(appState.user));
+      renderAuthUI();
+      showToast('Profile updated & synced!');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+  $('logoutBtn').addEventListener('click', () => {
+    appState.user = null;
+    localStorage.removeItem('chatkaro_user');
+    $('profileModal').classList.add('hidden');
+    renderAuthUI();
+    renderCart();
+    renderMyOrderBanner();
+    showToast('Signed out.');
+  });
+
+  // ================= MENU & CART =================
+  function saveCart() {
+    localStorage.setItem('chatkaro_cart', JSON.stringify(appState.cart));
+  }
+  function getCartItems() {
+    return Object.entries(appState.cart)
+      .map(([id, qty]) => {
+        const item = appState.menu.find((m) => m.id === id && m.available !== false);
+        return item && qty > 0 ? { ...item, qty } : null;
+      })
+      .filter(Boolean);
+  }
+  function updateQty(id, delta) {
+    const dish = appState.menu.find((m) => m.id === id);
+    if (delta > 0 && dish && dish.available === false) return showToast('Sorry, this dish is Sold Out.');
+    const next = Math.max(0, (appState.cart[id] || 0) + delta);
+    if (next === 0) delete appState.cart[id];
+    else appState.cart[id] = next;
+    saveCart();
+    renderMenu();
+    renderCart();
+    if (delta > 0 && dish) showToast(`Added ${dish.name}`);
+  }
+  function getDiscountPercent(code) {
+    if (code === 'CHATKARO20' && appState.unlockedCoupons.includes('CHATKARO20')) return 20;
+    if (code === 'CHATKARO10' && appState.unlockedCoupons.includes('CHATKARO10')) return 10;
+    if (code === 'WELCOME5') return 5;
+    return 0;
+  }
+  function unlockCoupon(code) {
+    if (!appState.unlockedCoupons.includes(code)) {
+      appState.unlockedCoupons.push(code);
+      localStorage.setItem('chatkaro_coupons', JSON.stringify(appState.unlockedCoupons));
+      showToast(`🎉 Unlocked ${code}!`);
+    }
+    syncCouponUI();
+  }
+  function syncCouponUI() {
+    ['CHATKARO10', 'CHATKARO20'].forEach((code) => {
+      const unlocked = appState.unlockedCoupons.includes(code);
+      const itemEl = document.querySelector(`.coupon-item[data-code="${code}"]`);
+      const btnEl = document.querySelector(`.apply-coupon-btn[data-code="${code}"]`);
+      if (itemEl && btnEl) {
+        itemEl.classList.toggle('locked', !unlocked);
+        itemEl.classList.toggle('unlocked', unlocked);
+        btnEl.disabled = !unlocked;
+        btnEl.textContent = unlocked ? 'Apply' : 'Locked';
+      }
+    });
+  }
+
+  const CATEGORY_FALLBACK_IMG = {
+    'veg-prep': 'assets/veg-kadai.jpg',
+    'kaju-prep': 'assets/kaju-curry.jpg',
+    'cheese-prep': 'assets/cheese-masala.jpg',
+    'south-indian': 'assets/dosa-platter.jpg',
+    'chinese': 'assets/indo-chinese.jpg',
+    'punjabi': 'assets/punjabi-paneer.jpg',
+    'fast-food': 'assets/fastfood-drinks.jpg',
+    'beverages': 'assets/fastfood-drinks.jpg'
+  };
+
+  function getDishImage(item) {
+    const raw = item.image || CATEGORY_FALLBACK_IMG[item.category] || 'assets/veg-kadai.jpg';
+    return String(raw).startsWith('/assets/') ? raw.slice(1) : raw;
+  }
+
+  function renderMenu() {
+    const q = appState.search.trim().toLowerCase();
+    const filtered = appState.menu.filter((item) => {
+      if (appState.category !== 'all' && item.category !== appState.category) return false;
+      if (appState.filter === 'bestseller' && !item.bestseller) return false;
+      if (appState.filter === 'under100' && item.price > 100) return false;
+      if (appState.filter === 'spicy' && !item.spicy) return false;
+      if (q && !`${item.name} ${item.guName || ''} ${item.desc} ${item.category}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    $('menuCount').textContent = `Showing ${filtered.length} pure veg dishes`;
+    const grid = $('menuGrid');
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="cart-empty" style="grid-column:1/-1;"><h3>No dishes found</h3></div>`;
+      return;
+    }
+    grid.innerHTML = filtered
+      .map((item) => {
+        const qty = appState.cart[item.id] || 0;
+        const soldOut = item.available === false;
+        const dishImg = getDishImage(item);
+        const actionHtml = soldOut
+          ? `<span class="dish-tag spicy">Sold Out</span>`
+          : qty > 0
+          ? `<div class="qty-control">
+               <button type="button" data-action="dec" data-id="${item.id}">−</button>
+               <span>${qty}</span>
+               <button type="button" data-action="inc" data-id="${item.id}">+</button>
+             </div>`
+          : `<button type="button" class="btn btn-primary btn-sm hover-pop" data-action="inc" data-id="${item.id}">+ Order Now</button>`;
+
+        return `
+          <article class="menu-card ${soldOut ? 'sold-out' : ''}">
+            <div class="dish-photo-wrap">
+              <img class="dish-photo-img" src="${escapeHtml(dishImg)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='assets/veg-kadai.jpg';" />
+              <div class="dish-photo-overlay"></div>
+              <div class="dish-photo-top-badges">
+                <div class="dish-photo-badges-left">
+                  ${item.bestseller ? '<span class="dish-tag">⭐ Bestseller</span>' : ''}
+                  ${item.spicy ? '<span class="dish-tag spicy">🌶️ Spicy</span>' : ''}
+                </div>
+                <span class="veg-square" title="100% Pure Veg"></span>
+              </div>
+              ${item.guName ? `<span class="dish-gu-badge">${escapeHtml(item.guName)}</span>` : ''}
+              <span class="dish-photo-price">₹${item.price}/-</span>
+            </div>
+            <div class="menu-card-body">
+              <div>
+                <div class="menu-card-top">
+                  <div class="dish-title-row">
+                    <h3>${escapeHtml(item.name)}</h3>
+                  </div>
+                  <span class="dish-emoji">${escapeHtml(item.emoji)}</span>
+                </div>
+                <p class="dish-desc">${escapeHtml(item.desc)}</p>
+              </div>
+              <div class="menu-card-bottom">
+                <span class="dish-price">₹${item.price} <small class="muted" style="font-size:0.74rem;font-weight:600;">Pure Veg</small></span>
+                ${actionHtml}
+              </div>
+            </div>
+          </article>`;
+      })
+      .join('');
+  }
+
+  function renderCart() {
+    const items = getCartItems();
+    const totalCount = items.reduce((s, i) => s + i.qty, 0);
+    const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+    $('headerCartCount').textContent = totalCount;
+
+    if (totalCount > 0) {
+      $('floatingCartBar').classList.remove('hidden');
+      $('floatCartSummary').textContent = `${totalCount} items • ₹${subtotal}`;
+    } else {
+      $('floatingCartBar').classList.add('hidden');
+    }
+
+    if (items.length === 0) {
+      $('cartDrawerBody').innerHTML = `<div class="cart-empty"><h3>Your plate is empty!</h3><p>Add Dosas, Punjabi or Chinese dishes from the menu.</p></div>`;
+      $('cartDrawerFooter').innerHTML = '';
+      return;
+    }
+
+    $('cartDrawerBody').innerHTML = items
+      .map(
+        (item) => `
+      <div class="cart-item-row">
+        <div>
+          <strong>${escapeHtml(item.emoji)} ${escapeHtml(item.name)}</strong>
+          <small class="muted">₹${item.price} × ${item.qty} = ₹${item.price * item.qty}</small>
+        </div>
+        <div class="qty-control">
+          <button type="button" data-cart-action="dec" data-id="${item.id}">−</button>
+          <span>${item.qty}</span>
+          <button type="button" data-cart-action="inc" data-id="${item.id}">+</button>
+        </div>
+      </div>`
+      )
+      .join('');
+
+    const discountPct = getDiscountPercent(appState.promoCode);
+    const discountAmt = Math.round((subtotal * discountPct) / 100);
+    const deliveryFee = appState.orderType === 'delivery' && subtotal < 250 ? 20 : 0;
+    const grandTotal = Math.max(0, subtotal - discountAmt + deliveryFee);
+
+    const tableOptions = appState.tables
+      .map((t) => `<option value="${t.id}" ${appState.user?.tableId === t.id ? 'selected' : ''}>${escapeHtml(t.label)} (${t.status})</option>`)
+      .join('');
+
+    $('cartDrawerFooter').innerHTML = `
+      <div class="order-type-pills">
+        <button type="button" class="order-mode-btn ${appState.orderType === 'dine-in' ? 'active' : ''}" data-mode="dine-in">🍽️ Dine-In</button>
+        <button type="button" class="order-mode-btn ${appState.orderType === 'parcel' ? 'active' : ''}" data-mode="parcel">📦 Parcel</button>
+        <button type="button" class="order-mode-btn ${appState.orderType === 'delivery' ? 'active' : ''}" data-mode="delivery">🛵 Delivery</button>
+      </div>
+      <div class="checkout-inputs">
+        ${appState.orderType === 'dine-in' ? `<select id="custTableSelect"><option value="">Select Table (Optional)</option>${tableOptions}</select>` : ''}
+        <input type="tel" id="custPhone" placeholder="Mobile / WhatsApp *" value="${escapeHtml(appState.user?.phone || '')}" />
+        <input type="text" id="custDetail" placeholder="${appState.orderType === 'delivery' ? 'Delivery Address in Talala *' : 'Cooking notes (e.g. Less spicy)'}" />
+      </div>
+      <div class="promo-row">
+        <input type="text" id="promoInput" placeholder="Promo (WELCOME5 / CHATKARO10)" value="${escapeHtml(appState.promoCode)}" />
+        <button type="button" class="btn btn-outline btn-sm" id="applyPromoBtn">Apply</button>
+      </div>
+      <div class="payment-method-pills" aria-label="Payment Gateway">
+        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'razorpay' ? 'active' : ''}" data-pay="razorpay">💳 Razorpay</button>
+        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'phonepe' ? 'active' : ''}" data-pay="phonepe">📱 PhonePe</button>
+        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'cod' ? 'active' : ''}" data-pay="cod">💵 Counter/COD</button>
+      </div>
+      <div class="bill-lines">
+        <div class="bill-line"><span>Subtotal</span><span>₹${subtotal}</span></div>
+        ${discountAmt > 0 ? `<div class="bill-line discount"><span>Promo (${appState.promoCode} ${discountPct}%)</span><span>−₹${discountAmt}</span></div>` : ''}
+        ${deliveryFee > 0 ? `<div class="bill-line"><span>Delivery Fee (Free ₹250+)</span><span>₹${deliveryFee}</span></div>` : ''}
+        <div class="bill-line total"><span>Total Payable</span><span>₹${grandTotal}</span></div>
+      </div>
+      <button type="button" class="btn ${appState.paymentMethod === 'phonepe' ? 'btn-phonepe' : 'btn-primary'} glow-btn" style="width:100%;" id="placeOrderBtn">
+        ${!appState.user
+          ? 'Sign in with Gmail to Order →'
+          : appState.paymentMethod === 'razorpay'
+          ? `Pay via Razorpay • ₹${grandTotal} →`
+          : appState.paymentMethod === 'phonepe'
+          ? `Pay via PhonePe • ₹${grandTotal} →`
+          : `Order & Send to WhatsApp • ₹${grandTotal} →`}
+      </button>`;
+  }
+
+  function openCart() {
+    $('cartBackdrop').classList.remove('hidden');
+    $('cartDrawer').classList.remove('hidden');
+  }
+  function closeCart() {
+    $('cartBackdrop').classList.add('hidden');
+    $('cartDrawer').classList.add('hidden');
+  }
+
+  function completeOrderUI(order) {
+    appState.cart = {};
+    saveCart();
+    renderMenu();
+    renderCart();
+    closeCart();
+    launchConfetti();
+    showOrderConfirmationModal(order);
+  }
+
+  async function placeOrder() {
+    if (!appState.user) {
+      appState.pendingOrderAfterLogin = true;
+      closeCart();
+      $('googleLoginModal').classList.remove('hidden');
+      return showToast('Sign in with Gmail before placing an order.');
+    }
+    const phone = ($('custPhone')?.value || appState.user.phone || '').trim();
+    const detail = ($('custDetail')?.value || '').trim();
+    const tableId = appState.orderType === 'dine-in' && $('custTableSelect')?.value ? Number($('custTableSelect').value) : null;
+    if (!phone) {
+      showToast('Please enter your mobile number.');
+      return $('custPhone')?.focus();
+    }
+
+    const items = getCartItems();
+    const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+    const discountPct = getDiscountPercent(appState.promoCode);
+    const discountAmt = Math.round((subtotal * discountPct) / 100);
+    const deliveryFee = appState.orderType === 'delivery' && subtotal < 250 ? 20 : 0;
+    const orderPayload = {
+      customerName: appState.user.name,
+      customerEmail: appState.user.email,
+      customerPhone: phone,
+      orderType: appState.orderType,
+      tableId,
+      detail,
+      items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+      discountAmt,
+      deliveryFee,
+      promoCode: appState.promoCode,
+      etaMinutes: 18
+    };
+
+    try {
+      // 1. Razorpay Gateway Flow
+      if (appState.paymentMethod === 'razorpay') {
+        const rzpOrder = await api('/api/payments/razorpay/create-order', 'POST', orderPayload);
+        if (!window.Razorpay) throw new Error('Razorpay SDK failed to load. Check internet connection.');
+        const rzp = new window.Razorpay({
+          key: rzpOrder.keyId,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency || 'INR',
+          name: appState.settings.restaurantName || 'Chatkaro Food Hub',
+          description: `Pure Veg Order (${appState.orderType.toUpperCase()})`,
+          prefill: { name: appState.user.name, email: appState.user.email, contact: phone },
+          theme: { color: appState.settings.brandTheme?.primary || '#f97316' },
+          handler: async (response) => {
+            try {
+              const verified = await api('/api/payments/razorpay/verify', 'POST', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderPayload
+              });
+              showToast('Razorpay payment verified! ✅');
+              completeOrderUI(verified.order);
+            } catch (err) {
+              showToast(err.message);
+            }
+          }
+        });
+        rzp.on('payment.failed', (resp) => {
+          showToast(resp?.error?.description || 'Razorpay payment failed.');
+        });
+        rzp.open();
+        return;
+      }
+
+      // 2. PhonePe Gateway / UPI QR Flow
+      if (appState.paymentMethod === 'phonepe') {
+        const pp = await api('/api/payments/phonepe/initiate', 'POST', { orderPayload });
+        if (pp.mode === 'gateway' && pp.redirectUrl) {
+          window.location.href = pp.redirectUrl;
+          return;
+        }
+        if (pp.mode === 'upi-qr') {
+          appState.pendingPhonepeTxn = pp.merchantTransactionId;
+          $('phonepeAmountLabel').textContent = `Total Payable: ₹${pp.amount}`;
+          $('phonepeUpiText').textContent = pp.merchantUpiId;
+          $('phonepeDeepLink').href = pp.phonepeUri || pp.upiUri;
+          $('phonepeQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(pp.upiUri)}`;
+          $('phonepeUtrInput').value = '';
+          $('phonepeModal').classList.remove('hidden');
+          return;
+        }
+      }
+
+      // 3. Pay at Counter / Cash on Delivery
+      const res = await api('/api/orders', 'POST', {
+        ...orderPayload,
+        paymentMethod: 'cod',
+        paymentStatus: 'cod'
+      });
+      completeOrderUI(res.order);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  function showOrderConfirmationModal(order) {
+    const payLabel = order.paymentStatus === 'paid'
+      ? `PAID via ${(order.paymentMethod || 'online').toUpperCase()}`
+      : 'Pay at Counter / COD';
+    $('orderConfirmMeta').textContent = `Order #${order.id} • ${order.orderType.toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''} • ${payLabel}`;
+    $('modalLiveEta').dataset.endsAt = order.etaEndsAt;
+    $('orderReceiptBox').innerHTML = `
+      <p style="margin-top:0;"><strong>${escapeHtml(order.customerName)}</strong> (${escapeHtml(order.customerPhone)})<br/>
+      <small class="muted">${escapeHtml(order.detail || 'Standard prep')} • ${escapeHtml(payLabel)}${order.paymentId ? ` (${escapeHtml(order.paymentId)})` : ''}</small></p>
+      ${order.items.map((i) => `<div class="bill-line"><span>${i.qty}× ${escapeHtml(i.name)}</span><span>₹${i.price * i.qty}</span></div>`).join('')}
+      <hr style="border:none;border-top:1px dashed var(--border);margin:0.5rem 0;"/>
+      <div class="bill-line total"><span>Total</span><span>₹${order.total}</span></div>`;
+
+    const waPhone = appState.settings.phone || '919054633908';
+    const waText = [
+      `*New Order — Chatkaro Food Hub (${order.id})*`,
+      `Customer: ${order.customerName} (${order.customerEmail})`,
+      `Phone: ${order.customerPhone}`,
+      `Mode: ${order.orderType.toUpperCase()}${order.tableId ? ' | Table ' + order.tableId : ''}`,
+      `Payment: ${payLabel}${order.paymentId ? ' | Ref: ' + order.paymentId : ''}`,
+      order.detail ? `Notes: ${order.detail}` : '',
+      `--- Items ---`,
+      ...order.items.map((i) => `• ${i.qty}x ${i.name} = ₹${i.price * i.qty}`),
+      `*Total: ₹${order.total}*`
+    ].filter(Boolean).join('\n');
+    $('whatsappOrderLink').href = `https://wa.me/${waPhone}?text=${encodeURIComponent(waText)}`;
+    $('orderModal').classList.remove('hidden');
+  }
+
+  // ================= TABLES, ORDERS, TOP CUSTOMERS, CHAT, PHOTOS & REVIEWS =================
+  function renderTables() {
+    $('tablesGrid').innerHTML = appState.tables
+      .map((t) => {
+        const isMine = appState.user && t.occupantEmail === appState.user.email;
+        const avail = t.status === 'available';
+        return `
+        <div class="table-tile ${avail ? 'available' : 'occupied'}">
+          <div class="table-top">
+            <span>${escapeHtml(t.label)} <small class="muted">(${t.seats}s)</small></span>
+            <span class="table-status-pill ${avail ? 'avail' : 'occ'}">${avail ? 'Available' : 'Occupied'}</span>
+          </div>
+          <div class="table-body-info">
+            ${avail ? 'Ready for dine-in guests' : `<strong>${escapeHtml(t.occupantName)}</strong><br/>${escapeHtml(t.dishSummary || 'Dining')}`}
+          </div>
+          <div>
+            ${
+              avail
+                ? `<button type="button" class="btn btn-outline btn-xs table-action-btn hover-pop" data-table-id="${t.id}" data-act="occupy">Sit Here</button>`
+                : isMine
+                ? `<button type="button" class="btn btn-danger btn-xs table-action-btn" data-table-id="${t.id}" data-act="leave">Leave Table</button>`
+                : `<span class="muted small">Guest dining</span>`
+            }
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  $('tablesGrid').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.table-action-btn');
+    if (!btn) return;
+    if (!appState.user) {
+      $('googleLoginModal').classList.remove('hidden');
+      return showToast('Sign in with Google to check in at a table.');
+    }
+    try {
+      await api('/api/tables/checkin', 'POST', {
+        tableId: Number(btn.dataset.tableId),
+        email: appState.user.email,
+        name: appState.user.name,
+        action: btn.dataset.act
+      });
+      showToast(btn.dataset.act === 'occupy' ? `Checked into Table ${btn.dataset.tableId}!` : 'Table available.');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  function formatEtaText(order) {
+    if (order.status === 'cancelled') return 'Cancelled';
+    if (order.status === 'served') return 'Served / Completed';
+    if (order.status === 'ready') return 'Ready for Pickup / Table!';
+    const msLeft = (order.etaEndsAt || 0) - Date.now();
+    if (msLeft <= 0) return 'Arriving any moment!';
+    const mins = Math.floor(msLeft / 60000);
+    const secs = Math.floor((msLeft % 60000) / 1000);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} left`;
+  }
+
+  function renderLiveOrders() {
+    const list = $('liveOrdersList');
+    if (appState.orders.length === 0) {
+      list.innerHTML = `<p class="muted">No orders yet today.</p>`;
+      return;
+    }
+    list.innerHTML = appState.orders
+      .filter((o) => !o.isFake)
+      .slice(0, 14)
+      .map((o) => {
+        const isMine = appState.user && o.customerEmail === appState.user.email;
+        const canEdit = isMine && o.status !== 'cancelled' && o.status !== 'served';
+        const modeBadge = o.orderType === 'parcel' || o.orderType === 'drive-through'
+          ? '📦 Parcel'
+          : o.orderType === 'delivery'
+          ? '🛵 Delivery'
+          : (o.tableId ? `🍽️ Table ${o.tableId}` : '🍽️ Dine-In');
+        return `
+        <div class="live-order-card">
+          <div class="live-order-top">
+            <strong>#${escapeHtml(o.id)} • ${escapeHtml(o.customerName)}</strong>
+            <span class="status-chip status-${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
+          </div>
+          <div class="muted small">${modeBadge} • ${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
+          <div class="live-order-top" style="margin-top:0.35rem;margin-bottom:0;">
+            <span class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</span>
+            <span>
+              <strong>₹${o.total}</strong>
+              ${canEdit ? `<button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">Edit / Cancel</button>` : ''}
+            </span>
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  function renderMyOrderBanner() {
+    const banner = $('myLiveOrderBanner');
+    if (!appState.user) return banner.classList.add('hidden');
+    const active = appState.orders.find((o) => o.customerEmail === appState.user.email && o.status !== 'cancelled' && o.status !== 'served');
+    if (!active) return banner.classList.add('hidden');
+    banner.classList.remove('hidden');
+    $('myBannerTitle').textContent = `Order #${active.id} (${active.status.toUpperCase()}) • ₹${active.total}`;
+    $('myBannerEta').dataset.orderId = active.id;
+    $('myBannerEta').textContent = `⏱️ ${formatEtaText(active)}`;
+  }
+  $('viewMyOrdersBtn').addEventListener('click', () => openProfileModal('orders'));
+
+  setInterval(() => {
+    document.querySelectorAll('[data-order-eta]').forEach((el) => {
+      const o = appState.orders.find((ord) => ord.id === el.dataset.orderEta);
+      if (o) el.textContent = '⏱️ ' + formatEtaText(o);
+    });
+    const bannerEta = $('myBannerEta');
+    if (bannerEta && bannerEta.dataset.orderId) {
+      const o = appState.orders.find((ord) => ord.id === bannerEta.dataset.orderId);
+      if (o) bannerEta.textContent = '⏱️ ' + formatEtaText(o);
+    }
+    const modalEta = $('modalLiveEta');
+    if (modalEta && modalEta.dataset.endsAt && !$('orderModal').classList.contains('hidden')) {
+      const ms = Number(modalEta.dataset.endsAt) - Date.now();
+      modalEta.textContent = ms > 0 ? `⏱️ Live Kitchen Countdown: ${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s` : '⏱️ Almost Ready!';
+    }
+  }, 1000);
+
+  function renderMyOrdersList() {
+    if (!appState.user) return;
+    const mine = appState.orders.filter((o) => o.customerEmail === appState.user.email);
+    const wrap = $('myOrdersList');
+    if (mine.length === 0) {
+      wrap.innerHTML = `<p class="muted">You haven't placed any orders yet.</p>`;
+      return;
+    }
+    wrap.innerHTML = mine
+      .map((o) => {
+        const editable = o.status !== 'cancelled' && o.status !== 'served';
+        return `
+        <div class="admin-row-card">
+          <div>
+            <strong>#${escapeHtml(o.id)} • ₹${o.total}</strong>
+            <span class="status-chip status-${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
+            <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
+            <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
+          </div>
+          ${
+            editable
+              ? `<div class="admin-controls-inline">
+                   <button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">✏️ Edit</button>
+                   <button type="button" class="btn btn-danger btn-xs cancel-my-order-btn" data-id="${escapeHtml(o.id)}">Cancel</button>
+                 </div>`
+              : ''
+          }
+        </div>`;
+      })
+      .join('');
+  }
+
+  function openEditOrderModal(orderId) {
+    const order = appState.orders.find((o) => o.id === orderId);
+    if (!order) return;
+    const draftItems = order.items.map((i) => ({ ...i }));
+    $('editOrderHeading').textContent = `Modify Order #${order.id}`;
+    const body = $('editOrderBody');
+
+    const renderEditBody = () => {
+      body.innerHTML = `
+        ${draftItems
+          .map(
+            (item, idx) => `
+          <div class="cart-item-row">
+            <span>${escapeHtml(item.name)} (₹${item.price})</span>
+            <div class="qty-control">
+              <button type="button" data-eidx="${idx}" data-edelta="-1">−</button>
+              <span>${item.qty}</span>
+              <button type="button" data-eidx="${idx}" data-edelta="1">+</button>
+            </div>
+          </div>`
+          )
+          .join('')}
+        <label>Special Notes / Table</label>
+        <input type="text" id="editOrderDetailInput" value="${escapeHtml(order.detail || '')}" />
+        <div class="two-col">
+          <button type="button" class="btn btn-primary" id="saveOrderChangesBtn">Save Changes</button>
+          <button type="button" class="btn btn-danger" id="cancelThisOrderBtn">Cancel Order</button>
+        </div>`;
+    };
+    renderEditBody();
+    $('editOrderModal').classList.remove('hidden');
+
+    body.onclick = async (e) => {
+      const qBtn = e.target.closest('[data-eidx]');
+      if (qBtn) {
+        const idx = Number(qBtn.dataset.eidx);
+        const delta = Number(qBtn.dataset.edelta);
+        draftItems[idx].qty = Math.max(1, draftItems[idx].qty + delta);
+        renderEditBody();
+        return;
+      }
+      if (e.target.id === 'saveOrderChangesBtn') {
+        try {
+          await api(`/api/orders/${order.id}`, 'PUT', {
+            customerEmail: appState.user?.email,
+            adminToken: appState.adminToken || undefined,
+            items: draftItems,
+            detail: $('editOrderDetailInput').value
+          });
+          $('editOrderModal').classList.add('hidden');
+          showToast(`Order #${order.id} updated!`);
+        } catch (err) {
+          showToast(err.message);
+        }
+      }
+      if (e.target.id === 'cancelThisOrderBtn') {
+        try {
+          await api(`/api/orders/${order.id}`, 'PUT', {
+            customerEmail: appState.user?.email,
+            adminToken: appState.adminToken || undefined,
+            action: 'cancel'
+          });
+          $('editOrderModal').classList.add('hidden');
+          showToast(`Order #${order.id} cancelled.`);
+        } catch (err) {
+          showToast(err.message);
+        }
+      }
+    };
+  }
+
+  document.body.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.edit-my-order-btn');
+    if (editBtn) return openEditOrderModal(editBtn.dataset.id);
+    const cancelBtn = e.target.closest('.cancel-my-order-btn');
+    if (cancelBtn && appState.user) {
+      try {
+        await api(`/api/orders/${cancelBtn.dataset.id}`, 'PUT', { customerEmail: appState.user.email, action: 'cancel' });
+        showToast('Order cancelled.');
+      } catch (err) {
+        showToast(err.message);
+      }
+    }
+  });
+  $('closeEditOrderBtn').addEventListener('click', () => $('editOrderModal').classList.add('hidden'));
+
+  function renderTopCustomers() {
+    $('topCustomersList').innerHTML = appState.topCustomers
+      .map(
+        (c, i) => `
+      <div class="leader-row rank-${i + 1}">
+        <span class="rank-badge">#${i + 1}</span>
+        <div style="flex:1;min-width:0;">
+          <strong>${escapeHtml(c.name)}</strong>
+          <div class="muted small">${c.ordersCount} orders • Game Best: ${c.bestGameScore || 0}</div>
+        </div>
+        <strong style="color:var(--primary);font-size:0.84rem;">₹${c.totalSpent || 0}</strong>
+      </div>`
+      )
+      .join('');
+  }
+
+  function renderChat() {
+    const box = $('chatMessages');
+    box.innerHTML = appState.chatMessages
+      .map(
+        (m) => `
+      <div class="chat-msg ${m.isOwner ? 'owner-msg' : ''}">
+        <div class="chat-msg-head">
+          <span>${m.isOwner ? '👑 ' : ''}${escapeHtml(m.senderName)}${m.tableId ? ' • Table ' + m.tableId : ''}</span>
+          <span class="muted">${new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <div>${escapeHtml(m.text)}</div>
+      </div>`
+      )
+      .join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendChatText(text) {
+    if (!appState.user) {
+      $('googleLoginModal').classList.remove('hidden');
+      return showToast('Sign in with Google to chat.');
+    }
+    try {
+      await api('/api/chat', 'POST', {
+        senderName: appState.user.name,
+        senderEmail: appState.user.email,
+        tableId: appState.user.tableId || null,
+        text
+      });
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+  $('chatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const txt = $('chatInput').value.trim();
+    if (!txt) return;
+    $('chatInput').value = '';
+    sendChatText(txt);
+  });
+  document.querySelectorAll('.quick-chat-btn').forEach((btn) => btn.addEventListener('click', () => sendChatText(btn.dataset.msg)));
+
+  // ================= GOOGLE MAPS PHOTOS GALLERY =================
+  function renderMapPhotos() {
+    const grid = $('mapPhotosGrid');
+    const items = appState.mapPhotos.filter((p) => appState.photoCategory === 'all' || p.category === appState.photoCategory);
+    if (items.length === 0) {
+      grid.innerHTML = `<p class="muted">No photos in this category yet.</p>`;
+      return;
+    }
+    grid.innerHTML = items
+      .map(
+        (p) => {
+          const imgSrc = String(p.url || '').startsWith('/assets/') ? p.url.slice(1) : p.url;
+          return `
+      <article class="photo-card card-hover" data-photo-id="${escapeHtml(p.id)}">
+        <div class="photo-thumb-wrap">
+          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/dosa-platter.jpg';" />
+          <span class="photo-cat-badge">${escapeHtml(p.category.toUpperCase())}</span>
+        </div>
+        <div class="photo-card-body">
+          <strong>${escapeHtml(p.title)}</strong>
+          <small>${escapeHtml(p.uploader || 'Google Maps')}</small>
+        </div>
+      </article>`;
+        }
+      )
+      .join('');
+  }
+
+  $('photoCategoryTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab-btn');
+    if (!tab) return;
+    $('photoCategoryTabs').querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    tab.classList.add('active');
+    appState.photoCategory = tab.dataset.pcat;
+    renderMapPhotos();
+  });
+
+  $('mapPhotosGrid').addEventListener('click', (e) => {
+    const card = e.target.closest('.photo-card');
+    if (!card) return;
+    const p = appState.mapPhotos.find((x) => x.id === card.dataset.photoId);
+    if (!p) return;
+    const imgSrc = String(p.url || '').startsWith('/assets/') ? p.url.slice(1) : p.url;
+    $('lightboxImg').src = imgSrc;
+    $('lightboxTitle').textContent = p.title;
+    $('lightboxMeta').textContent = `${p.uploader || 'Google Maps'} • Category: ${p.category}`;
+    $('photoLightboxModal').classList.remove('hidden');
+  });
+  $('closeLightboxBtn').addEventListener('click', () => $('photoLightboxModal').classList.add('hidden'));
+
+  // ================= REVIEWS & MAPS SYNC =================
+  function renderReviews() {
+    $('reviewsGrid').innerHTML = appState.reviews
+      .slice(0, 8)
+      .map((r) => {
+        const initials = r.author.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+        return `
+        <article class="review-card card-hover">
+          <div class="review-top">
+            <div class="avatar">${escapeHtml(initials)}</div>
+            <div>
+              <strong>${escapeHtml(r.author)}</strong>
+              <small>${escapeHtml(r.source || 'Google Maps')}</small>
+            </div>
+            <span class="rev-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+          </div>
+          <p>"${escapeHtml(r.text)}"</p>
+          <div class="rev-meta">${escapeHtml(r.meta || '')}</div>
+        </article>`;
+      })
+      .join('');
+  }
+
+  $('syncMapsNowBtn').addEventListener('click', async () => {
+    try {
+      const res = await api('/api/maps-sync', 'POST', {});
+      showToast(res.mode === 'google-places-api' ? 'Synced reviews & photos from Google Places API!' : 'Google Maps live bridge synced!');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+  $('toggleMapBridgeBtn').addEventListener('click', () => $('mapBridgeForm').classList.toggle('hidden'));
+  $('mapBridgeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/maps-sync', 'POST', {
+        author: $('mapRevAuthor').value.trim(),
+        rating: Number($('mapRevRating').value),
+        text: $('mapRevText').value.trim()
+      });
+      $('mapBridgeForm').reset();
+      $('mapBridgeForm').classList.add('hidden');
+      showToast('Google Maps review synced to website!');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+  $('toggleReviewFormBtn').addEventListener('click', () => $('quickReviewForm').classList.toggle('hidden'));
+  $('quickReviewForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/reviews', 'POST', {
+        author: $('revName').value.trim(),
+        rating: Number($('revRating').value),
+        text: $('revText').value.trim(),
+        source: 'Website Guest'
+      });
+      $('quickReviewForm').reset();
+      $('quickReviewForm').classList.add('hidden');
+      showToast('Review published live!');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  // ================= OWNER FULL CONTROL ADMIN DASHBOARD =================
+  let activeAdminTab = 'sales';
+
+  async function refreshSalesAndRenderAdmin() {
+    if (!appState.adminToken) return;
+    try {
+      const res = await api('/api/admin/sales', 'GET', null, { 'X-Admin-Token': appState.adminToken });
+      appState.salesData = res.sales;
+    } catch (err) {
+      if (String(err.message).toLowerCase().includes('unauth')) {
+        lockAdminPanel();
+        return;
+      }
+    }
+    renderAdminDashboard();
+  }
+
+  function lockAdminPanel() {
+    if (appState.adminToken) {
+      fetch('/api/admin/logout', { method: 'POST', headers: { 'X-Admin-Token': appState.adminToken } }).catch(() => {});
+    }
+    appState.adminToken = '';
+    sessionStorage.removeItem('chatkaro_admin_token');
+    $('adminLockScreen').classList.remove('hidden');
+    $('adminDashboard').classList.add('hidden');
+    $('lockAdminBtn').classList.add('hidden');
+    $('adminPinInput').value = '';
+  }
+
+  $('openAdminBtn').addEventListener('click', () => {
+    $('adminModal').classList.remove('hidden');
+    if (appState.adminToken) {
+      $('adminLockScreen').classList.add('hidden');
+      $('adminDashboard').classList.remove('hidden');
+      $('lockAdminBtn').classList.remove('hidden');
+      refreshSalesAndRenderAdmin();
+    } else {
+      $('adminLockScreen').classList.remove('hidden');
+      $('adminDashboard').classList.add('hidden');
+      $('lockAdminBtn').classList.add('hidden');
+    }
+  });
+  $('closeAdminBtn').addEventListener('click', () => $('adminModal').classList.add('hidden'));
+  $('lockAdminBtn').addEventListener('click', () => {
+    lockAdminPanel();
+    showToast('Admin Panel locked 🔒');
+  });
+
+  $('adminPinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = $('adminPinInput').value.trim();
+    try {
+      const res = await api('/api/admin/verify', 'POST', { adminPin: pin });
+      appState.adminToken = res.adminToken;
+      appState.adminFullSettings = res.settings;
+      appState.salesData = res.sales;
+      sessionStorage.setItem('chatkaro_admin_token', res.adminToken);
+      $('adminPinInput').value = '';
+      $('adminLockScreen').classList.add('hidden');
+      $('adminDashboard').classList.remove('hidden');
+      $('lockAdminBtn').classList.remove('hidden');
+      renderAdminDashboard();
+      showToast('Admin Control Center unlocked!');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  document.querySelectorAll('[data-atab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeAdminTab = btn.dataset.atab;
+      document.querySelectorAll('[data-atab]').forEach((b) => b.classList.toggle('active', b.dataset.atab === activeAdminTab));
+      refreshSalesAndRenderAdmin();
+    });
+  });
+
+  if ($('acruCollapseBtn')) {
+    $('acruCollapseBtn').addEventListener('click', () => {
+      const sb = $('acruSidebar');
+      const collapsed = sb.classList.toggle('collapsed');
+      $('acruCollapseBtn').textContent = collapsed ? '»' : '« Collapse sidebar';
+    });
+  }
+  if ($('admTopRefreshBtn')) {
+    $('admTopRefreshBtn').addEventListener('click', () => {
+      refreshSalesAndRenderAdmin();
+      showToast('Dashboard refreshed!');
+    });
+  }
+  if ($('admTopSettingsBtn')) {
+    $('admTopSettingsBtn').addEventListener('click', () => {
+      document.querySelector('[data-atab="colors"]')?.click();
+    });
+  }
+  if ($('admTopCsvBtn')) {
+    $('admTopCsvBtn').addEventListener('click', () => {
+      if ($('exportSalesCsvBtn')) $('exportSalesCsvBtn').click();
+      else {
+        document.querySelector('[data-atab="sales"]')?.click();
+        setTimeout(() => $('exportSalesCsvBtn')?.click(), 250);
+      }
+    });
+  }
+  if ($('adminQuickSearch')) {
+    $('adminQuickSearch').addEventListener('input', () => {
+      if (activeAdminTab === 'sales') {
+        activeAdminTab = 'orders';
+        document.querySelectorAll('[data-atab]').forEach((b) => b.classList.toggle('active', b.dataset.atab === 'orders'));
+      }
+      renderAdminDashboard();
+    });
+  }
+
+  function renderAdminDashboard() {
+    const realOrders = appState.orders.filter((o) => !o.isFake);
+    const activeOrders = realOrders.filter((o) => o.status !== 'cancelled' && o.status !== 'served').length;
+    const validReal = realOrders.filter((o) => o.status !== 'cancelled');
+    const totalRev = validReal.reduce((s, o) => s + (o.total || 0), 0);
+    const occupiedTables = appState.tables.filter((t) => t.status === 'occupied').length;
+    const defaultParcelStats = (() => {
+      const pList = validReal.filter((o) => o.orderType === 'parcel' || o.orderType === 'drive-through' || o.orderType === 'delivery');
+      return {
+        totalCount: pList.length,
+        parcelCount: pList.filter((o) => o.orderType !== 'delivery').length,
+        deliveryCount: pList.filter((o) => o.orderType === 'delivery').length,
+        servedCount: pList.filter((o) => o.status === 'served').length,
+        activeCount: pList.filter((o) => o.status !== 'served').length,
+        revenue: pList.reduce((s, o) => s + (o.total || 0), 0),
+        paidOnlineRevenue: pList.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + (o.total || 0), 0),
+        codOrPendingRevenue: pList.filter((o) => o.paymentStatus !== 'paid').reduce((s, o) => s + (o.total || 0), 0)
+      };
+    })();
+    const sales = appState.salesData || {
+      totalRevenue: totalRev,
+      todayRevenue: totalRev,
+      totalOrders: realOrders.length,
+      validOrdersCount: validReal.length,
+      cancelledOrdersCount: realOrders.filter((o) => o.status === 'cancelled').length,
+      fakeOrdersExcluded: 0,
+      servedOrdersCount: validReal.filter((o) => o.status === 'served').length,
+      totalDiscounts: 0,
+      avgOrderValue: validReal.length ? Math.round(totalRev / validReal.length) : 0,
+      parcelStats: defaultParcelStats,
+      dineInStats: {
+        totalCount: validReal.length - defaultParcelStats.totalCount,
+        revenue: Math.max(0, totalRev - defaultParcelStats.revenue)
+      },
+      paymentStats: {
+        onlinePaidCount: validReal.filter((o) => o.paymentStatus === 'paid').length,
+        onlinePaidRevenue: validReal.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + (o.total || 0), 0),
+        razorpayRevenue: validReal.filter((o) => o.paymentStatus === 'paid' && o.paymentMethod === 'razorpay').reduce((s, o) => s + (o.total || 0), 0),
+        phonepeRevenue: validReal.filter((o) => o.paymentStatus === 'paid' && o.paymentMethod === 'phonepe').reduce((s, o) => s + (o.total || 0), 0),
+        codRevenue: validReal.filter((o) => o.paymentStatus !== 'paid').reduce((s, o) => s + (o.total || 0), 0)
+      },
+      itemSales: [],
+      categorySales: []
+    };
+    const ps = sales.parcelStats || defaultParcelStats;
+    const ds = sales.dineInStats || { totalCount: 0, revenue: 0 };
+    const payS = sales.paymentStats || { onlinePaidCount: 0, onlinePaidRevenue: 0, razorpayRevenue: 0, phonepeRevenue: 0, codRevenue: 0 };
+
+    $('adminKpiGrid').innerHTML = `
+      <div class="kpi-card kpi-highlight">
+        <span>Real Net Sell</span>
+        <strong>₹${sales.totalRevenue}</strong>
+        <small>Today: ₹${sales.todayRevenue} • ${sales.validOrdersCount} orders</small>
+      </div>
+      <div class="kpi-card kpi-green">
+        <span>Parcel &amp; Delivery</span>
+        <strong>₹${ps.revenue}</strong>
+        <small>${ps.totalCount} Real Parcels • Paid: ₹${ps.paidOnlineRevenue}</small>
+      </div>
+      <div class="kpi-card">
+        <span>Dine-In Sell</span>
+        <strong>₹${ds.revenue}</strong>
+        <small>${ds.totalCount} Table Orders</small>
+      </div>
+      <div class="kpi-card">
+        <span>Razorpay + PhonePe</span>
+        <strong>₹${payS.onlinePaidRevenue}</strong>
+        <small>Rzp ₹${payS.razorpayRevenue} • PP ₹${payS.phonepeRevenue}</small>
+      </div>
+      <div class="kpi-card">
+        <span>Booked Tables</span>
+        <strong>${occupiedTables}/${appState.tables.length}</strong>
+        <small>Live real bookings only</small>
+      </div>
+      <div class="kpi-card">
+        <span>Active Kitchen</span>
+        <strong>${activeOrders}</strong>
+        <small>Served: ${sales.servedOrdersCount} • Menu: ${appState.menu.length}</small>
+      </div>`;
+
+    ['Sales', 'Orders', 'Menu', 'Tables', 'Photos', 'Reviews', 'Chat', 'Colors'].forEach((name) => {
+      $('adminTab' + name).classList.toggle('hidden', activeAdminTab !== name.toLowerCase());
+    });
+
+    const pinHeaders = { 'X-Admin-Token': appState.adminToken };
+    if ($('admNavOrderBadge')) {
+      $('admNavOrderBadge').textContent = realOrders.length;
+    }
+
+    // Helper for quick search filter inside Orders/Menu
+    const qAdm = ($('adminQuickSearch')?.value || '').trim().toLowerCase();
+
+    // 0. SALES & ANALYTICS TAB (ACRU-Style Bento Dashboard)
+    if (activeAdminTab === 'sales') {
+      // Build 7-day bar chart buckets from real orders (Sun..Sat)
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const nowDate = new Date();
+      const dayBuckets = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(nowDate);
+        d.setDate(nowDate.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const start = d.getTime();
+        const end = start + 86400000;
+        const dayOrders = validReal.filter((o) => (o.createdAt || 0) >= start && (o.createdAt || 0) < end);
+        const rev = dayOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+        dayBuckets.push({ label: days[d.getDay()], rev, count: dayOrders.length, isToday: i === 0 });
+      }
+      const maxDayRev = Math.max(100, ...dayBuckets.map((b) => b.rev));
+
+      // Daily Target Progress
+      const dailyTarget = 5000;
+      const targetPct = Math.min(100, Math.round((sales.todayRevenue / dailyTarget) * 100));
+
+      // Health / Fulfillment %
+      const healthPct = sales.validOrdersCount > 0
+        ? Math.round((sales.servedOrdersCount / sales.validOrdersCount) * 100)
+        : 100;
+
+      // Category Mix Colors
+      const segColors = ['#84cc16', '#65a30d', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'];
+      const totalCatRev = Math.max(1, sales.categorySales.reduce((s, c) => s + c.revenue, 0));
+
+      const sConf = appState.adminFullSettings || appState.settings;
+      const gwConfigured = sConf.hasRazorpay || sConf.hasPhonePeGateway || Boolean(sConf.merchantUpiId);
+
+      $('adminTabSales').innerHTML = `
+        <div class="acru-bento-grid">
+          <div class="acru-left-col">
+            <!-- Row 1: Revenue 7d Bar Chart + 3-Stack Stats -->
+            <div class="acru-hero-row">
+              <div class="acru-card">
+                <div class="acru-card-head">
+                  <div>
+                    <div class="acru-card-title">Real Net Revenue</div>
+                    <div class="acru-big-num">₹${sales.totalRevenue.toLocaleString('en-IN')}</div>
+                    <div class="acru-card-sub">7-day real sales overview (zero fake orders)</div>
+                  </div>
+                  <div class="admin-controls-inline">
+                    <span class="acru-pill-tag">7d Live</span>
+                    ${sales.fakeOrdersExcluded ? `<button type="button" class="btn btn-danger btn-xs" id="purgeFakeOrdersBtn">Purge ${sales.fakeOrdersExcluded} Fake</button>` : ''}
+                  </div>
+                </div>
+                <div class="acru-bar-chart">
+                  ${dayBuckets
+                    .map((b) => {
+                      const h = b.rev > 0 ? Math.max(14, Math.round((b.rev / maxDayRev) * 100)) : 8;
+                      return `
+                    <div class="acru-bar-col" title="${b.label}: ₹${b.rev} (${b.count} orders)">
+                      <div class="acru-bar-track">
+                        <div class="acru-bar-fill ${b.rev === 0 ? 'muted-bar' : ''}" style="height:${h}%"></div>
+                      </div>
+                      <span class="acru-bar-lbl">${b.isToday ? 'Today' : b.label}</span>
+                    </div>`;
+                    })
+                    .join('')}
+                </div>
+              </div>
+
+              <div class="acru-card acru-stat-stack">
+                <div class="acru-stat-item">
+                  <small>Today’s Real Sell</small>
+                  <strong>₹${sales.todayRevenue.toLocaleString('en-IN')}</strong>
+                  <span class="acru-delta-up">● ${sales.validOrdersCount} verified real orders</span>
+                </div>
+                <div class="acru-stat-item">
+                  <small>📦 Parcel &amp; Delivery</small>
+                  <strong>₹${ps.revenue.toLocaleString('en-IN')}</strong>
+                  <span class="acru-delta-up">${ps.totalCount} parcels • Paid ₹${ps.paidOnlineRevenue} • COD ₹${ps.codOrPendingRevenue}</span>
+                </div>
+                <div class="acru-stat-item">
+                  <small>🍽️ Dine-In &amp; Tables</small>
+                  <strong>₹${ds.revenue.toLocaleString('en-IN')}</strong>
+                  <span class="acru-delta-up">${ds.totalCount} table orders • ${occupiedTables}/${appState.tables.length} tables live</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Daily Target + Gateway Quick Setup -->
+            <div class="acru-mid-row">
+              <div class="acru-card">
+                <div class="acru-card-head">
+                  <div>
+                    <div class="acru-card-title">Daily Revenue Target</div>
+                    <div class="acru-card-sub">Real sales progress toward ₹${dailyTarget.toLocaleString('en-IN')} daily goal</div>
+                  </div>
+                  <span class="acru-pill-tag">${targetPct}%</span>
+                </div>
+                <div class="acru-progress-track">
+                  <div class="acru-progress-fill" style="width:${targetPct}%"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:#6b7280;font-weight:700;">
+                  <span>₹${sales.todayRevenue} achieved</span>
+                  <span>Goal: ₹${dailyTarget}</span>
+                </div>
+              </div>
+
+              <div class="acru-card">
+                <div class="acru-card-head">
+                  <div>
+                    <div class="acru-card-title">Parcel &amp; Gateway Health</div>
+                    <div class="acru-card-sub">${gwConfigured ? 'Razorpay / PhonePe UPI ready for live checkout.' : 'Add Razorpay / PhonePe UPI keys in Gateways & Theme.'}</div>
+                  </div>
+                  <span class="acru-pill-tag">${gwConfigured ? 'Active' : 'Setup'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;">
+                  <div style="font-size:0.76rem;color:#374151;">
+                    <div>💳 Razorpay: <strong>₹${payS.razorpayRevenue}</strong></div>
+                    <div>📱 PhonePe/UPI: <strong>₹${payS.phonepeRevenue}</strong></div>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-xs" id="acruGoGatewaysBtn">Configure Gateways →</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 3: Category Mix + Fulfillment Gauge + Top Dish Tracker -->
+            <div class="acru-bottom-row">
+              <div class="acru-card">
+                <div class="acru-card-head">
+                  <div>
+                    <div class="acru-card-title">Category Mix</div>
+                    <div class="acru-card-sub">What sold most</div>
+                  </div>
+                  <span class="acru-pill-tag">₹${sales.totalRevenue}</span>
+                </div>
+                ${sales.categorySales.length
+                  ? `
+                  <div class="acru-seg-bar">
+                    ${sales.categorySales.slice(0, 6).map((c, idx) => `<span style="width:${Math.max(8, Math.round((c.revenue / totalCatRev) * 100))}%;background:${segColors[idx % segColors.length]};"></span>`).join('')}
+                  </div>
+                  <div class="acru-cat-legend">
+                    ${sales.categorySales.slice(0, 5).map((c, idx) => `
+                      <div class="acru-cat-row">
+                        <span><i class="acru-dot" style="background:${segColors[idx % segColors.length]};"></i>${escapeHtml(c.category)}</span>
+                        <strong>${Math.round((c.revenue / totalCatRev) * 100)}% (₹${c.revenue})</strong>
+                      </div>`).join('')}
+                  </div>`
+                  : '<p class="muted small" style="margin:0.8rem 0 0;">No real sales yet today.</p>'}
+              </div>
+
+              <div class="acru-card" style="text-align:center;">
+                <div class="acru-card-head" style="text-align:left;">
+                  <div>
+                    <div class="acru-card-title">Kitchen Health</div>
+                    <div class="acru-card-sub">Served vs active</div>
+                  </div>
+                  <span class="acru-pill-tag">${sales.servedOrdersCount}/${sales.validOrdersCount}</span>
+                </div>
+                <svg viewBox="0 0 180 100" style="width:165px;max-width:100%;margin:0.2rem auto 0;display:block;">
+                  <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round" />
+                  <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="#84cc16" stroke-width="14" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="${Math.round(220 - (220 * healthPct) / 100)}" />
+                  <text x="90" y="76" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a">${healthPct}%</text>
+                  <text x="90" y="94" text-anchor="middle" font-size="9.5" font-weight="600" fill="#6b7280">Orders Completed</text>
+                </svg>
+                <div class="acru-card-sub" style="margin-top:0.35rem;">Avg Bill: <strong>₹${sales.avgOrderValue}</strong> • Cancelled: <strong>${sales.cancelledOrdersCount}</strong></div>
+              </div>
+
+              <div class="acru-card">
+                <div class="acru-card-head">
+                  <div>
+                    <div class="acru-card-title">Top Dishes Sold</div>
+                    <div class="acru-card-sub">Live item tracker</div>
+                  </div>
+                  <span class="acru-pill-tag">${appState.menu.length} items</span>
+                </div>
+                <div>
+                  ${sales.itemSales.length
+                    ? sales.itemSales.slice(0, 4).map((it) => {
+                        const menuItem = appState.menu.find((m) => m.name === it.name) || {};
+                        const thumb = getDishImage(menuItem);
+                        const pct = Math.min(100, Math.round((it.revenue / Math.max(1, sales.itemSales[0].revenue)) * 100));
+                        return `
+                      <div class="acru-goal-row">
+                        <img class="acru-goal-thumb" src="${escapeHtml(thumb)}" alt="" />
+                        <div style="flex:1;min-width:0;">
+                          <div style="display:flex;justify-content:space-between;gap:0.25rem;">
+                            <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(it.name)}</strong>
+                            <span>₹${it.revenue}</span>
+                          </div>
+                          <div class="acru-progress-track" style="height:7px;margin:0.25rem 0 0;">
+                            <div class="acru-progress-fill" style="width:${pct}%"></div>
+                          </div>
+                        </div>
+                      </div>`;
+                      }).join('')
+                    : `<div class="muted small">Place your first real order to see top dishes here with live photos!</div>`}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Rail: Merchant Gateway Card + Real Transaction History -->
+          <div class="acru-right-col">
+            <div class="acru-card">
+              <div class="acru-card-head">
+                <div>
+                  <div class="acru-card-title">Merchant Gateways</div>
+                  <div class="acru-card-sub">Razorpay &amp; PhonePe UPI</div>
+                </div>
+                <button type="button" class="acru-pill-tag" id="acruAddGwBtn" style="cursor:pointer;">+ Setup</button>
+              </div>
+              <div class="acru-merchant-card">
+                <small>CHATKARO MERCHANT PAY</small>
+                <strong>₹${payS.onlinePaidRevenue.toLocaleString('en-IN')} Online</strong>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:700;">
+                  <span>UPI: ${escapeHtml(sConf.merchantUpiId || 'Not set')}</span>
+                  <span>${sConf.hasRazorpay ? 'RZP ✓' : 'RZP —'} • ${sConf.hasPhonePeGateway ? 'PP ✓' : 'PP QR'}</span>
+                </div>
+              </div>
+              <div class="acru-quick-actions">
+                <button type="button" class="acru-qa-btn" data-jump="orders"><span>📋</span>Orders</button>
+                <button type="button" class="acru-qa-btn" data-jump="parcels"><span>📦</span>Parcels</button>
+                <button type="button" class="acru-qa-btn" data-jump="menu"><span>🍽️</span>Menu</button>
+                <button type="button" class="acru-qa-btn" id="exportSalesCsvBtn"><span>⬇</span>CSV</button>
+              </div>
+            </div>
+
+            <div class="acru-card">
+              <div class="acru-card-head">
+                <div>
+                  <div class="acru-card-title">Real Order History</div>
+                  <div class="acru-card-sub">Live verified orders &amp; parcels</div>
+                </div>
+                <span class="acru-pill-tag">${realOrders.length}</span>
+              </div>
+              <div class="acru-tx-list">
+                ${realOrders.length
+                  ? realOrders.slice(0, 8).map((o) => {
+                      const isP = o.orderType === 'parcel' || o.orderType === 'drive-through' || o.orderType === 'delivery';
+                      return `
+                    <div class="acru-tx-row">
+                      <div class="acru-tx-left">
+                        <span class="acru-tx-ico">${isP ? '📦' : '🍽️'}</span>
+                        <div style="min-width:0;">
+                          <strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(o.customerName)}</strong>
+                          <small class="muted">${isP ? 'Parcel' : 'Table ' + (o.tableId || '-')} • ${o.paymentStatus === 'paid' ? 'Paid' : 'COD'}</small>
+                        </div>
+                      </div>
+                      <strong style="color:${o.status === 'cancelled' ? '#dc2626' : '#16a34a'};">+₹${o.total}</strong>
+                    </div>`;
+                    }).join('')
+                  : '<p class="muted small" style="margin:0.5rem 0;">No real orders yet. Only genuine orders appear here.</p>'}
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      if ($('purgeFakeOrdersBtn')) {
+        $('purgeFakeOrdersBtn').addEventListener('click', async () => {
+          await api('/api/admin/orders/purge-fake', 'DELETE', null, pinHeaders);
+          showToast('Fake/test records permanently removed!');
+          refreshSalesAndRenderAdmin();
+        });
+      }
+      if ($('acruGoGatewaysBtn')) {
+        $('acruGoGatewaysBtn').addEventListener('click', () => {
+          document.querySelector('[data-atab="colors"]')?.click();
+        });
+      }
+      if ($('acruAddGwBtn')) {
+        $('acruAddGwBtn').addEventListener('click', () => {
+          document.querySelector('[data-atab="colors"]')?.click();
+        });
+      }
+      $('adminTabSales').querySelectorAll('[data-jump]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const j = btn.dataset.jump;
+          if (j === 'parcels') {
+            appState.adminOrderFilter = 'parcel';
+            document.querySelector('[data-atab="orders"]')?.click();
+          } else {
+            document.querySelector(`[data-atab="${j}"]`)?.click();
+          }
+        });
+      });
+
+      $('exportSalesCsvBtn').addEventListener('click', () => {
+        const rows = [['Dish', 'Category', 'Qty Sold', 'Revenue INR'], ...sales.itemSales.map((i) => [i.name, i.category, i.qtySold, i.revenue])];
+        const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `chatkaro-sales-report.csv`;
+        a.click();
+        showToast('Sales CSV downloaded!');
+      });
+    }
+
+    // 1. ORDERS TAB (Real Orders Only + Parcel Filter + Search + Payment Status)
+    if (activeAdminTab === 'orders') {
+      const filteredOrders = realOrders.filter((o) => {
+        if (appState.adminOrderFilter === 'parcel' && !(o.orderType === 'parcel' || o.orderType === 'drive-through' || o.orderType === 'delivery')) return false;
+        if (appState.adminOrderFilter === 'dine-in' && o.orderType !== 'dine-in') return false;
+        if (qAdm && !`${o.id} ${o.customerName} ${o.customerPhone} ${o.orderType}`.toLowerCase().includes(qAdm)) return false;
+        return true;
+      });
+      $('adminTabOrders').innerHTML = `
+        <div class="modal-tabs" style="margin-bottom:0.85rem;">
+          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'all' ? 'active' : ''}" data-aof="all">All Real Orders (${realOrders.length})</button>
+          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'parcel' ? 'active' : ''}" data-aof="parcel">📦 Parcel &amp; Delivery (${ps.totalCount})</button>
+          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'dine-in' ? 'active' : ''}" data-aof="dine-in">🍽️ Dine-In (${ds.totalCount})</button>
+        </div>
+        <div class="admin-grid-list">
+          ${filteredOrders.length
+            ? filteredOrders
+                .map((o) => {
+                  const isParcel = o.orderType === 'parcel' || o.orderType === 'drive-through' || o.orderType === 'delivery';
+                  const payBadge = o.paymentStatus === 'paid'
+                    ? `<span class="mini-pill paid">${escapeHtml((o.paymentMethod || 'online').toUpperCase())} PAID</span>`
+                    : `<span class="mini-pill cod">COUNTER / COD</span>`;
+                  const typeBadge = isParcel
+                    ? `<span class="mini-pill parcel">${o.orderType === 'delivery' ? '🛵 DELIVERY' : '📦 PARCEL'}</span>`
+                    : `<span class="mini-pill dine">🍽️ DINE-IN${o.tableId ? ' T' + o.tableId : ''}</span>`;
+                  return `
+            <div class="admin-row-card">
+              <div>
+                <strong>#${escapeHtml(o.id)} • ${escapeHtml(o.customerName)} (${escapeHtml(o.customerPhone)})</strong>
+                <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.3rem 0;">
+                  ${typeBadge} ${payBadge} <strong style="color:var(--primary);">₹${o.total}</strong>
+                  ${o.paymentId ? `<small class="muted">Ref: ${escapeHtml(o.paymentId)}</small>` : ''}
+                </div>
+                <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
+              </div>
+              <div class="admin-controls-inline">
+                <select class="adm-status-sel" data-id="${escapeHtml(o.id)}">
+                  ${['confirmed', 'cooking', 'ready', 'served', 'cancelled'].map((s) => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+                <input type="number" class="adm-eta-input" data-id="${escapeHtml(o.id)}" value="${o.etaMinutes || 15}" min="0" max="120" style="width:65px;" title="ETA mins" />
+                <button type="button" class="btn btn-primary btn-xs adm-save-order-btn" data-id="${escapeHtml(o.id)}">Save</button>
+                <button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">Edit</button>
+                <button type="button" class="btn btn-outline btn-xs adm-fake-order-btn" data-id="${escapeHtml(o.id)}" title="Hide fake/test order from Admin">Mark Fake</button>
+                <button type="button" class="btn btn-danger btn-xs adm-del-order-btn" data-id="${escapeHtml(o.id)}">Delete</button>
+              </div>
+            </div>`;
+                })
+                .join('')
+            : '<div class="admin-row-card"><span class="muted">No real orders in this filter yet.</span></div>'}
+        </div>`;
+
+      $('adminTabOrders').querySelectorAll('[data-aof]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          appState.adminOrderFilter = btn.dataset.aof;
+          renderAdminDashboard();
+        });
+      });
+      $('adminTabOrders').querySelectorAll('.adm-save-order-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const status = $('adminTabOrders').querySelector(`.adm-status-sel[data-id="${id}"]`).value;
+          const etaMinutes = Number($('adminTabOrders').querySelector(`.adm-eta-input[data-id="${id}"]`).value);
+          await api(`/api/orders/${id}`, 'PUT', { status, etaMinutes }, pinHeaders);
+          showToast(`Order #${id} updated!`);
+        });
+      });
+      $('adminTabOrders').querySelectorAll('.adm-fake-order-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/orders/${btn.dataset.id}/fake`, 'POST', {}, pinHeaders);
+          showToast('Marked as fake/test & hidden from Admin.');
+          refreshSalesAndRenderAdmin();
+        });
+      });
+      $('adminTabOrders').querySelectorAll('.adm-del-order-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/orders/${btn.dataset.id}`, 'DELETE', null, pinHeaders);
+          showToast('Order deleted.');
+        });
+      });
+    }
+
+    // 2. MENU MANAGER TAB (Full Add / Edit Name, Price, Category, Flags, Sold-Out / Delete)
+    if (activeAdminTab === 'menu') {
+      const cats = ['veg-prep', 'kaju-prep', 'cheese-prep', 'south-indian', 'chinese', 'punjabi', 'fast-food', 'beverages'];
+      $('adminTabMenu').innerHTML = `
+        <form id="admAddDishForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
+          <strong style="width:100%;">➕ Add / Upgrade Dish</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="newDishName" placeholder="Dish Name *" required />
+            <input type="number" id="newDishPrice" placeholder="Price ₹ *" required style="width:85px;" />
+            <select id="newDishCat">
+              <option value="veg-prep">Veg Preparation</option>
+              <option value="kaju-prep">Kaju Preparation</option>
+              <option value="cheese-prep">Cheese Preparation</option>
+              <option value="south-indian">South Indian</option>
+              <option value="chinese">Indo-Chinese</option>
+              <option value="punjabi">Punjabi</option>
+              <option value="fast-food">Fast Food</option>
+              <option value="beverages">Beverages</option>
+            </select>
+            <input type="text" id="newDishEmoji" value="🍲" style="width:60px;" />
+            <input type="text" id="newDishDesc" placeholder="Description" style="flex:1;min-width:160px;" />
+            <label class="small"><input type="checkbox" id="newDishBest" /> ⭐ Best</label>
+            <label class="small"><input type="checkbox" id="newDishSpicy" /> 🌶️ Spicy</label>
+            <button type="submit" class="btn btn-primary btn-sm">Add Dish</button>
+          </div>
+        </form>
+        <div class="admin-grid-list">
+          ${appState.menu
+            .map(
+              (m) => `
+            <div class="admin-row-card">
+              <div class="admin-controls-inline" style="flex:1;">
+                <input type="text" class="adm-demoji" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.emoji)}" style="width:46px;text-align:center;" />
+                <input type="text" class="adm-dname" data-id="${escapeHtml(m.id)}" value="${escapeHtml(m.name)}" style="min-width:160px;flex:1;" />
+                <select class="adm-dcat" data-id="${escapeHtml(m.id)}">
+                  ${cats.map((c) => `<option value="${c}" ${m.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+                <span>₹</span>
+                <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:74px;" />
+              </div>
+              <div class="admin-controls-inline">
+                <button type="button" class="btn btn-primary btn-xs adm-save-dish-btn" data-id="${escapeHtml(m.id)}">Save</button>
+                <button type="button" class="btn btn-outline btn-xs adm-toggle-avail-btn" data-id="${escapeHtml(m.id)}">${m.available === false ? 'Enable' : 'Sold Out'}</button>
+                <button type="button" class="btn btn-danger btn-xs adm-del-dish-btn" data-id="${escapeHtml(m.id)}">✕</button>
+              </div>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admAddDishForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await api('/api/admin/menu', 'POST', {
+          item: {
+            name: $('newDishName').value.trim(),
+            price: Number($('newDishPrice').value),
+            category: $('newDishCat').value,
+            emoji: $('newDishEmoji').value || '🍲',
+            desc: $('newDishDesc').value.trim(),
+            bestseller: $('newDishBest').checked,
+            spicy: $('newDishSpicy').checked
+          }
+        }, pinHeaders);
+        showToast('New dish added!');
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-save-dish-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const dish = appState.menu.find((m) => m.id === id);
+          const name = $('adminTabMenu').querySelector(`.adm-dname[data-id="${id}"]`).value.trim();
+          const emoji = $('adminTabMenu').querySelector(`.adm-demoji[data-id="${id}"]`).value.trim();
+          const category = $('adminTabMenu').querySelector(`.adm-dcat[data-id="${id}"]`).value;
+          const price = Number($('adminTabMenu').querySelector(`.adm-price-input[data-id="${id}"]`).value);
+          await api('/api/admin/menu', 'POST', { item: { ...dish, name, emoji, category, price } }, pinHeaders);
+          showToast(`Saved ${name} (₹${price})`);
+        });
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-toggle-avail-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const dish = appState.menu.find((m) => m.id === btn.dataset.id);
+          await api('/api/admin/menu', 'POST', { item: { ...dish, available: dish.available === false } }, pinHeaders);
+          showToast('Availability updated.');
+        });
+      });
+
+      $('adminTabMenu').querySelectorAll('.adm-del-dish-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/menu/${btn.dataset.id}`, 'DELETE', null, pinHeaders);
+          showToast('Dish deleted.');
+        });
+      });
+    }
+
+    // 3. TABLES & CUSTOMERS CRUD TAB
+    if (activeAdminTab === 'tables') {
+      $('adminTabTables').innerHTML = `
+        <form id="admAddTableForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
+          <strong>➕ Add Hotel Table</strong>
+          <div class="admin-controls-inline">
+            <input type="text" id="newTblLabel" placeholder="Table Name (e.g. Table 9 VIP)" required />
+            <input type="number" id="newTblSeats" value="4" min="1" max="20" style="width:70px;" />
+            <button type="submit" class="btn btn-primary btn-sm">Add Table</button>
+          </div>
+        </form>
+        <div class="admin-grid-list" style="margin-bottom:1.2rem;">
+          ${appState.tables
+            .map(
+              (t) => `
+            <div class="admin-row-card">
+              <div class="admin-controls-inline">
+                <input type="text" class="adm-tlabel" data-tid="${t.id}" value="${escapeHtml(t.label)}" style="width:140px;" />
+                <input type="number" class="adm-tseats" data-tid="${t.id}" value="${t.seats}" style="width:65px;" />
+                <span class="muted small">${t.status === 'occupied' ? 'Occupied: ' + escapeHtml(t.occupantName) : 'Available'}</span>
+              </div>
+              <div class="admin-controls-inline">
+                <button type="button" class="btn btn-primary btn-xs adm-save-tbl-btn" data-tid="${t.id}">Save</button>
+                ${t.status === 'occupied' ? `<button type="button" class="btn btn-outline btn-xs adm-clear-tbl-btn" data-tid="${t.id}">Clear</button>` : ''}
+                <button type="button" class="btn btn-danger btn-xs adm-del-tbl-btn" data-tid="${t.id}">✕</button>
+              </div>
+            </div>`
+            )
+            .join('')}
+        </div>
+        <h3>👥 Customers &amp; Leaderboard Control</h3>
+        <div class="admin-grid-list">
+          ${appState.customersAll
+            .map(
+              (c) => `
+            <div class="admin-row-card">
+              <div>
+                <strong>${escapeHtml(c.name)}</strong> <span class="muted small">(${escapeHtml(c.email)})</span>
+                <div class="muted small">Orders: ${c.ordersCount} • Spent: ₹${c.totalSpent} • Game Best: ${c.bestGameScore || 0}</div>
+              </div>
+              <div class="admin-controls-inline">
+                <input type="number" class="adm-corders" data-email="${escapeHtml(c.email)}" value="${c.ordersCount}" style="width:64px;" title="Orders" />
+                <input type="number" class="adm-cscore" data-email="${escapeHtml(c.email)}" value="${c.bestGameScore || 0}" style="width:74px;" title="Game Score" />
+                <button type="button" class="btn btn-primary btn-xs adm-save-cust-btn" data-email="${escapeHtml(c.email)}">Save</button>
+                <button type="button" class="btn btn-danger btn-xs adm-del-cust-btn" data-email="${escapeHtml(c.email)}">Delete</button>
+              </div>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admAddTableForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await api('/api/admin/tables', 'POST', { table: { label: $('newTblLabel').value.trim(), seats: Number($('newTblSeats').value) } }, pinHeaders);
+        showToast('Table added!');
+      });
+      $('adminTabTables').querySelectorAll('.adm-save-tbl-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const tid = Number(btn.dataset.tid);
+          const label = $('adminTabTables').querySelector(`.adm-tlabel[data-tid="${tid}"]`).value.trim();
+          const seats = Number($('adminTabTables').querySelector(`.adm-tseats[data-tid="${tid}"]`).value);
+          await api('/api/admin/tables', 'POST', { table: { id: tid, label, seats } }, pinHeaders);
+          showToast('Table updated!');
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-clear-tbl-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const tbl = appState.tables.find((t) => t.id === Number(btn.dataset.tid));
+          await api('/api/tables/checkin', 'POST', { tableId: tbl.id, email: tbl.occupantEmail, action: 'leave' });
+          showToast('Table cleared!');
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-del-tbl-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/tables/${btn.dataset.tid}`, 'DELETE', null, pinHeaders);
+          showToast('Table deleted.');
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-save-cust-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const email = btn.dataset.email;
+          const c = appState.customersAll.find((x) => x.email === email);
+          const ordersCount = Number($('adminTabTables').querySelector(`.adm-corders[data-email="${email}"]`).value);
+          const bestGameScore = Number($('adminTabTables').querySelector(`.adm-cscore[data-email="${email}"]`).value);
+          await api('/api/admin/customers', 'POST', { customer: { ...c, ordersCount, bestGameScore } }, pinHeaders);
+          showToast('Customer updated!');
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-del-cust-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/customers/${encodeURIComponent(btn.dataset.email)}`, 'DELETE', null, pinHeaders);
+          showToast('Customer deleted.');
+        });
+      });
+    }
+
+    // 4. GOOGLE MAPS PHOTOS CRUD TAB
+    if (activeAdminTab === 'photos') {
+      $('adminTabPhotos').innerHTML = `
+        <form id="admAddPhotoForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
+          <strong style="width:100%;">📸 Add Google Maps Photo (Upload File or Paste Image URL)</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="newPhotoTitle" placeholder="Photo Title (e.g. Special Masala Dosa) *" required style="flex:1;min-width:160px;" />
+            <select id="newPhotoCat">
+              <option value="food">Food &amp; Drink</option>
+              <option value="vibe">Vibe</option>
+              <option value="owner">By Owner</option>
+            </select>
+            <input type="url" id="newPhotoUrl" placeholder="Image URL (or upload file ->)" style="flex:1;min-width:180px;" />
+            <input type="file" id="newPhotoFile" accept="image/*" style="max-width:210px;" />
+            <button type="submit" class="btn btn-primary btn-sm">Add Photo</button>
+          </div>
+        </form>
+        <div class="admin-grid-list">
+          ${appState.mapPhotos
+            .map(
+              (p) => `
+            <div class="admin-row-card">
+              <div class="admin-controls-inline" style="flex:1;">
+                <img src="${escapeHtml(p.url)}" alt="" style="width:60px;height:42px;object-fit:cover;border-radius:8px;" />
+                <input type="text" class="adm-ptitle" data-pid="${escapeHtml(p.id)}" value="${escapeHtml(p.title)}" style="flex:1;min-width:150px;" />
+                <select class="adm-pcat" data-pid="${escapeHtml(p.id)}">
+                  ${['food', 'vibe', 'owner'].map((c) => `<option value="${c}" ${p.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+              </div>
+              <div class="admin-controls-inline">
+                <button type="button" class="btn btn-primary btn-xs adm-save-photo-btn" data-pid="${escapeHtml(p.id)}">Save</button>
+                <button type="button" class="btn btn-danger btn-xs adm-del-photo-btn" data-pid="${escapeHtml(p.id)}">Delete</button>
+              </div>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admAddPhotoForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = $('newPhotoTitle').value.trim();
+        const category = $('newPhotoCat').value;
+        const file = $('newPhotoFile').files[0];
+        let url = $('newPhotoUrl').value.trim();
+        if (file) {
+          url = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          });
+        }
+        if (!url) return showToast('Provide an image URL or choose a photo file.');
+        await api('/api/admin/photos', 'POST', { photo: { title, category, url, uploader: 'By Owner • Google Maps' } }, pinHeaders);
+        showToast('Photo added & live on website!');
+      });
+
+      $('adminTabPhotos').querySelectorAll('.adm-save-photo-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const pid = btn.dataset.pid;
+          const p = appState.mapPhotos.find((x) => x.id === pid);
+          const title = $('adminTabPhotos').querySelector(`.adm-ptitle[data-pid="${pid}"]`).value.trim();
+          const category = $('adminTabPhotos').querySelector(`.adm-pcat[data-pid="${pid}"]`).value;
+          await api('/api/admin/photos', 'POST', { photo: { ...p, title, category } }, pinHeaders);
+          showToast('Photo updated!');
+        });
+      });
+      $('adminTabPhotos').querySelectorAll('.adm-del-photo-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/photos/${btn.dataset.pid}`, 'DELETE', null, pinHeaders);
+          showToast('Photo deleted.');
+        });
+      });
+    }
+
+    // 5. REVIEWS & MAPS SYNC TAB
+    if (activeAdminTab === 'reviews') {
+      $('adminTabReviews').innerHTML = `
+        <div class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
+          <div>
+            <strong>📍 Google Maps Auto-Sync</strong>
+            <div class="muted small">Pull latest Reviews, Rating, Hours &amp; Photos from Google Maps (if Places API Key configured)</div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="admSyncMapsBtn">🔄 Sync Google Maps Now</button>
+        </div>
+        <form id="admAddReviewForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
+          <strong style="width:100%;">➕ Add Review / Map Update</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="admRevAuthor" placeholder="Reviewer Name *" required />
+            <select id="admRevRating"><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option></select>
+            <input type="text" id="admRevText" placeholder="Review text *" required style="flex:1;min-width:200px;" />
+            <button type="submit" class="btn btn-primary btn-sm">Add Review</button>
+          </div>
+        </form>
+        <div class="admin-grid-list">
+          ${appState.reviews
+            .map(
+              (r) => `
+            <div class="admin-row-card">
+              <div style="flex:1;">
+                <strong>${escapeHtml(r.author)}</strong> (${r.rating}★) • <small class="muted">${escapeHtml(r.source)}</small>
+                <div class="muted small">"${escapeHtml(r.text)}"</div>
+              </div>
+              <button type="button" class="btn btn-danger btn-xs adm-del-rev-btn" data-rid="${escapeHtml(r.id)}">Delete</button>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admSyncMapsBtn').addEventListener('click', () => $('syncMapsNowBtn').click());
+      $('admAddReviewForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await api('/api/admin/reviews', 'POST', {
+          review: { author: $('admRevAuthor').value.trim(), rating: Number($('admRevRating').value), text: $('admRevText').value.trim(), source: 'Google Maps' }
+        }, pinHeaders);
+        showToast('Review added live!');
+      });
+      $('adminTabReviews').querySelectorAll('.adm-del-rev-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/reviews/${btn.dataset.rid}`, 'DELETE', null, pinHeaders);
+          showToast('Review deleted.');
+        });
+      });
+    }
+
+    // 6. CHAT MODERATION TAB
+    if (activeAdminTab === 'chat') {
+      $('adminTabChat').innerHTML = `
+        <form id="admOwnerChatForm" class="promo-row" style="margin-bottom:1rem;">
+          <input type="text" id="admOwnerMsgInput" placeholder="Send official 👑 Owner announcement to Customer Lounge Chat..." required />
+          <button type="submit" class="btn btn-primary btn-sm">Send as Owner</button>
+        </form>
+        <div class="admin-grid-list">
+          ${appState.chatMessages
+            .slice()
+            .reverse()
+            .map(
+              (m) => `
+            <div class="admin-row-card">
+              <div>
+                <strong>${m.isOwner ? '👑 ' : ''}${escapeHtml(m.senderName)}</strong> ${m.tableId ? `(Table ${m.tableId})` : ''}
+                <div class="muted small">${escapeHtml(m.text)}</div>
+              </div>
+              <button type="button" class="btn btn-danger btn-xs adm-del-chat-btn" data-mid="${escapeHtml(m.id)}">Delete</button>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admOwnerChatForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await api('/api/chat', 'POST', {
+          senderName: 'Chatkaro Owner',
+          senderEmail: 'owner@chatkaro',
+          isOwner: true,
+          text: $('admOwnerMsgInput').value.trim()
+        }, pinHeaders);
+        $('admOwnerMsgInput').value = '';
+        showToast('Owner message sent to lounge!');
+      });
+      $('adminTabChat').querySelectorAll('.adm-del-chat-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await api(`/api/admin/chat/${btn.dataset.mid}`, 'DELETE', null, pinHeaders);
+          showToast('Chat message removed.');
+        });
+      });
+    }
+
+    // 7. LIVE WEBSITE COLORS & SETTINGS TAB
+    if (activeAdminTab === 'colors') {
+      const bt = appState.settings.brandTheme || COLOR_PRESETS['saffron-night'];
+      const s = appState.adminFullSettings || appState.settings;
+      $('adminTabColors').innerHTML = `
+        <h3>🎨 Live Website Color Studio (Visible to All Visitors Instantly!)</h3>
+        <div class="color-presets-grid">
+          ${Object.entries(COLOR_PRESETS)
+            .map(
+              ([key, p]) => `
+            <button type="button" class="preset-btn" data-preset="${key}">
+              <span class="preset-swatch" style="background:${p.primary};"></span>
+              <span class="preset-swatch" style="background:${p.bg};"></span>
+              ${p.label}
+            </button>`
+            )
+            .join('')}
+        </div>
+        <form id="admColorForm">
+          <div class="color-picker-grid">
+            <label class="color-field">Primary Color <input type="color" id="colPrimary" value="${bt.primary}" /></label>
+            <label class="color-field">Accent Glow <input type="color" id="colAccent" value="${bt.accent}" /></label>
+            <label class="color-field">Background <input type="color" id="colBg" value="${bt.bg}" /></label>
+            <label class="color-field">Card Surface <input type="color" id="colSurface" value="${bt.surface}" /></label>
+            <label class="color-field">Text Color <input type="color" id="colText" value="${bt.text}" /></label>
+            <label class="color-field">Visual FX &amp; Glow <input type="checkbox" id="colFx" ${bt.fxEnabled !== false ? 'checked' : ''} /></label>
+          </div>
+          <button type="submit" class="btn btn-primary">Apply Colors to Live Website →</button>
+        </form>
+        <hr style="border:none;border-top:1px dashed var(--border);margin:1.3rem 0;" />
+        <h3>⚙️ Restaurant, Gateways (Razorpay &amp; PhonePe), Gemini AI &amp; Gmail Login</h3>
+        <form id="admSettingsForm" class="stack-form">
+          <div class="two-col">
+            <div><label>Restaurant Name</label><input type="text" id="admRestName" value="${escapeHtml(s.restaurantName || '')}" /></div>
+            <div><label>Price Range</label><input type="text" id="admPriceRange" value="${escapeHtml(s.priceRange || '')}" /></div>
+          </div>
+          <label>Top Announcement Banner</label>
+          <input type="text" id="admAnnounce" value="${escapeHtml(s.announcement || '')}" />
+          <label>Today’s Special Combo Deal</label>
+          <input type="text" id="admDailyDeal" value="${escapeHtml(s.dailyDeal || '')}" />
+          <div class="two-col">
+            <div><label>Opening Hours Text</label><input type="text" id="admHours" value="${escapeHtml(s.openHoursText || '')}" /></div>
+            <div><label>WhatsApp Number (91...)</label><input type="text" id="admPhone" value="${escapeHtml(s.phone || '919054633908')}" /></div>
+          </div>
+          <label>Address</label>
+          <input type="text" id="admAddress" value="${escapeHtml(s.address || '')}" />
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <strong>💳 Razorpay &amp; PhonePe Payment Gateways</strong>
+          <div class="two-col">
+            <div><label>Merchant UPI ID (Instant PhonePe / UPI QR)</label><input type="text" id="admMerchantUpi" value="${escapeHtml(s.merchantUpiId || '')}" placeholder="e.g. 9054633908@ybl" /></div>
+            <div><label>Razorpay Key ID</label><input type="text" id="admRzpKeyId" value="${escapeHtml(s.razorpayKeyId || '')}" placeholder="rzp_test_... / rzp_live_..." /></div>
+          </div>
+          <label>Razorpay Key Secret</label>
+          <input type="password" id="admRzpSecret" value="${escapeHtml(s.razorpayKeySecret || '')}" placeholder="Razorpay Secret Key" />
+          <div class="two-col">
+            <div><label>PhonePe Merchant ID (PG)</label><input type="text" id="admPpMerchantId" value="${escapeHtml(s.phonepeMerchantId || '')}" placeholder="PGTESTPAYUAT / Merchant ID" /></div>
+            <div><label>PhonePe Salt Key</label><input type="password" id="admPpSaltKey" value="${escapeHtml(s.phonepeSaltKey || '')}" placeholder="PhonePe Salt Key" /></div>
+          </div>
+          <div class="two-col">
+            <div><label>PhonePe Salt Index</label><input type="text" id="admPpSaltIndex" value="${escapeHtml(s.phonepeSaltIndex || '1')}" /></div>
+            <div><label>PhonePe Environment</label>
+              <select id="admPpEnv">
+                <option value="sandbox" ${(s.phonepeEnv || 'sandbox') === 'sandbox' ? 'selected' : ''}>Sandbox (Testing)</option>
+                <option value="production" ${s.phonepeEnv === 'production' ? 'selected' : ''}>Production (Live)</option>
+              </select>
+            </div>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <label>✨ Gemini API Key (Enables Gemini 2.5 Flash Live AI Assistant)</label>
+          <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AIza... (from Google AI Studio)" />
+          <div class="two-col">
+            <div><label>Google OAuth Client ID (1-Tap Gmail Login)</label><input type="text" id="admGClient" value="${escapeHtml(s.googleClientId || '')}" placeholder="xxx.apps.googleusercontent.com" /></div>
+            <div><label>Google Place ID</label><input type="text" id="admPlaceId" value="${escapeHtml(s.googlePlaceId || '')}" placeholder="ChIJ..." /></div>
+          </div>
+          <label>Google Places API Key (Auto-syncs Maps Reviews, Photos &amp; Hours)</label>
+          <input type="password" id="admPlacesKey" value="${escapeHtml(s.googlePlacesApiKey || '')}" placeholder="AIza..." />
+          <button type="submit" class="btn btn-primary">Save Settings, Gateways &amp; Keys</button>
+        </form>
+
+        <hr style="border:none;border-top:1px dashed var(--border);margin:1.3rem 0;" />
+        <h3>🔐 Change Owner Admin PIN</h3>
+        <form id="admChangePinForm" class="stack-form">
+          <div class="two-col">
+            <div><label>Current PIN</label><input type="password" id="admCurPin" required /></div>
+            <div><label>New Owner PIN (min 4 chars)</label><input type="password" id="admNewPinOnly" minlength="4" required /></div>
+          </div>
+          <button type="submit" class="btn btn-outline">Update Owner PIN</button>
+        </form>`;
+
+      $('adminTabColors').querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const p = COLOR_PRESETS[btn.dataset.preset];
+          if (!p) return;
+          appState.userOverrideTheme = false;
+          localStorage.removeItem('chatkaro_user_theme_override');
+          await api('/api/admin/theme', 'POST', { brandTheme: { ...p, preset: btn.dataset.preset, fxEnabled: $('colFx').checked } }, pinHeaders);
+          showToast(`Applied "${p.label}" theme live for all users!`);
+        });
+      });
+
+      $('admColorForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        appState.userOverrideTheme = false;
+        localStorage.removeItem('chatkaro_user_theme_override');
+        await api('/api/admin/theme', 'POST', {
+          brandTheme: {
+            preset: 'custom',
+            primary: $('colPrimary').value,
+            accent: $('colAccent').value,
+            bg: $('colBg').value,
+            surface: $('colSurface').value,
+            text: $('colText').value,
+            fxEnabled: $('colFx').checked
+          }
+        }, pinHeaders);
+        showToast('Custom colors published live to website!');
+      });
+
+      $('admSettingsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+          restaurantName: $('admRestName').value,
+          priceRange: $('admPriceRange').value,
+          announcement: $('admAnnounce').value,
+          dailyDeal: $('admDailyDeal').value,
+          openHoursText: $('admHours').value,
+          phone: $('admPhone').value,
+          address: $('admAddress').value,
+          merchantUpiId: $('admMerchantUpi').value,
+          razorpayKeyId: $('admRzpKeyId').value,
+          razorpayKeySecret: $('admRzpSecret').value,
+          phonepeMerchantId: $('admPpMerchantId').value,
+          phonepeSaltKey: $('admPpSaltKey').value,
+          phonepeSaltIndex: $('admPpSaltIndex').value,
+          phonepeEnv: $('admPpEnv').value,
+          geminiApiKey: $('admGeminiKey').value,
+          googleClientId: $('admGClient').value,
+          googlePlaceId: $('admPlaceId').value,
+          googlePlacesApiKey: $('admPlacesKey').value
+        };
+        await api('/api/admin/settings', 'POST', { settings: payload }, pinHeaders);
+        appState.adminFullSettings = { ...(appState.adminFullSettings || {}), ...payload };
+        showToast('Settings, Razorpay & PhonePe saved!');
+      });
+
+      $('admChangePinForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const res = await api('/api/admin/change-pin', 'POST', {
+            currentPin: $('admCurPin').value.trim(),
+            newPin: $('admNewPinOnly').value.trim()
+          }, pinHeaders);
+          appState.adminToken = res.adminToken;
+          sessionStorage.setItem('chatkaro_admin_token', res.adminToken);
+          $('admChangePinForm').reset();
+          showToast('🔐 Owner Admin PIN updated securely!');
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+    }
+  }
+
+  // ================= FLOATING GEMINI AI ASSISTANT =================
+  $('openAiFab').addEventListener('click', () => {
+    $('aiWidget').classList.toggle('hidden');
+    if (!$('aiWidget').classList.contains('hidden')) $('aiChatInput').focus();
+  });
+  $('closeAiBtn').addEventListener('click', () => $('aiWidget').classList.add('hidden'));
+
+  async function askAiAssistant(question) {
+    const q = question.trim();
+    if (!q) return;
+    const box = $('aiMessages');
+
+    const userBubble = document.createElement('div');
+    userBubble.className = 'ai-bubble user';
+    userBubble.textContent = q;
+    box.appendChild(userBubble);
+
+    const typingBubble = document.createElement('div');
+    typingBubble.className = 'ai-bubble bot';
+    typingBubble.textContent = 'Thinking... ✨';
+    box.appendChild(typingBubble);
+    box.scrollTop = box.scrollHeight;
+
+    try {
+      const res = await api('/api/ai-chat', 'POST', { message: q, history: appState.aiHistory });
+      typingBubble.textContent = res.reply;
+      appState.aiHistory.push({ role: 'user', text: q }, { role: 'model', text: res.reply });
+      if (res.engine === 'gemini-2.5-flash') {
+        $('aiEngineBadge').textContent = 'Gemini 2.5 Flash Live ✨';
+      }
+    } catch (err) {
+      typingBubble.textContent = 'Error: ' + err.message;
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  $('aiChatForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = $('aiChatInput').value;
+    $('aiChatInput').value = '';
+    askAiAssistant(val);
+  });
+  document.querySelectorAll('.quick-ai-btn').forEach((btn) => {
+    btn.addEventListener('click', () => askAiAssistant(btn.dataset.q));
+  });
+
+  // ================= EVENT BINDINGS =================
+  $('menuGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) updateQty(btn.dataset.id, btn.dataset.action === 'inc' ? 1 : -1);
+  });
+  document.querySelectorAll('[data-quick-add]').forEach((el) => el.addEventListener('click', () => updateQty(el.dataset.quickAdd, 1)));
+  $('menuTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab-btn');
+    if (!tab) return;
+    $('menuTabs').querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    tab.classList.add('active');
+    appState.category = tab.dataset.category;
+    renderMenu();
+  });
+  document.querySelectorAll('.chip-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.filter;
+      if (appState.filter === val) {
+        appState.filter = null;
+        btn.classList.remove('active');
+      } else {
+        document.querySelectorAll('.chip-btn').forEach((b) => b.classList.remove('active'));
+        appState.filter = val;
+        btn.classList.add('active');
+      }
+      renderMenu();
+    });
+  });
+  $('menuSearch').addEventListener('input', (e) => {
+    appState.search = e.target.value;
+    renderMenu();
+  });
+
+  $('openCartBtn').addEventListener('click', openCart);
+  $('floatOpenCartBtn').addEventListener('click', openCart);
+  $('closeCartBtn').addEventListener('click', closeCart);
+  $('cartBackdrop').addEventListener('click', closeCart);
+
+  $('cartDrawerBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cart-action]');
+    if (btn) updateQty(btn.dataset.id, btn.dataset.cartAction === 'inc' ? 1 : -1);
+  });
+  $('cartDrawerFooter').addEventListener('click', (e) => {
+    const modeBtn = e.target.closest('.order-mode-btn');
+    if (modeBtn) {
+      appState.orderType = modeBtn.dataset.mode;
+      return renderCart();
+    }
+    const payBtn = e.target.closest('.pay-opt-btn');
+    if (payBtn) {
+      appState.paymentMethod = payBtn.dataset.pay;
+      return renderCart();
+    }
+    if (e.target.id === 'applyPromoBtn') {
+      const code = ($('promoInput').value || '').trim().toUpperCase();
+      if (!code) {
+        appState.promoCode = '';
+        localStorage.removeItem('chatkaro_active_promo');
+        return renderCart();
+      }
+      const pct = getDiscountPercent(code);
+      if (pct > 0) {
+        appState.promoCode = code;
+        localStorage.setItem('chatkaro_active_promo', code);
+        showToast(`Applied ${code} (${pct}% OFF)!`);
+      } else {
+        showToast('Invalid or locked code! Try WELCOME5 or play the game.');
+      }
+      return renderCart();
+    }
+    if (e.target.id === 'placeOrderBtn') placeOrder();
+  });
+
+  $('closePhonepeModalBtn').addEventListener('click', () => $('phonepeModal').classList.add('hidden'));
+  $('phonepeUtrForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const utr = $('phonepeUtrInput').value.trim();
+    if (!appState.pendingPhonepeTxn) return showToast('Payment session expired.');
+    try {
+      const res = await api('/api/payments/phonepe/confirm-upi', 'POST', {
+        txnId: appState.pendingPhonepeTxn,
+        utr
+      });
+      appState.pendingPhonepeTxn = null;
+      $('phonepeModal').classList.add('hidden');
+      showToast('PhonePe / UPI Payment Confirmed! ✅');
+      completeOrderUI(res.order);
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  async function checkPhonePeRedirectReturn() {
+    const params = new URLSearchParams(window.location.search);
+    const txnId = params.get('phonepeTxn');
+    if (!txnId || appState.staticMode) return;
+    try {
+      const res = await api(`/api/payments/phonepe/status?txnId=${encodeURIComponent(txnId)}`);
+      if (res.order) {
+        showToast('PhonePe payment verified! ✅');
+        completeOrderUI(res.order);
+      }
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }
+
+  $('unlockedCoupons').addEventListener('click', (e) => {
+    const btn = e.target.closest('.apply-coupon-btn');
+    if (!btn || btn.disabled) return;
+    appState.promoCode = btn.dataset.code;
+    localStorage.setItem('chatkaro_active_promo', appState.promoCode);
+    renderCart();
+    openCart();
+    showToast(`Coupon ${appState.promoCode} applied!`);
+  });
+  $('closeOrderModalBtn').addEventListener('click', () => $('orderModal').classList.add('hidden'));
+  $('printReceiptBtn').addEventListener('click', () => window.print());
+
+  $('mobileMenuBtn').addEventListener('click', () => {
+    const open = $('navLinks').classList.toggle('open');
+    $('mobileMenuBtn').setAttribute('aria-expanded', String(open));
+  });
+  $('navLinks').querySelectorAll('a').forEach((a) => a.addEventListener('click', () => $('navLinks').classList.remove('open')));
+
+  $('btnGoogleMap').addEventListener('click', () => {
+    $('btnGoogleMap').classList.add('active');
+    $('btnLandmarkMap').classList.remove('active');
+    $('googleMapWrap').classList.remove('hidden');
+    $('landmarkMapWrap').classList.add('hidden');
+  });
+  $('btnLandmarkMap').addEventListener('click', () => {
+    $('btnLandmarkMap').classList.add('active');
+    $('btnGoogleMap').classList.remove('active');
+    $('landmarkMapWrap').classList.remove('hidden');
+    $('googleMapWrap').classList.add('hidden');
+  });
+  document.querySelectorAll('.map-pin-node').forEach((node) => {
+    node.addEventListener('click', () => ($('landmarkInfo').textContent = '📍 ' + node.dataset.info));
+  });
+  $('copyPlusCodeBtn').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(appState.settings.plusCode || '2GWF+GJ Talala, Gujarat'); } catch {}
+    showToast('Copied Plus Code!');
+  });
+
+  // ================= CLIENT SOURCE & RIGHT-CLICK PROTECTION =================
+  function initClientProtection() {
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showToast('🔒 Right-click & inspect are disabled.');
+    });
+
+    document.addEventListener('dragstart', (e) => {
+      if (e.target && e.target.tagName === 'IMG') e.preventDefault();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const key = (e.key || '').toUpperCase();
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      const blocked =
+        key === 'F12' ||
+        (ctrlOrMeta && ['U', 'S'].includes(key)) ||
+        (ctrlOrMeta && e.shiftKey && ['I', 'J', 'C', 'K'].includes(key)) ||
+        (e.metaKey && e.altKey && ['I', 'J', 'C', 'U'].includes(key));
+      if (blocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('🔒 Source inspection shortcuts are disabled.');
+      }
+    });
+  }
+
+  initClientProtection();
+  initScrollReveal();
+  initHeroParticles();
+  syncCouponUI();
+  renderAuthUI();
+  initialFetch().then(() => checkPhonePeRedirectReturn());
+})();

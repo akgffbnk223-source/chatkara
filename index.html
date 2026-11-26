@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatkaro Food Hub | Live Orders, Tables, Chat, Game, Maps &amp; Admin — Talala</title>
+  <meta name="description" content="Chatkaro Food Hub in Talala, Gujarat (★ 4.9). Pure Veg South Indian, Punjabi &amp; Indo-Chinese. Live tables, guest chat, multiplayer game, Google Maps live photos &amp; reviews, and full Admin dashboard." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+</head>
+<body>
+  <!-- Top Live Announcement Bar -->
+  <div class="top-strip">
+    <div class="container top-strip-inner">
+      <span id="topAnnouncement">🌿 100% Pure Vegetarian • ★ 4.9 (113+ Reviews) • ₹1–200 Per Person</span>
+      <span class="top-strip-right">
+        <span class="live-dot-badge" id="syncStatusBadge">● Live Sync</span>
+        <span id="topHoursText">Open · Closes 12:30 AM</span> • 📞 <a id="topPhoneLink" href="tel:+919054633908">090546 33908</a>
+      </span>
+    </div>
+  </div>
+
+  <!-- Sticky Navigation -->
+  <header class="site-header" id="header">
+    <div class="container header-inner">
+      <a href="#home" class="brand hover-pop">
+        <span class="brand-logo" aria-hidden="true">🍲</span>
+        <span class="brand-text">
+          <strong id="brandTitle">Chatkaro</strong>
+          <small>FOOD HUB • TALALA</small>
+        </span>
+      </a>
+
+      <nav class="nav-links" id="navLinks" aria-label="Main navigation">
+        <a href="#menu">Menu</a>
+        <a href="#live-hub">Live Tables &amp; Chat</a>
+        <a href="#game">Game 🎮</a>
+        <a href="#maps-gallery">Maps Photos 📸</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#location">Map</a>
+      </nav>
+
+      <div class="header-actions">
+        <button type="button" class="icon-pill-btn hover-pop" id="themeToggleBtn" title="Switch Dark / White theme">☀️ White</button>
+        <button type="button" class="icon-pill-btn admin-pill hover-pop" id="openAdminBtn" title="Owner Admin Dashboard">⚙️ Admin</button>
+        <button type="button" class="auth-pill-btn hover-pop" id="authHeaderBtn">
+          <span class="g-badge">G</span>
+          <span id="authHeaderLabel">Sign in</span>
+        </button>
+        <button type="button" class="cart-trigger hover-pop" id="openCartBtn" aria-label="Open order cart">
+          <span>🛒</span>
+          <span class="hide-mobile">Order</span>
+          <span class="cart-badge" id="headerCartCount">0</span>
+        </button>
+        <button type="button" class="menu-toggle" id="mobileMenuBtn" aria-label="Toggle menu" aria-expanded="false">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section with Ambient Particle Canvas -->
+    <section class="hero" id="home">
+      <canvas id="heroFxCanvas" class="hero-fx-canvas" aria-hidden="true"></canvas>
+      <div class="hero-bg-pattern" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-content reveal">
+          <div class="hero-badges">
+            <span class="badge badge-veg shimmer-badge"><span class="veg-dot"></span> 100% Pure Veg</span>
+            <span class="badge badge-rating" id="heroRatingBadge">⭐ 4.9 <span>(113 Reviews)</span></span>
+            <span class="badge badge-open" id="heroHoursBadge">● Open till 12:30 AM</span>
+          </div>
+
+          <h1>Talala’s Live Hub for <span class="gradient-text">Dosas, Punjabi &amp; Chinese</span></h1>
+          <p class="hero-subtitle">
+            Order online with Google Sign-In, send directly to our WhatsApp kitchen, watch your live countdown, check every hotel table, chat with guests, play Tawa Rush together &amp; explore live Google Maps photos!
+          </p>
+
+          <div class="service-pills">
+            <span class="hover-chip">🍽️ Dine-In</span>
+            <span class="hover-chip">🚗 Drive-Through</span>
+            <span class="hover-chip">📦 No-Contact Delivery</span>
+            <span class="hover-chip">🅿️ Free Parking</span>
+            <span class="hover-chip">🏳️‍🌈 LGBTQ+ Friendly</span>
+          </div>
+
+          <div class="hero-ctas">
+            <a href="#menu" class="btn btn-primary btn-lg glow-btn">Explore Menu &amp; Order →</a>
+            <a href="#live-hub" class="btn btn-secondary btn-lg hover-pop">🪑 Live Tables &amp; Orders</a>
+            <a href="#game" class="btn btn-secondary btn-lg hover-pop">🎮 Play Together</a>
+          </div>
+
+          <div class="my-live-banner hidden" id="myLiveOrderBanner">
+            <div>
+              <strong id="myBannerTitle">Your Order #CFH-0000</strong>
+              <span id="myBannerEta">Calculating ETA...</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="viewMyOrdersBtn">Track / Edit Order</button>
+          </div>
+
+          <div class="daily-deal-pill" id="dailyDealBanner">
+            🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.
+          </div>
+        </div>
+
+        <!-- Hero Visual Platter Showcase -->
+        <div class="hero-visual reveal">
+          <div class="platter-card card-hover">
+            <div class="platter-header">
+              <span class="tag-hot">🔥 Most Loved in Talala</span>
+              <span class="price-tag" id="heroPriceRange">₹1–200 per person</span>
+            </div>
+
+            <div class="platter-svg-wrap" aria-hidden="true">
+              <svg viewBox="0 0 360 240" class="hero-svg floating-slow" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="plateGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#fff8eb" />
+                    <stop offset="85%" stop-color="#f3e2c7" />
+                    <stop offset="100%" stop-color="#d7b98e" />
+                  </radialGradient>
+                  <linearGradient id="dosaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f6b94e" />
+                    <stop offset="50%" stop-color="#d97706" />
+                    <stop offset="100%" stop-color="#92400e" />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="180" cy="138" rx="152" ry="92" fill="rgba(0,0,0,0.28)" />
+                <ellipse cx="180" cy="130" rx="150" ry="90" fill="url(#plateGrad)" stroke="#c59d67" stroke-width="4" />
+                <g transform="rotate(-12 165 158)">
+                  <path d="M55,148 Q165,108 285,144 Q295,160 282,171 Q165,194 58,172 Q46,160 55,148 Z" fill="url(#dosaGrad)" stroke="#78350f" stroke-width="2" />
+                  <ellipse cx="278" cy="157" rx="10" ry="13" fill="#78350f" />
+                  <circle cx="278" cy="157" r="7" fill="#facc15" />
+                </g>
+                <circle cx="110" cy="90" r="30" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
+                <circle cx="110" cy="90" r="24" fill="#ea580c" />
+                <circle cx="190" cy="80" r="32" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
+                <circle cx="190" cy="80" r="26" fill="#f97316" />
+                <rect x="178" y="70" width="9" height="9" rx="2" fill="#fffbeb" />
+                <rect x="193" y="78" width="10" height="9" rx="2" fill="#fffbeb" />
+                <circle cx="265" cy="94" r="28" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2" />
+                <circle cx="265" cy="94" r="22" fill="#7c2d12" />
+                <circle cx="260" cy="92" r="6" fill="#b45309" />
+                <circle cx="272" cy="95" r="6" fill="#9a3412" />
+              </svg>
+            </div>
+
+            <div class="platter-dishes">
+              <div class="mini-dish hover-pop" data-quick-add="veg-angara">
+                <span>🔥 Veg Angara (વેજ અંગારા)</span>
+                <strong>₹260 <button type="button" class="mini-add-btn">+ Add</button></strong>
+              </div>
+              <div class="mini-dish hover-pop" data-quick-add="kaju-butter-masala">
+                <span>🧈 Kaju Butter Masala</span>
+                <strong>₹260 <button type="button" class="mini-add-btn">+ Add</button></strong>
+              </div>
+              <div class="mini-dish hover-pop" data-quick-add="cheese-anguri">
+                <span>🧀 Cheese Anguri (ચીઝ અંગુરી)</span>
+                <strong>₹300 <button type="button" class="mini-add-btn">+ Add</button></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Full Menu & Ordering Section -->
+    <section class="section menu-section reveal" id="menu">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">100% PURE VEGETARIAN MENU</span>
+            <h2>Full Menu &amp; Instant Ordering</h2>
+            <p>Veg, Kaju &amp; Cheese Specials with real photos! Pay via Razorpay, PhonePe UPI or Counter &amp; send straight to WhatsApp.</p>
+          </div>
+          <div class="menu-search-wrap">
+            <input type="search" id="menuSearch" placeholder="Search kaju, cheese, veg angara, dosa..." aria-label="Search menu items" />
+          </div>
+        </div>
+
+        <div class="menu-tabs" id="menuTabs" role="tablist" aria-label="Menu categories">
+          <button class="tab-btn active" data-category="all" role="tab">🍽️ All Dishes</button>
+          <button class="tab-btn" data-category="veg-prep" role="tab">🥘 Veg Preparation</button>
+          <button class="tab-btn" data-category="kaju-prep" role="tab">🥜 Kaju Preparation</button>
+          <button class="tab-btn" data-category="cheese-prep" role="tab">🧀 Cheese Preparation</button>
+          <button class="tab-btn" data-category="south-indian" role="tab">🥞 South Indian</button>
+          <button class="tab-btn" data-category="chinese" role="tab">🥡 Indo-Chinese</button>
+          <button class="tab-btn" data-category="punjabi" role="tab">🍛 Punjabi Specials</button>
+          <button class="tab-btn" data-category="fast-food" role="tab">🍔 Fast Food &amp; Chaat</button>
+          <button class="tab-btn" data-category="beverages" role="tab">🥤 Drinks &amp; Sweets</button>
+        </div>
+
+        <div class="menu-filters">
+          <button class="chip-btn" data-filter="bestseller">⭐ Bestsellers</button>
+          <button class="chip-btn" data-filter="under100">💸 Under ₹100</button>
+          <button class="chip-btn" data-filter="spicy">🌶️ Spicy Kick</button>
+          <span class="menu-count" id="menuCount">Showing all items</span>
+        </div>
+
+        <div class="menu-grid" id="menuGrid"></div>
+      </div>
+    </section>
+
+    <!-- LIVE RESTAURANT HUB -->
+    <section class="section live-hub-section reveal" id="live-hub">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">REAL-TIME RESTAURANT LOUNGE</span>
+            <h2>Live Tables, Orders, Top Foodies &amp; Guest Chat</h2>
+            <p>Har table ka live status dekhein, kitchen order countdown track karein, top customers dekhein aur chat karein!</p>
+          </div>
+        </div>
+
+        <div class="panel-card mb-lg card-hover">
+          <div class="panel-head">
+            <div>
+              <h3>🪑 Live Hotel Tables (Real-Time Booked Status)</h3>
+              <p class="muted">Sirf real booked tables hi occupied dikhengi — koi fake booking nahi. "Sit Here" dabakar apni table book karein.</p>
+            </div>
+            <span class="status-legend">
+              <span class="dot-avail"></span> Available
+              <span class="dot-occ"></span> Occupied / Dining
+            </span>
+          </div>
+          <div class="tables-grid" id="tablesGrid"></div>
+        </div>
+
+        <div class="hub-three-col">
+          <div class="panel-card card-hover">
+            <div class="panel-head">
+              <h3>⏱️ Live Orders &amp; ETA</h3>
+              <span class="badge-live">● LIVE</span>
+            </div>
+            <div class="live-orders-list" id="liveOrdersList"></div>
+          </div>
+
+          <div class="panel-card card-hover">
+            <div class="panel-head">
+              <h3>🏆 Top Customers</h3>
+              <span class="muted small">Orders + Game Pts</span>
+            </div>
+            <div class="leaderboard-list" id="topCustomersList"></div>
+          </div>
+
+          <div class="panel-card chat-panel card-hover">
+            <div class="panel-head">
+              <h3>💬 Customer Lounge Chat</h3>
+              <span class="muted small" id="chatIdentityBadge">Sign in to chat</span>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-quick-chips">
+              <button type="button" class="quick-chat-btn hover-pop" data-msg="🔥 Dosa is amazing here!">🔥 Dosa is amazing!</button>
+              <button type="button" class="quick-chat-btn hover-pop" data-msg="🎮 Join Room #CHEF1 to play Tawa Rush!">🎮 Play Game Together?</button>
+              <button type="button" class="quick-chat-btn hover-pop" data-msg="👋 Hello from my table!">👋 Hello!</button>
+            </div>
+            <form class="chat-form" id="chatForm">
+              <input type="text" id="chatInput" placeholder="Message other tables & foodies..." maxlength="250" required />
+              <button type="submit" class="btn btn-primary btn-sm">Send</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Solo & Multiplayer Game Section -->
+    <section class="section game-section reveal" id="game">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">PLAY SOLO OR TOGETHER IN REAL TIME</span>
+            <h2>Chef Chatkaro’s Tawa Rush 🎮</h2>
+            <p>Catch sizzling Dosas, Paneer &amp; Manchurian! Score <strong>150+</strong> for <strong>CHATKARO10 (10% OFF)</strong> or <strong>300+</strong> for <strong>CHATKARO20 (20% OFF)</strong>.</p>
+          </div>
+          <div class="game-mode-tabs">
+            <button type="button" class="tab-btn active" id="modeSoloBtn">👤 Solo Rush</button>
+            <button type="button" class="tab-btn" id="modeMultiBtn">👥 Play Together (Multiplayer)</button>
+          </div>
+        </div>
+
+        <div class="multi-room-bar hidden" id="multiRoomBar">
+          <div class="room-controls">
+            <input type="text" id="roomCodeInput" value="CHEF1" maxlength="10" placeholder="Room Code (e.g. CHEF1)" />
+            <select id="multiModeSelect" aria-label="Multiplayer mode">
+              <option value="coop">🤝 Co-Op Team (Together)</option>
+              <option value="versus">⚔️ Versus Battle</option>
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" id="joinRoomBtn">Join / Create Room</button>
+            <button type="button" class="btn btn-outline btn-sm" id="startMultiRoundBtn">▶ Start Room Match</button>
+          </div>
+          <div class="room-players-strip" id="roomPlayersStrip">
+            Join Room <strong>#CHEF1</strong> to play with customers at other tables!
+          </div>
+        </div>
+
+        <div class="game-layout">
+          <div class="game-stage-card card-hover">
+            <div class="game-hud">
+              <div class="hud-stat"><span>Your Score</span><strong id="gameScore">0</strong></div>
+              <div class="hud-stat"><span>Team / Combo</span><strong id="gameCombo">x1</strong></div>
+              <div class="hud-stat"><span>Time</span><strong id="gameTime">45s</strong></div>
+              <div class="hud-stat"><span>Lives</span><strong id="gameLives">❤️❤️❤️</strong></div>
+              <div class="hud-stat"><span>Best</span><strong id="gameBest">0</strong></div>
+              <button type="button" class="sound-btn" id="gameSoundBtn">🔊 Sound On</button>
+            </div>
+
+            <div class="canvas-wrapper">
+              <canvas id="chatkaroGameCanvas" width="760" height="440" aria-label="Chatkaro Tawa Rush mini game"></canvas>
+              <div class="game-overlay" id="gameOverlay">
+                <div class="overlay-box" id="gameOverlayContent">
+                  <span class="overlay-emoji">👨‍🍳🔥</span>
+                  <h3>Ready to Catch the Flavor?</h3>
+                  <p>Move your tawa with <strong>Arrow Keys / A-D / Mouse</strong> (or touch buttons). Switch to <strong>Play Together</strong> above to compete or team up with other tables!</p>
+                  <button type="button" class="btn btn-primary btn-lg glow-btn" id="startGameBtn">Start 45s Rush</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="touch-controls">
+              <button type="button" class="touch-btn" id="moveLeftBtn">◀ Left</button>
+              <button type="button" class="touch-btn touch-center" id="restartQuickBtn">↻ Restart</button>
+              <button type="button" class="touch-btn" id="moveRightBtn">Right ▶</button>
+            </div>
+          </div>
+
+          <aside class="game-sidebar">
+            <div class="sidebar-card card-hover">
+              <h3>🎁 Unlocked Promo Coupons</h3>
+              <p class="muted">Play solo or multiplayer to unlock instant discounts for your order cart.</p>
+              <div class="coupon-list" id="unlockedCoupons">
+                <div class="coupon-item locked" data-code="CHATKARO10">
+                  <div>
+                    <strong>CHATKARO10</strong>
+                    <small>10% OFF order (Score 150+)</small>
+                  </div>
+                  <button type="button" class="btn btn-sm apply-coupon-btn" disabled data-code="CHATKARO10">Locked</button>
+                </div>
+                <div class="coupon-item locked" data-code="CHATKARO20">
+                  <div>
+                    <strong>CHATKARO20</strong>
+                    <small>20% OFF order (Score 300+)</small>
+                  </div>
+                  <button type="button" class="btn btn-sm apply-coupon-btn" disabled data-code="CHATKARO20">Locked</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sidebar-card card-hover">
+              <h3>🍽️ Catch Guide</h3>
+              <ul class="catch-guide">
+                <li><span>🥞</span> <b>Masala Dosa</b> <em class="pts">+15 pts</em></li>
+                <li><span>🍛</span> <b>Paneer Bowl</b> <em class="pts">+20 pts</em></li>
+                <li><span>🥡</span> <b>Manchurian</b> <em class="pts">+25 pts</em></li>
+                <li><span>🌶️</span> <b>Golden Chilli</b> <em class="pts">+40 pts</em></li>
+                <li><span>💣</span> <b>Burnt Pan</b> <em class="pts danger">-1 Life</em></li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- Google Maps Live Photos & Updates Gallery -->
+    <section class="section maps-gallery-section reveal" id="maps-gallery">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">LIVE FROM GOOGLE MAPS &amp; OWNER</span>
+            <h2>Google Maps Photos &amp; Updates 📸</h2>
+            <p>Every dish photo, dining vibe shot, and Google Maps update appears here live in real time.</p>
+          </div>
+          <div class="menu-tabs" id="photoCategoryTabs">
+            <button type="button" class="tab-btn active" data-pcat="all">All Photos</button>
+            <button type="button" class="tab-btn" data-pcat="food">🍲 Food &amp; Drink</button>
+            <button type="button" class="tab-btn" data-pcat="vibe">✨ Vibe</button>
+            <button type="button" class="tab-btn" data-pcat="owner">🏠 By Owner</button>
+          </div>
+        </div>
+
+        <div class="photos-grid" id="mapPhotosGrid"></div>
+      </div>
+    </section>
+
+    <!-- Reviews & Google Maps Live Sync Section -->
+    <section class="section reviews-section reveal" id="reviews">
+      <div class="container">
+        <div class="reviews-header-grid">
+          <div class="rating-summary-card card-hover">
+            <div class="big-score">
+              <strong id="reviewsAvgRating">4.9</strong>
+              <div>
+                <div class="stars">★★★★★</div>
+                <span id="reviewsTotalCount">Based on 113 Google &amp; Guest Reviews</span>
+              </div>
+            </div>
+
+            <div class="maps-sync-box">
+              <div class="sync-row">
+                <span>📍 Google Maps Live Sync</span>
+                <small id="lastSyncTimeLabel">Synced just now</small>
+              </div>
+              <div class="sync-actions">
+                <button type="button" class="btn btn-primary btn-sm hover-pop" id="syncMapsNowBtn">🔄 Sync Maps Now</button>
+                <button type="button" class="btn btn-outline btn-sm hover-pop" id="toggleMapBridgeBtn">+ Import Map Review</button>
+              </div>
+              <form class="map-bridge-form hidden" id="mapBridgeForm">
+                <input type="text" id="mapRevAuthor" placeholder="Google Maps Reviewer Name" required />
+                <select id="mapRevRating">
+                  <option value="5">★★★★★ (5)</option>
+                  <option value="4">★★★★☆ (4)</option>
+                  <option value="3">★★★☆☆ (3)</option>
+                </select>
+                <textarea id="mapRevText" rows="2" placeholder="Paste Google Maps review or update..." required></textarea>
+                <button type="submit" class="btn btn-primary btn-sm">Sync to Website</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="reviews-right">
+            <div class="section-head compact">
+              <div>
+                <span class="section-kicker">LIVE SYNCED REVIEWS</span>
+                <h2>Google Maps &amp; Guest Reviews</h2>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm hover-pop" id="toggleReviewFormBtn">+ Write a Review</button>
+            </div>
+
+            <form class="quick-review-form hidden" id="quickReviewForm">
+              <div class="form-row">
+                <input type="text" id="revName" placeholder="Your Name" required />
+                <select id="revRating">
+                  <option value="5">★★★★★ (5/5)</option>
+                  <option value="4">★★★★☆ (4/5)</option>
+                  <option value="3">★★★☆☆ (3/5)</option>
+                </select>
+              </div>
+              <textarea id="revText" rows="2" placeholder="Share your experience at Chatkaro Food Hub..." required></textarea>
+              <button type="submit" class="btn btn-primary btn-sm">Post Live Review</button>
+            </form>
+
+            <div class="reviews-grid" id="reviewsGrid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Map & Visit Us Section -->
+    <section class="section location-section reveal" id="location">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">FIND US IN TALALA</span>
+            <h2>Map, Directions &amp; Timings</h2>
+            <p id="visitAddressLead">Near Essar Petrol Pump, opposite Shreeji Super Mart, Talala, Gujarat 362150.</p>
+          </div>
+          <div class="map-mode-switch">
+            <button type="button" class="tab-btn active" id="btnGoogleMap">🗺️ Google Maps</button>
+            <button type="button" class="tab-btn" id="btnLandmarkMap">🧭 Talala Landmark Guide</button>
+          </div>
+        </div>
+
+        <div class="location-grid">
+          <div class="map-frame-card card-hover">
+            <div id="googleMapWrap" class="map-view">
+              <iframe
+                title="Chatkaro Food Hub Location Map"
+                src="https://maps.google.com/maps?q=Chatkaro+food+hub,+Essar+petrol+pump,+opp.+Shreeji+Super+Mart,+Talala,+Gujarat+362150&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen>
+              </iframe>
+            </div>
+
+            <div id="landmarkMapWrap" class="map-view hidden">
+              <div class="landmark-map">
+                <svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" class="landmark-svg">
+                  <rect width="640" height="360" fill="#1e293b" />
+                  <path d="M0,195 Q320,175 640,188" fill="none" stroke="#47569" stroke-width="34" />
+                  <path d="M0,195 Q320,175 640,188" fill="none" stroke="#facc15" stroke-width="2.5" stroke-dasharray="14 10" />
+                  <text x="58" y="199" fill="#f8fafc" font-size="12" font-weight="700">VERAVAL – TALALA MAIN ROAD →</text>
+                  <g class="map-pin-node" data-info="Essar Petrol Pump — Just 30m away from Chatkaro Food Hub.">
+                    <rect x="115" y="78" width="142" height="58" rx="10" fill="#1d4ed8" stroke="#93c5fd" stroke-width="2" />
+                    <text x="186" y="103" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">⛽ Essar Petrol Pump</text>
+                    <text x="186" y="122" text-anchor="middle" fill="#dbeafe" font-size="11">30m West</text>
+                  </g>
+                  <g class="map-pin-node" data-info="Shreeji Super Mart — Directly opposite Chatkaro Food Hub.">
+                    <rect x="355" y="238" width="165" height="62" rx="10" fill="#b45309" stroke="#fde68a" stroke-width="2" />
+                    <text x="437" y="264" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">🛒 Shreeji Super Mart</text>
+                    <text x="437" y="283" text-anchor="middle" fill="#fef3c7" font-size="11">Opposite Side</text>
+                  </g>
+                  <g class="map-pin-node" data-info="Free Parking Lot — Cars & Bikes welcome.">
+                    <rect x="485" y="88" width="115" height="50" rx="10" fill="#15803d" stroke="#86efac" stroke-width="2" />
+                    <text x="542" y="110" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">🅿️ Free Parking</text>
+                    <text x="542" y="126" text-anchor="middle" fill="#dcfce7" font-size="10.5">Cars &amp; Bikes</text>
+                  </g>
+                  <g class="map-pin-node active-pin" data-info="Chatkaro Food Hub — Open daily till 12:30 AM! 2GWF+GJ Talala.">
+                    <rect x="315" y="66" width="160" height="72" rx="14" fill="#ea580c" stroke="#fff" stroke-width="3" />
+                    <text x="395" y="94" text-anchor="middle" fill="#fff" font-size="14" font-weight="800">🍲 CHATKARO</text>
+                    <text x="395" y="112" text-anchor="middle" fill="#ffedd5" font-size="11.5" font-weight="700">FOOD HUB ★ 4.9</text>
+                    <text x="395" y="128" text-anchor="middle" fill="#fff" font-size="10">2GWF+GJ Talala</text>
+                  </g>
+                </svg>
+                <div class="landmark-caption" id="landmarkInfo">📍 Tap any landmark on the map for details.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="visit-details-card card-hover">
+            <div class="visit-block">
+              <span class="visit-label">ADDRESS</span>
+              <p><strong id="visitRestName">Chatkaro Food Hub</strong><br /><span id="visitFullAddress">Near Essar Petrol Pump, Opp. Shreeji Super Mart, Talala, Gujarat 362150</span></p>
+              <div class="plus-code-row">
+                <span>Plus Code: <code id="visitPlusCode">2GWF+GJ Talala, Gujarat</code></span>
+                <button type="button" class="btn btn-outline btn-xs" id="copyPlusCodeBtn">Copy</button>
+              </div>
+            </div>
+            <div class="visit-block">
+              <span class="visit-label">OPENING HOURS &amp; PRICE</span>
+              <p><strong id="visitHoursText">Open · Closes 12:30 AM</strong><br /><small class="muted" id="visitPriceText">₹1–200 per person • All Vegetarian</small></p>
+            </div>
+            <div class="visit-actions">
+              <a class="btn btn-primary glow-btn" href="https://www.google.com/maps/search/?api=1&query=Chatkaro+food+hub,+opp.+Shreeji+Super+Mart,+Talala,+Gujarat+362150" target="_blank" rel="noopener noreferrer">
+                🧭 Open Directions in Maps
+              </a>
+              <a class="btn btn-outline" id="visitCallLink" href="tel:+919054633908">
+                📞 Call 090546 33908
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <strong>🍲 Chatkaro Food Hub — Talala</strong>
+        <p>100% Pure Veg • Live Tables &amp; Chat • Multiplayer Game • Maps Live Photos &amp; Admin Studio</p>
+      </div>
+      <div class="footer-links">
+        <a href="#menu">Menu</a>
+        <a href="#live-hub">Live Hub</a>
+        <a href="#game">Game</a>
+        <a href="#maps-gallery">Maps Photos</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#location">Map</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating Cart Bar -->
+  <div class="floating-cart-bar hidden" id="floatingCartBar">
+    <div class="container floating-cart-inner">
+      <div>
+        <strong id="floatCartSummary">0 items • ₹0</strong>
+        <span class="float-sub">Google Sign-In + WhatsApp Kitchen Order</span>
+      </div>
+      <button type="button" class="btn btn-primary glow-btn" id="floatOpenCartBtn">View Cart &amp; Order →</button>
+    </div>
+  </div>
+
+  <!-- Slide-Over Order Cart Drawer -->
+  <div class="cart-backdrop hidden" id="cartBackdrop"></div>
+  <aside class="cart-drawer hidden" id="cartDrawer" aria-label="Order Cart Drawer">
+    <div class="cart-drawer-header">
+      <div>
+        <h2>Your Order 🛒</h2>
+        <small id="cartAuthStatusLabel">Sign in with Google to place order</small>
+      </div>
+      <button type="button" class="close-drawer-btn" id="closeCartBtn" aria-label="Close cart">✕</button>
+    </div>
+    <div class="cart-drawer-body" id="cartDrawerBody"></div>
+    <div class="cart-drawer-footer" id="cartDrawerFooter"></div>
+  </aside>
+
+  <!-- Photo Lightbox Modal -->
+  <div class="modal-backdrop hidden" id="photoLightboxModal">
+    <div class="modal-card modal-wide">
+      <button type="button" class="close-drawer-btn modal-close" id="closeLightboxBtn">✕</button>
+      <img id="lightboxImg" src="" alt="Chatkaro Food Hub Photo" style="width:100%;border-radius:14px;max-height:65vh;object-fit:contain;background:#000;" />
+      <h3 id="lightboxTitle" style="margin-top:0.75rem;"></h3>
+      <p id="lightboxMeta" class="muted small"></p>
+    </div>
+  </div>
+
+  <!-- Order Confirmation + Live Countdown Modal -->
+  <div class="modal-backdrop hidden" id="orderModal">
+    <div class="modal-card">
+      <button type="button" class="close-drawer-btn modal-close" id="closeOrderModalBtn" aria-label="Close">✕</button>
+      <div class="order-success-head">
+        <span class="success-check">✅</span>
+        <h2>Order Confirmed!</h2>
+        <p id="orderConfirmMeta">Order #CFH-1024</p>
+        <div class="live-eta-pill" id="modalLiveEta">⏱️ Preparing...</div>
+      </div>
+      <div class="receipt-box" id="orderReceiptBox"></div>
+      <div class="modal-actions">
+        <a id="whatsappOrderLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-lg">
+          💬 Send Order to Owner on WhatsApp (090546 33908)
+        </a>
+        <button type="button" class="btn btn-outline" id="printReceiptBtn">🖨️ Print / Save Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google / Gmail Sign-In Modal -->
+  <div class="modal-backdrop hidden" id="googleLoginModal">
+    <div class="modal-card">
+      <button type="button" class="close-drawer-btn modal-close" id="closeGoogleLoginBtn">✕</button>
+      <div class="modal-head-center">
+        <div class="google-logo-circle">G</div>
+        <h2>Sign in with Google / Gmail</h2>
+        <p class="muted">Order karne, Razorpay/PhonePe payment karne, table book karne aur chat ke liye apni Gmail ID se login karein.</p>
+      </div>
+      <div id="realGoogleBtnWrap" class="hidden" style="display:flex;justify-content:center;margin:1rem 0;"></div>
+      <div id="googleClientDivider" class="hidden" style="text-align:center;margin:0.4rem 0 0.8rem;"><small class="muted">— or continue with your Gmail address —</small></div>
+      <form id="googleQuickForm" class="stack-form">
+        <label>Full Name *</label>
+        <input type="text" id="gNameInput" placeholder="e.g. Rahul Patel" required />
+        <label>Gmail Address (@gmail.com) *</label>
+        <input type="email" id="gEmailInput" placeholder="yourname@gmail.com" pattern="^[^\s@]+@(gmail|googlemail)\.com$" title="Please enter a valid @gmail.com email address" required />
+        <label>WhatsApp / Mobile No. *</label>
+        <input type="tel" id="gPhoneInput" placeholder="10-digit mobile number" required />
+        <button type="submit" class="btn btn-primary btn-lg">Continue with Gmail →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- PhonePe / UPI Payment Modal -->
+  <div class="modal-backdrop hidden" id="phonepeModal">
+    <div class="modal-card">
+      <button type="button" class="close-drawer-btn modal-close" id="closePhonepeModalBtn">✕</button>
+      <div class="modal-head-center">
+        <div class="phonepe-badge">₹ PhonePe / UPI</div>
+        <h2>Pay via PhonePe</h2>
+        <p class="muted" id="phonepeAmountLabel">Amount: ₹0</p>
+      </div>
+      <div class="upi-qr-box" id="phonepeQrBox">
+        <img id="phonepeQrImg" src="" alt="PhonePe UPI QR Code" class="upi-qr-img" />
+        <div class="upi-id-pill">UPI ID: <strong id="phonepeUpiText">—</strong></div>
+        <a id="phonepeDeepLink" href="#" class="btn btn-phonepe btn-lg" style="width:100%;margin-top:0.6rem;">📱 Open PhonePe / UPI App to Pay</a>
+      </div>
+      <form id="phonepeUtrForm" class="stack-form" style="margin-top:0.9rem;">
+        <label>Enter 12-digit PhonePe / UPI UTR Reference No. *</label>
+        <input type="text" id="phonepeUtrInput" placeholder="e.g. 432198765432" minlength="6" required />
+        <button type="submit" class="btn btn-primary btn-lg">Verify Payment &amp; Place Order →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Customer Profile & My Orders Modal -->
+  <div class="modal-backdrop hidden" id="profileModal">
+    <div class="modal-card modal-wide">
+      <button type="button" class="close-drawer-btn modal-close" id="closeProfileModalBtn">✕</button>
+      <div class="modal-tabs">
+        <button type="button" class="tab-btn active" data-ptab="profile">👤 My Profile</button>
+        <button type="button" class="tab-btn" data-ptab="orders">📦 My Orders (Edit / Cancel)</button>
+      </div>
+      <div id="profileTabContent">
+        <form id="profileUpdateForm" class="stack-form">
+          <div class="two-col">
+            <div><label>Full Name</label><input type="text" id="profName" required /></div>
+            <div><label>Mobile / WhatsApp</label><input type="tel" id="profPhone" /></div>
+          </div>
+          <div class="two-col">
+            <div><label>Favorite Dish</label><input type="text" id="profFavDish" placeholder="e.g. Mysore Masala Dosa" /></div>
+            <div><label>Avatar Color</label><input type="color" id="profColor" value="#ea580c" style="height:42px;padding:4px;" /></div>
+          </div>
+          <label>Foodie Bio</label>
+          <input type="text" id="profBio" placeholder="Tell other guests what you love!" />
+          <div class="two-col">
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+            <button type="button" class="btn btn-outline" id="logoutBtn">Sign Out</button>
+          </div>
+        </form>
+      </div>
+      <div id="myOrdersTabContent" class="hidden">
+        <div id="myOrdersList" class="my-orders-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Edit Modal -->
+  <div class="modal-backdrop hidden" id="editOrderModal">
+    <div class="modal-card">
+      <button type="button" class="close-drawer-btn modal-close" id="closeEditOrderBtn">✕</button>
+      <h2 id="editOrderHeading">Modify Order</h2>
+      <div id="editOrderBody" class="stack-form"></div>
+    </div>
+  </div>
+
+  <!-- OWNER ADMIN CONTROL CENTER MODAL (ACRU-Style SaaS Dashboard) -->
+  <div class="modal-backdrop hidden" id="adminModal">
+    <div class="modal-card modal-xxl acru-shell-modal">
+      <button type="button" class="close-drawer-btn modal-close acru-close-btn" id="closeAdminBtn" aria-label="Close Admin">✕</button>
+
+      <div id="adminLockScreen" class="admin-lock">
+        <div style="font-size:2.4rem;margin-bottom:0.4rem;">🔐</div>
+        <h3>Owner Security Verification</h3>
+        <p class="muted">Enter your private Owner PIN to access Chatkaro Control Center.</p>
+        <form id="adminPinForm" class="promo-row" style="max-width:340px;margin:0.8rem auto 0;">
+          <input type="password" id="adminPinInput" placeholder="Enter Owner PIN" autocomplete="off" required />
+          <button type="submit" class="btn btn-primary">Unlock</button>
+        </form>
+      </div>
+
+      <div id="adminDashboard" class="acru-shell hidden">
+        <aside class="acru-sidebar" id="acruSidebar">
+          <div class="acru-brand">
+            <span class="acru-logo-mark">🍲</span>
+            <div class="acru-brand-txt">
+              <strong>CHATKARO</strong>
+              <small>Owner Suite</small>
+            </div>
+          </div>
+
+          <nav class="acru-nav" id="adminTabs" aria-label="Admin Navigation">
+            <button type="button" class="acru-nav-item active" data-atab="sales">
+              <span class="acru-nav-ico">⊞</span>
+              <span class="acru-nav-lbl">Dashboard</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="orders">
+              <span class="acru-nav-ico">⇄</span>
+              <span class="acru-nav-lbl">Orders &amp; Parcels</span>
+              <span class="acru-nav-badge" id="admNavOrderBadge">0</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="menu">
+              <span class="acru-nav-ico">🍽️</span>
+              <span class="acru-nav-lbl">Menu Manager</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="tables">
+              <span class="acru-nav-ico">🪑</span>
+              <span class="acru-nav-lbl">Tables &amp; Guests</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="photos">
+              <span class="acru-nav-ico">📸</span>
+              <span class="acru-nav-lbl">Maps Photos</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="reviews">
+              <span class="acru-nav-ico">⭐</span>
+              <span class="acru-nav-lbl">Reviews Sync</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="chat">
+              <span class="acru-nav-ico">💬</span>
+              <span class="acru-nav-lbl">Lounge Chat</span>
+            </button>
+            <button type="button" class="acru-nav-item" data-atab="colors">
+              <span class="acru-nav-ico">⚙️</span>
+              <span class="acru-nav-lbl">Gateways &amp; Theme</span>
+            </button>
+          </nav>
+
+          <div class="acru-sidebar-footer">
+            <div class="acru-pro-card">
+              <div class="acru-pro-ico">⚡</div>
+              <strong>Real-Time Sync Active</strong>
+              <p>Zero fake tables or orders. Only verified live data shown.</p>
+              <button type="button" class="acru-dark-btn" id="lockAdminBtn">🔒 Lock Panel</button>
+            </div>
+            <button type="button" class="acru-collapse-btn" id="acruCollapseBtn">« Collapse sidebar</button>
+          </div>
+        </aside>
+
+        <div class="acru-main">
+          <header class="acru-topbar">
+            <div class="acru-search-box">
+              <span>🔍</span>
+              <input type="search" id="adminQuickSearch" placeholder="Quick search orders, dishes, parcels..." />
+            </div>
+            <div class="acru-topbar-right">
+              <button type="button" class="acru-icon-circle" id="admTopRefreshBtn" title="Refresh Analytics">↻</button>
+              <button type="button" class="acru-icon-circle" id="admTopSettingsBtn" title="Gateways &amp; Settings">⚙️</button>
+              <div class="acru-owner-pill">
+                <span class="acru-owner-avatar">C</span>
+                <div>
+                  <strong>Chatkaro Owner</strong>
+                  <small>Talala • Pure Veg</small>
+                </div>
+              </div>
+              <button type="button" class="acru-add-widget-btn" id="admTopCsvBtn">⬇ Export CSV</button>
+            </div>
+          </header>
+
+          <div class="admin-kpi-grid acru-kpi-strip hidden" id="adminKpiGrid"></div>
+
+          <div class="acru-content-scroll">
+            <div id="adminTabSales" class="admin-tab-pane"></div>
+            <div id="adminTabOrders" class="admin-tab-pane hidden"></div>
+            <div id="adminTabMenu" class="admin-tab-pane hidden"></div>
+            <div id="adminTabTables" class="admin-tab-pane hidden"></div>
+            <div id="adminTabPhotos" class="admin-tab-pane hidden"></div>
+            <div id="adminTabReviews" class="admin-tab-pane hidden"></div>
+            <div id="adminTabChat" class="admin-tab-pane hidden"></div>
+            <div id="adminTabColors" class="admin-tab-pane hidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING GEMINI AI ASSISTANT WIDGET -->
+  <button type="button" class="ai-fab hover-pop" id="openAiFab" aria-label="Ask Chatkaro Gemini AI">
+    <span>✨</span> Ask Chatkaro AI
+  </button>
+
+  <aside class="ai-widget hidden" id="aiWidget" aria-label="Chatkaro Gemini AI Assistant">
+    <div class="ai-widget-head">
+      <div>
+        <strong>✨ Chatkaro Gemini AI</strong>
+        <small id="aiEngineBadge">Live Menu &amp; Ordering Helper</small>
+      </div>
+      <button type="button" class="close-drawer-btn" id="closeAiBtn" aria-label="Close AI chat">✕</button>
+    </div>
+    <div class="ai-widget-messages" id="aiMessages">
+      <div class="ai-bubble bot">
+        Namaste! 🙏 Main <strong>Chatkaro AI</strong> hoon. Aap mujhse pooch sakte hain:<br/>
+        • Aaj menu mein kya-kya milega &amp; price?<br/>
+        • Koi dish Sold Out toh nahi hai?<br/>
+        • Order kaise karu aur table khali hai kya?
+      </div>
+    </div>
+    <div class="ai-quick-prompts">
+      <button type="button" class="quick-ai-btn" data-q="Kya kya milega menu mein?">🍽️ Kya milega?</button>
+      <button type="button" class="quick-ai-btn" data-q="Kya kya sold out hai?">❌ Sold out?</button>
+      <button type="button" class="quick-ai-btn" data-q="Order kaise karu?">🛒 Order kaise karu?</button>
+      <button type="button" class="quick-ai-btn" data-q="Koi table khali hai kya?">🪑 Table khali?</button>
+    </div>
+    <form class="ai-widget-form" id="aiChatForm">
+      <input type="text" id="aiChatInput" placeholder="Ask in Hindi, Hinglish or English..." required />
+      <button type="submit" class="btn btn-primary btn-sm">Ask</button>
+    </form>
+  </aside>
+
+  <!-- Confetti Overlay Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas" aria-hidden="true"></canvas>
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="menu-data.js"></script>
+  <script src="app.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

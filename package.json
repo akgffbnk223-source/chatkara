@@ -1,0 +1,12 @@
+{
+  "name": "chatkaro-food-hub",
+  "version": "1.0.0",
+  "description": "Chatkaro Food Hub — Live Restaurant Website, Tables, Lounge Chat, Game & Admin Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
