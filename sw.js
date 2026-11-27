@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chatkaro-shell-v4';
+const CACHE_NAME = 'chatkaro-shell-v5';
 const IMG_CACHE = 'chatkaro-media-v2';
 const SHELL_ASSETS = [
   './',

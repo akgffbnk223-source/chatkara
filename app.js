@@ -753,15 +753,62 @@
       .join('');
   }
 
-  // ================= BACKGROUND YOUTUBE MUSIC PLAYER (LOOP + ADMIN/CUSTOMER OFF/ON) =================
+  // ================= SHARED YOUTUBE IFRAME API + BACKGROUND SONG & VIDEO PLAYERS =================
+  const ytCallbacks = [];
+  let ytApiLoading = false;
+  let ytApiReady = false;
+
+  function ensureYtApiLoaded(cb) {
+    if (window.YT && window.YT.Player) {
+      ytApiReady = true;
+      cb();
+      return;
+    }
+    ytCallbacks.push(cb);
+    if (!ytApiLoading) {
+      ytApiLoading = true;
+      const prevReady = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        ytApiReady = true;
+        if (typeof prevReady === 'function') { try { prevReady(); } catch {} }
+        while (ytCallbacks.length) {
+          const fn = ytCallbacks.shift();
+          try { fn(); } catch {}
+        }
+      };
+      const sc = document.createElement('script');
+      sc.src = 'https://www.youtube.com/iframe_api';
+      sc.async = true;
+      document.head.appendChild(sc);
+    }
+  }
+
+  function clientExtractYtId(rawUrl) {
+    let s = String(rawUrl || '').trim();
+    if (!s) return '';
+    const iframeSrc = s.match(/src=["']([^"']+)["']/i);
+    if (iframeSrc) s = iframeSrc[1].trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+    const m = s.match(/(?:(?:www\.|m\.|music\.)?(?:youtube\.com|youtube-nocookie\.com)\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
+      || s.match(/[?&](?:v|vi)=([A-Za-z0-9_-]{11})/i);
+    return m ? m[1] : '';
+  }
+
+  function clientExtractYtList(rawUrl) {
+    let s = String(rawUrl || '').trim();
+    const iframeSrc = s.match(/src=["']([^"']+)["']/i);
+    if (iframeSrc) s = iframeSrc[1].trim();
+    const m = s.match(/[?&]list=([A-Za-z0-9_-]+)/i);
+    return m ? m[1] : '';
+  }
+
   const bgMusicState = {
     player: null,
-    apiLoading: false,
-    apiReady: false,
-    currentVideoId: '',
+    audioEl: null,
+    ready: false,
+    currentSig: '',
     userOff: localStorage.getItem('chatkaro_music_off') === '1',
-    unlockedByGesture: false,
-    pendingCreateId: ''
+    audioUnmuted: false
   };
 
   function updateMusicButtonUI() {
@@ -769,9 +816,10 @@
     const lbl = $('musicFloatLabel');
     if (!btn) return;
     const s = appState.settings || {};
-    const vid = String(s.bgMusicVideoId || '').trim();
-    const pid = String(s.bgMusicPlaylistId || '').trim();
-    if ((!vid && !pid) || s.bgMusicEnabled === false) {
+    const vid = String(s.bgMusicVideoId || clientExtractYtId(s.bgMusicUrl) || '').trim();
+    const pid = String(s.bgMusicPlaylistId || clientExtractYtList(s.bgMusicUrl) || '').trim();
+    const isDirectAudio = /\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(String(s.bgMusicUrl || ''));
+    if ((!vid && !pid && !isDirectAudio) || s.bgMusicEnabled === false) {
       btn.classList.add('hidden');
       btn.classList.remove('playing');
       return;
@@ -781,6 +829,10 @@
       btn.classList.remove('playing');
       if (lbl) lbl.textContent = 'Music Off';
       btn.querySelector('.music-eq').textContent = '🔇';
+    } else if (!bgMusicState.audioUnmuted) {
+      btn.classList.add('playing');
+      if (lbl) lbl.textContent = 'Tap for Song';
+      btn.querySelector('.music-eq').textContent = '🔊';
     } else {
       btn.classList.add('playing');
       const title = String(s.bgMusicTitle || 'Shop Music').slice(0, 18);
@@ -791,170 +843,347 @@
 
   function createOrLoadYtPlayer(videoId, playlistId = '') {
     if (!videoId && !playlistId) return;
-    if (!window.YT || !window.YT.Player) {
-      bgMusicState.pendingCreateId = videoId;
-      bgMusicState.pendingPlaylistId = playlistId;
-      if (!bgMusicState.apiLoading) {
-        bgMusicState.apiLoading = true;
-        window.onYouTubeIframeAPIReady = () => {
-          bgMusicState.apiReady = true;
-          if (bgMusicState.pendingCreateId || bgMusicState.pendingPlaylistId) {
-            createOrLoadYtPlayer(bgMusicState.pendingCreateId, bgMusicState.pendingPlaylistId);
-          }
-        };
-        const sc = document.createElement('script');
-        sc.src = 'https://www.youtube.com/iframe_api';
-        sc.async = true;
-        document.head.appendChild(sc);
+    ensureYtApiLoaded(() => {
+      const targetSig = `${videoId || ''}:${playlistId || ''}`;
+      if (bgMusicState.player && bgMusicState.currentSig === targetSig) {
+        applyBgMusicPlayState(false);
+        return;
       }
-      return;
-    }
-    const targetSig = `${videoId || ''}:${playlistId || ''}`;
-    if (bgMusicState.player && bgMusicState.currentSig === targetSig) {
-      applyBgMusicPlayState();
-      return;
-    }
-    if (bgMusicState.player && typeof bgMusicState.player.loadVideoById === 'function' && videoId) {
-      bgMusicState.currentVideoId = videoId;
+      if (bgMusicState.player && bgMusicState.ready && typeof bgMusicState.player.loadVideoById === 'function' && videoId) {
+        bgMusicState.currentSig = targetSig;
+        try {
+          bgMusicState.player.loadVideoById({ videoId, startSeconds: 0 });
+          applyBgMusicPlayState(false);
+          return;
+        } catch {}
+      }
+      const host = $('bgMusicPlayerHost');
+      if (!host) return;
+      if (bgMusicState.player && typeof bgMusicState.player.destroy === 'function') {
+        try { bgMusicState.player.destroy(); } catch {}
+      }
+      host.innerHTML = '<div id="ytMusicInner"></div>';
+      bgMusicState.ready = false;
       bgMusicState.currentSig = targetSig;
-      bgMusicState.player.loadVideoById({ videoId, startSeconds: 0 });
-      applyBgMusicPlayState();
-      return;
-    }
-    const host = $('bgMusicPlayerHost');
-    if (!host) return;
-    host.innerHTML = '<div id="ytMusicInner"></div>';
-    bgMusicState.currentVideoId = videoId;
-    bgMusicState.currentSig = targetSig;
-    const pVars = {
-      autoplay: 1,
-      controls: 0,
-      disablekb: 1,
-      fs: 0,
-      loop: 1,
-      modestbranding: 1,
-      playsinline: 1,
-      rel: 0,
-      origin: window.location.origin
-    };
-    if (playlistId && !videoId) {
-      pVars.listType = 'playlist';
-      pVars.list = playlistId;
-    } else if (videoId) {
-      pVars.playlist = playlistId || videoId;
-    }
-    bgMusicState.player = new window.YT.Player('ytMusicInner', {
-      height: '135',
-      width: '240',
-      videoId: videoId || undefined,
-      playerVars: pVars,
-      events: {
-        onReady: (e) => {
-          // Start muted first for instant browser autoplay compliance; unmute cleanly on first tap/gesture
-          if (!bgMusicState.unlockedByGesture) {
-            try { e.target.mute(); } catch {}
-          } else {
-            try { e.target.unMute(); e.target.setVolume(55); } catch {}
-          }
-          applyBgMusicPlayState();
-        },
-        onStateChange: (e) => {
-          const shouldPlay = !bgMusicState.userOff && appState.settings.bgMusicEnabled !== false;
-          if (!shouldPlay) return;
-          if (e.data === window.YT.PlayerState.ENDED) {
-            try {
-              e.target.seekTo(0, true);
-              e.target.playVideo();
-            } catch {}
-          }
-        },
-        onError: () => {
-          showToast('Note: This YouTube video restricts background embedding; try another music link.');
-        }
+      const pVars = {
+        autoplay: 1,
+        mute: 1,
+        controls: 0,
+        disablekb: 1,
+        enablejsapi: 1,
+        fs: 0,
+        loop: 1,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        origin: window.location.origin
+      };
+      if (playlistId && !videoId) {
+        pVars.listType = 'playlist';
+        pVars.list = playlistId;
+      } else if (videoId) {
+        pVars.playlist = playlistId || videoId;
       }
+      bgMusicState.player = new window.YT.Player('ytMusicInner', {
+        height: '118',
+        width: '210',
+        videoId: videoId || undefined,
+        playerVars: pVars,
+        events: {
+          onReady: (e) => {
+            bgMusicState.ready = true;
+            // Always start muted first so Chrome/iOS/Android autoplay cleanly; gesture unlocks sound reliably
+            try { e.target.mute(); } catch {}
+            if (!bgMusicState.userOff && appState.settings?.bgMusicEnabled !== false) {
+              try { e.target.playVideo(); } catch {}
+            }
+            updateMusicButtonUI();
+          },
+          onStateChange: (e) => {
+            const shouldPlay = !bgMusicState.userOff && appState.settings?.bgMusicEnabled !== false;
+            if (!shouldPlay) return;
+            if (e.data === window.YT.PlayerState.ENDED || e.data === window.YT.PlayerState.PAUSED) {
+              try {
+                if (e.data === window.YT.PlayerState.ENDED) e.target.seekTo(0, true);
+                e.target.playVideo();
+              } catch {}
+            }
+          },
+          onError: () => {
+            showToast('YouTube blocked embed for this song link; try another YouTube song link.');
+          }
+        }
+      });
     });
   }
 
-  function applyBgMusicPlayState() {
+  function applyBgMusicPlayState(fromUserGesture = false) {
     const s = appState.settings || {};
-    const p = bgMusicState.player;
-    updateMusicButtonUI();
-    if (!p || typeof p.playVideo !== 'function') return;
-    if ((!s.bgMusicVideoId && !s.bgMusicPlaylistId) || s.bgMusicEnabled === false || bgMusicState.userOff) {
-      try { p.pauseVideo(); } catch {}
-    } else {
+    const urlStr = String(s.bgMusicUrl || '');
+    const isDirectAudio = /\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(urlStr);
+    const hasYt = Boolean(s.bgMusicVideoId || s.bgMusicPlaylistId || clientExtractYtId(urlStr) || clientExtractYtList(urlStr));
+
+    if ((!hasYt && !isDirectAudio) || s.bgMusicEnabled === false || bgMusicState.userOff) {
+      if (bgMusicState.audioEl) { try { bgMusicState.audioEl.pause(); } catch {} }
+      if (bgMusicState.player && typeof bgMusicState.player.pauseVideo === 'function') {
+        try { bgMusicState.player.pauseVideo(); } catch {}
+      }
+      updateMusicButtonUI();
+      return;
+    }
+
+    if (isDirectAudio && bgMusicState.audioEl) {
       try {
-        if (bgMusicState.unlockedByGesture) {
+        bgMusicState.audioEl.volume = 0.55;
+        bgMusicState.audioEl.play().then(() => {
+          bgMusicState.audioUnmuted = true;
+          updateMusicButtonUI();
+        }).catch(() => {});
+      } catch {}
+      return;
+    }
+
+    const p = bgMusicState.player;
+    if (p && bgMusicState.ready && typeof p.playVideo === 'function') {
+      try {
+        if (fromUserGesture) {
           p.unMute();
-          p.setVolume(55);
+          p.setVolume(65);
+          bgMusicState.audioUnmuted = true;
+        } else if (bgMusicState.audioUnmuted) {
+          p.unMute();
+          p.setVolume(65);
         }
         p.playVideo();
       } catch {}
     }
+    updateMusicButtonUI();
   }
 
   function syncBgMusicPlayer() {
     const s = appState.settings || {};
-    const vid = String(s.bgMusicVideoId || '').trim();
-    const pid = String(s.bgMusicPlaylistId || '').trim();
+    const urlStr = String(s.bgMusicUrl || '').trim();
+    const isDirectAudio = /\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(urlStr);
+    const vid = String(s.bgMusicVideoId || clientExtractYtId(urlStr) || '').trim();
+    const pid = String(s.bgMusicPlaylistId || clientExtractYtList(urlStr) || '').trim();
     updateMusicButtonUI();
-    if ((!vid && !pid) || s.bgMusicEnabled === false) {
+    if ((!vid && !pid && !isDirectAudio) || s.bgMusicEnabled === false) {
+      if (bgMusicState.audioEl) { try { bgMusicState.audioEl.pause(); } catch {} }
       if (bgMusicState.player && typeof bgMusicState.player.pauseVideo === 'function') {
         try { bgMusicState.player.pauseVideo(); } catch {}
       }
       return;
     }
+    if (isDirectAudio) {
+      if (bgMusicState.player && typeof bgMusicState.player.pauseVideo === 'function') {
+        try { bgMusicState.player.pauseVideo(); } catch {}
+      }
+      if (!bgMusicState.audioEl) {
+        bgMusicState.audioEl = new Audio();
+        bgMusicState.audioEl.loop = true;
+      }
+      if (bgMusicState.audioEl.src !== urlStr) bgMusicState.audioEl.src = urlStr;
+      if (!bgMusicState.userOff) applyBgMusicPlayState(false);
+      return;
+    }
     createOrLoadYtPlayer(vid, pid);
   }
 
-  let activeBgVideoSig = '';
+  // Background Music Heartbeat: keeps song continuously looping and never stalls
+  setInterval(() => {
+    const s = appState.settings || {};
+    if (bgMusicState.userOff || s.bgMusicEnabled === false) return;
+    const p = bgMusicState.player;
+    if (p && bgMusicState.ready && typeof p.getPlayerState === 'function') {
+      const st = p.getPlayerState();
+      if (st === 0 || st === 2 || st === 5 || st === -1) {
+        try {
+          if (st === 0) p.seekTo(0, true);
+          p.playVideo();
+        } catch {}
+      }
+    }
+  }, 3000);
+
+  // ================= CONTINUOUS LOOPING WEBSITE BACKGROUND YOUTUBE VIDEO =================
+  const bgVideoState = {
+    player: null,
+    ready: false,
+    currentSig: ''
+  };
+
   function syncBgVideoPlayer() {
     const wrap = $('siteBgVideoWrap');
-    const frame = $('siteBgVideoFrame');
-    if (!wrap || !frame) return;
+    const host = $('siteBgVideoHost');
+    const directVid = $('siteBgDirectVideo');
+    if (!wrap || !host) return;
     const s = appState.settings || {};
-    const vid = String(s.bgVideoVideoId || '').trim();
-    const pid = String(s.bgVideoPlaylistId || '').trim();
-    const enabled = s.bgVideoEnabled !== false && Boolean(vid || pid);
+    const urlStr = String(s.bgVideoUrl || '').trim();
+    const isDirectMp4 = /\.(mp4|webm|mov)(\?|$)/i.test(urlStr);
+    const vid = String(s.bgVideoVideoId || clientExtractYtId(urlStr) || '').trim();
+    const pid = String(s.bgVideoPlaylistId || clientExtractYtList(urlStr) || '').trim();
+    const enabled = s.bgVideoEnabled !== false && Boolean(vid || pid || isDirectMp4);
+
     if (!enabled) {
-      if (activeBgVideoSig !== '') {
-        activeBgVideoSig = '';
-        frame.removeAttribute('src');
+      bgVideoState.currentSig = '';
+      if (bgVideoState.player && typeof bgVideoState.player.pauseVideo === 'function') {
+        try { bgVideoState.player.pauseVideo(); } catch {}
+      }
+      if (directVid) {
+        directVid.pause();
+        directVid.removeAttribute('src');
+        directVid.classList.add('hidden');
       }
       wrap.classList.add('hidden');
       document.body.classList.remove('has-bg-video');
       return;
     }
-    const sig = `${vid}:${pid}`;
+
     wrap.classList.remove('hidden');
     document.body.classList.add('has-bg-video');
-    if (activeBgVideoSig !== sig) {
-      activeBgVideoSig = sig;
-      const baseParams = 'autoplay=1&mute=1&controls=0&disablekb=1&fs=0&loop=1&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3';
-      const src = pid && !vid
-        ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(pid)}&${baseParams}`
-        : `https://www.youtube.com/embed/${encodeURIComponent(vid)}?${baseParams}&playlist=${encodeURIComponent(pid || vid)}`;
-      frame.src = src;
+
+    if (isDirectMp4 && directVid) {
+      if (bgVideoState.player && typeof bgVideoState.player.destroy === 'function') {
+        try { bgVideoState.player.destroy(); } catch {}
+        bgVideoState.player = null;
+      }
+      host.innerHTML = '';
+      directVid.classList.remove('hidden');
+      if (bgVideoState.currentSig !== urlStr) {
+        bgVideoState.currentSig = urlStr;
+        directVid.src = urlStr;
+        directVid.muted = true;
+        directVid.loop = true;
+        directVid.play().catch(() => {});
+      }
+      return;
     }
+
+    if (directVid) {
+      directVid.pause();
+      directVid.removeAttribute('src');
+      directVid.classList.add('hidden');
+    }
+
+    const sig = `${vid}:${pid}`;
+    if (bgVideoState.currentSig === sig && bgVideoState.player && bgVideoState.ready) {
+      try {
+        bgVideoState.player.mute();
+        bgVideoState.player.playVideo();
+      } catch {}
+      return;
+    }
+
+    bgVideoState.currentSig = sig;
+    ensureYtApiLoaded(() => {
+      if (bgVideoState.currentSig !== sig) return;
+      if (bgVideoState.player && bgVideoState.ready && typeof bgVideoState.player.loadVideoById === 'function' && vid) {
+        try {
+          bgVideoState.player.mute();
+          bgVideoState.player.loadVideoById({ videoId: vid, startSeconds: 0 });
+          bgVideoState.player.playVideo();
+          return;
+        } catch {}
+      }
+      if (bgVideoState.player && typeof bgVideoState.player.destroy === 'function') {
+        try { bgVideoState.player.destroy(); } catch {}
+      }
+      host.innerHTML = '<div id="siteBgVideoInner"></div>';
+      bgVideoState.ready = false;
+      const pVars = {
+        autoplay: 1,
+        mute: 1,
+        controls: 0,
+        disablekb: 1,
+        enablejsapi: 1,
+        fs: 0,
+        loop: 1,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        iv_load_policy: 3,
+        origin: window.location.origin
+      };
+      if (pid && !vid) {
+        pVars.listType = 'playlist';
+        pVars.list = pid;
+      } else if (vid) {
+        pVars.playlist = pid || vid;
+      }
+      bgVideoState.player = new window.YT.Player('siteBgVideoInner', {
+        height: '720',
+        width: '1280',
+        videoId: vid || undefined,
+        playerVars: pVars,
+        events: {
+          onReady: (e) => {
+            bgVideoState.ready = true;
+            try {
+              e.target.mute();
+              e.target.playVideo();
+            } catch {}
+          },
+          onStateChange: (e) => {
+            if (appState.settings?.bgVideoEnabled === false) return;
+            if (e.data === window.YT.PlayerState.ENDED || e.data === window.YT.PlayerState.PAUSED) {
+              try {
+                if (e.data === window.YT.PlayerState.ENDED) e.target.seekTo(0, true);
+                e.target.playVideo();
+              } catch {}
+            }
+          },
+          onError: () => {
+            showToast('YouTube blocked embed on this background video link; try another YouTube link.');
+          }
+        }
+      });
+    });
   }
+
+  // Watchdog to ensure website background video keeps looping infinitely
+  setInterval(() => {
+    const s = appState.settings || {};
+    if (s.bgVideoEnabled === false || (!s.bgVideoVideoId && !s.bgVideoPlaylistId)) return;
+    const p = bgVideoState.player;
+    if (p && bgVideoState.ready && typeof p.getPlayerState === 'function') {
+      const st = p.getPlayerState();
+      if (st === 0 || st === 2 || st === 5 || st === -1) {
+        try {
+          if (st === 0) p.seekTo(0, true);
+          p.mute();
+          p.playVideo();
+        } catch {}
+      }
+    }
+  }, 3000);
 
   $('musicFloatBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (!bgMusicState.userOff && !bgMusicState.audioUnmuted) {
+      // Waiting for tap-to-unmute: unmute immediately instead of turning off!
+      applyBgMusicPlayState(true);
+      showToast('🎵 Song unmuted & playing!');
+      return;
+    }
     bgMusicState.userOff = !bgMusicState.userOff;
     localStorage.setItem('chatkaro_music_off', bgMusicState.userOff ? '1' : '0');
-    applyBgMusicPlayState();
+    applyBgMusicPlayState(!bgMusicState.userOff);
     showToast(bgMusicState.userOff ? '🔇 Background music off' : '🎵 Background music playing!');
   });
 
-  // Auto-unlock YouTube background audio on first customer tap/click if Admin enabled a song
-  ['pointerdown', 'keydown'].forEach((evt) => {
+  // Unlock background music sound cleanly on ANY user tap until player actually unmutes
+  ['pointerdown', 'touchstart', 'click', 'keydown'].forEach((evt) => {
     window.addEventListener(
       evt,
       () => {
-        if (bgMusicState.unlockedByGesture) return;
-        bgMusicState.unlockedByGesture = true;
-        if (!bgMusicState.userOff && appState.settings?.bgMusicEnabled !== false && appState.settings?.bgMusicVideoId) {
-          applyBgMusicPlayState();
+        if (bgMusicState.userOff || appState.settings?.bgMusicEnabled === false) return;
+        const s = appState.settings || {};
+        if (!s.bgMusicUrl && !s.bgMusicVideoId && !s.bgMusicPlaylistId) return;
+        if (bgMusicState.audioUnmuted) return;
+        if (bgMusicState.player && bgMusicState.ready) {
+          applyBgMusicPlayState(true);
+        } else if (bgMusicState.audioEl) {
+          applyBgMusicPlayState(true);
         }
       },
       { passive: true }
@@ -1289,35 +1518,49 @@
     const prevEl = $('heroAdImgPrev');
     const wrapEl = $('heroAdMediaWrap');
     const videoEl = $('heroAdVideo');
+    const ytEl = $('heroAdYtFrame');
     const muteBtn = $('heroAdMuteBtn');
 
-    if (entry.kind === 'ad' && entry.ad.type === 'video') {
+    if (entry.kind === 'ad' && (entry.ad.type === 'video' || entry.ad.type === 'youtube')) {
       const ad = entry.ad;
       const linked = dishList.find((d) => d.id === ad.linkedDishId) || dishList[0];
       heroAdState.isCurrentVideo = true;
       heroAdState.currentDishId = linked?.id || 'veg-angara';
-      heroAdState.duration = 45000; // Fallback timeout; normally video onended advances immediately!
+      heroAdState.duration = 45000;
 
       stage.classList.add('is-video');
       if (wrapEl) wrapEl.classList.add('hidden');
       if (prevEl) prevEl.classList.add('hidden');
-      if (muteBtn) muteBtn.classList.remove('hidden');
 
-      if (videoEl) {
-        videoEl.classList.remove('hidden');
-        videoEl.muted = heroAdState.muted;
-        videoEl.loop = false;
-        videoEl.src = ad.url;
-        videoEl.currentTime = 0;
-        videoEl.onloadedmetadata = () => {
-          if (videoEl.duration && isFinite(videoEl.duration)) {
-            heroAdState.duration = Math.min(60000, Math.max(3000, Math.round(videoEl.duration * 1000)));
+      const ytId = ad.youtubeId || clientExtractYtId(ad.url);
+      if (ad.type === 'youtube' || ytId) {
+        if (videoEl) { videoEl.pause(); videoEl.removeAttribute('src'); videoEl.classList.add('hidden'); }
+        if (muteBtn) muteBtn.classList.add('hidden');
+        if (ytEl && ytId) {
+          const nextSrc = `https://www.youtube.com/embed/${encodeURIComponent(ytId)}?autoplay=1&mute=1&loop=1&playlist=${encodeURIComponent(ytId)}&controls=0&playsinline=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
+          if (ytEl.src !== nextSrc) ytEl.src = nextSrc;
+          ytEl.classList.remove('hidden');
+        }
+        heroAdState.duration = 25000;
+      } else {
+        if (ytEl) { ytEl.removeAttribute('src'); ytEl.classList.add('hidden'); }
+        if (muteBtn) muteBtn.classList.remove('hidden');
+        if (videoEl) {
+          videoEl.classList.remove('hidden');
+          videoEl.muted = heroAdState.muted;
+          videoEl.loop = false;
+          videoEl.src = ad.url;
+          videoEl.currentTime = 0;
+          videoEl.onloadedmetadata = () => {
+            if (videoEl.duration && isFinite(videoEl.duration)) {
+              heroAdState.duration = Math.min(60000, Math.max(3000, Math.round(videoEl.duration * 1000)));
+            }
+          };
+          videoEl.onended = () => advanceHeroAdSlide(1);
+          videoEl.onerror = () => advanceHeroAdSlide(1);
+          if (!heroAdState.paused) {
+            videoEl.play().catch(() => {});
           }
-        };
-        videoEl.onended = () => advanceHeroAdSlide(1);
-        videoEl.onerror = () => advanceHeroAdSlide(1);
-        if (!heroAdState.paused) {
-          videoEl.play().catch(() => {});
         }
       }
 
@@ -1328,6 +1571,7 @@
       $('heroAdPrice').textContent = linked ? `₹${linked.price}/-` : 'LIVE AD';
     } else {
       heroAdState.isCurrentVideo = false;
+      if (ytEl) { ytEl.removeAttribute('src'); ytEl.classList.add('hidden'); }
       if (videoEl) {
         videoEl.pause();
         videoEl.removeAttribute('src');
@@ -3224,7 +3468,7 @@
               📁 Choose Video / Photo File <input type="file" id="newAdFile" accept="video/mp4,video/webm,video/quicktime,image/*" style="display:none;" />
             </label>
             <span id="newAdFileLabel" class="small muted">No file chosen</span>
-            <input type="url" id="newAdUrl" placeholder="Or paste Video (.mp4) / Photo URL..." style="flex:1;min-width:180px;" />
+            <input type="url" id="newAdUrl" placeholder="Or paste YouTube / Video (.mp4) / Photo URL..." style="flex:1;min-width:180px;" />
             <button type="submit" class="btn btn-primary btn-sm" id="admAddAdSubmitBtn">+ Add &amp; Play in Ads</button>
           </div>
         </form>
@@ -3232,11 +3476,13 @@
           ${adsList.length === 0 ? '<p class="muted">No custom video/photo ads yet. Upload one above!</p>' : adsList.map((a) => `
             <div class="admin-row-card" style="justify-content:space-between;gap:0.75rem;">
               <div class="admin-controls-inline" style="flex:1;min-width:0;">
-                ${a.type === 'video'
+                ${a.type === 'youtube'
+                  ? `<div style="width:72px;height:54px;border-radius:8px;background:#b91c1c;color:#fff;display:grid;place-items:center;font-weight:800;font-size:0.75rem;flex-shrink:0;">▶ YT</div>`
+                  : a.type === 'video'
                   ? `<video src="${escapeHtml(a.url)}" muted playsinline style="width:72px;height:54px;object-fit:cover;border-radius:8px;background:#000;flex-shrink:0;"></video>`
                   : `<img src="${escapeHtml(a.url)}" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0;" />`}
                 <div style="min-width:0;flex:1;">
-                  <strong>${a.type === 'video' ? '🎬 VIDEO AD' : '📸 PHOTO AD'}: ${escapeHtml(a.title)}</strong>
+                  <strong>${a.type === 'youtube' ? '📺 YOUTUBE AD' : a.type === 'video' ? '🎬 VIDEO AD' : '📸 PHOTO AD'}: ${escapeHtml(a.title)}</strong>
                   <div class="muted small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.url)}</div>
                 </div>
               </div>
@@ -3643,26 +3889,34 @@
           </div>
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
-          <strong>🎵 Shop Background YouTube Music (Continuous Loop)</strong>
+          <strong>🎵 Shop Background YouTube Music (Continuous Audio Loop)</strong>
           <div class="two-col">
-            <div><label>YouTube Song Link (Watch / Share / Shorts URL)</label><input type="url" id="admMusicUrl" value="${escapeHtml(s.bgMusicUrl || '')}" placeholder="https://www.youtube.com/watch?v=..." /></div>
+            <div><label>YouTube Song / MP3 Link (Watch / Share / Shorts URL)</label><input type="text" id="admMusicUrl" value="${escapeHtml(s.bgMusicUrl || '')}" placeholder="https://www.youtube.com/watch?v=... or MP3 URL" /></div>
             <div><label>Song Display Name</label><input type="text" id="admMusicTitle" value="${escapeHtml(s.bgMusicTitle || 'Calm Cafe Music')}" placeholder="e.g. Lofi Instrumental" /></div>
           </div>
-          <label class="small" style="display:flex;align-items:center;gap:0.45rem;margin-top:0.2rem;">
-            <input type="checkbox" id="admMusicEnabled" ${s.bgMusicEnabled !== false ? 'checked' : ''} style="width:auto;" />
-            🎵 Play background song automatically for shop visitors (Customers can also toggle Off/On)
-          </label>
+          <div class="admin-controls-inline" style="justify-content:space-between;margin-top:0.2rem;">
+            <label class="small" style="display:flex;align-items:center;gap:0.45rem;">
+              <input type="checkbox" id="admMusicEnabled" ${s.bgMusicEnabled !== false ? 'checked' : ''} style="width:auto;" />
+              🎵 Play song for all shop visitors
+            </label>
+            <button type="button" class="btn btn-primary btn-xs" id="admQuickSaveMusicBtn">▶ Save &amp; Play Song Now</button>
+          </div>
+          ${s.bgMusicVideoId ? `<small class="muted">✅ Active Song ID: <code>${escapeHtml(s.bgMusicVideoId)}</code></small>` : ''}
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
           <strong>🎬 Website Background YouTube Video (Visible Everywhere, Continuous Loop)</strong>
           <div>
-            <label>YouTube Background Video Link (Watch / Share / Shorts / Playlist URL)</label>
-            <input type="url" id="admBgVideoUrl" value="${escapeHtml(s.bgVideoUrl || '')}" placeholder="https://www.youtube.com/watch?v=... or youtu.be/..." />
+            <label>YouTube Background Video / MP4 Link (Watch / Share / Shorts / Playlist URL)</label>
+            <input type="text" id="admBgVideoUrl" value="${escapeHtml(s.bgVideoUrl || '')}" placeholder="https://www.youtube.com/watch?v=... or youtu.be/..." />
           </div>
-          <label class="small" style="display:flex;align-items:center;gap:0.45rem;margin-top:0.2rem;">
-            <input type="checkbox" id="admBgVideoEnabled" ${s.bgVideoEnabled !== false ? 'checked' : ''} style="width:auto;" />
-            🎬 Show this looping YouTube video in website background for all phones &amp; PCs (Leave link empty or uncheck to stop)
-          </label>
+          <div class="admin-controls-inline" style="justify-content:space-between;margin-top:0.2rem;">
+            <label class="small" style="display:flex;align-items:center;gap:0.45rem;">
+              <input type="checkbox" id="admBgVideoEnabled" ${s.bgVideoEnabled !== false ? 'checked' : ''} style="width:auto;" />
+              🎬 Show looping video behind shop on all phones &amp; PCs
+            </label>
+            <button type="button" class="btn btn-primary btn-xs" id="admQuickSaveVideoBtn">▶ Save &amp; Play Video Now</button>
+          </div>
+          ${s.bgVideoVideoId ? `<small class="muted">✅ Active Background Video ID: <code>${escapeHtml(s.bgVideoVideoId)}</code></small>` : ''}
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
           <label>✨ Gemini API Key (Enables Real AI Chat, Daily Ads &amp; Smart Dish Photos)</label>
@@ -3763,7 +4017,37 @@
           applySnapshot(res.state);
           persistSnapshotToCache(res.state);
         }
-        showToast('Settings, Music, Gateways & Gemini saved for all devices! ✅');
+        showToast('Settings, Music, Video, Gateways & Gemini saved for all devices! ✅');
+      });
+
+      $('admQuickSaveMusicBtn')?.addEventListener('click', async () => {
+        const bgMusicUrl = $('admMusicUrl').value.trim();
+        const bgMusicTitle = $('admMusicTitle').value.trim() || 'Shop Music';
+        const bgMusicEnabled = $('admMusicEnabled').checked;
+        bgMusicState.userOff = false;
+        localStorage.setItem('chatkaro_music_off', '0');
+        try {
+          const res = await api('/api/admin/settings', 'POST', { settings: { bgMusicUrl, bgMusicTitle, bgMusicEnabled } }, pinHeaders);
+          appState.adminFullSettings = { ...(appState.adminFullSettings || {}), bgMusicUrl, bgMusicTitle, bgMusicEnabled };
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          setTimeout(() => applyBgMusicPlayState(true), 250);
+          showToast(bgMusicUrl ? '🎵 Song saved & playing for everyone!' : '🔇 Song cleared!');
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('admQuickSaveVideoBtn')?.addEventListener('click', async () => {
+        const bgVideoUrl = $('admBgVideoUrl').value.trim();
+        const bgVideoEnabled = $('admBgVideoEnabled').checked;
+        try {
+          const res = await api('/api/admin/settings', 'POST', { settings: { bgVideoUrl, bgVideoEnabled } }, pinHeaders);
+          appState.adminFullSettings = { ...(appState.adminFullSettings || {}), bgVideoUrl, bgVideoEnabled };
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast(bgVideoUrl ? '🎬 Background Video saved & looping behind shop!' : '🛑 Background Video turned off!');
+        } catch (err) {
+          showToast(err.message);
+        }
       });
 
       $('admTestGeminiBtn')?.addEventListener('click', async () => {

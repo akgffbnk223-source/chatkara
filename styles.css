@@ -2236,17 +2236,17 @@ body.admin-open #adminModal #adminLockScreen {
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
-/* Background YouTube Music Player & Customer Toggle Pill (240x135 satisfies YT API min dimensions) */
+/* Background YouTube Music Player & Customer Toggle Pill */
 .bg-music-host {
   position: fixed;
-  width: 240px;
-  height: 135px;
+  width: 210px;
+  height: 118px;
   bottom: 0;
   left: 0;
-  opacity: 0.001;
+  opacity: 0.015;
   pointer-events: none;
   overflow: hidden;
-  z-index: -1;
+  z-index: 1;
 }
 .music-fab {
   position: fixed;
@@ -2805,7 +2805,13 @@ body.admin-open #adminModal #adminLockScreen {
   overflow: hidden;
   background: #09090b;
 }
-.site-bg-video-wrap iframe {
+.site-bg-video-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.site-bg-video-wrap iframe,
+.site-bg-direct-video {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -2813,16 +2819,17 @@ body.admin-open #adminModal #adminLockScreen {
   height: max(100vh, 56.25vw);
   transform: translate(-50%, -50%);
   border: 0;
+  object-fit: cover;
   pointer-events: none;
 }
 .site-bg-video-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(10, 10, 14, 0.56) 0%, rgba(12, 12, 16, 0.72) 55%, rgba(10, 10, 14, 0.84) 100%);
+  background: linear-gradient(180deg, rgba(10, 10, 14, 0.28) 0%, rgba(12, 12, 16, 0.42) 55%, rgba(10, 10, 14, 0.54) 100%);
   pointer-events: none;
 }
 [data-theme="light"] .site-bg-video-scrim {
-  background: linear-gradient(180deg, rgba(255, 250, 245, 0.58) 0%, rgba(255, 250, 245, 0.76) 55%, rgba(255, 250, 245, 0.88) 100%);
+  background: linear-gradient(180deg, rgba(255, 250, 245, 0.34) 0%, rgba(255, 250, 245, 0.48) 55%, rgba(255, 250, 245, 0.58) 100%);
 }
 
 body.has-bg-video > .top-strip,
@@ -2839,6 +2846,12 @@ body.has-bg-video .menu-section,
 body.has-bg-video .site-footer {
   background: transparent !important;
 }
+body.has-bg-video .menu-card {
+  background: rgba(20, 20, 24, 0.84) !important;
+}
+[data-theme="light"] body.has-bg-video .menu-card {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
 body.has-bg-video .hero-bg-pattern {
-  opacity: 0.25;
+  opacity: 0.15;
 }

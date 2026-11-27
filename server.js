@@ -642,16 +642,20 @@ function getActiveGeminiKey() {
 }
 
 function extractYoutubeVideoId(rawUrl) {
-  const s = String(rawUrl || '').trim();
+  let s = String(rawUrl || '').trim();
   if (!s) return '';
+  const iframeSrc = s.match(/src=["']([^"']+)["']/i);
+  if (iframeSrc) s = iframeSrc[1].trim();
   if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
-  const m = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
-    || s.match(/[?&]v=([A-Za-z0-9_-]{11})/i);
+  const m = s.match(/(?:(?:www\.|m\.|music\.)?(?:youtube\.com|youtube-nocookie\.com)\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
+    || s.match(/[?&](?:v|vi)=([A-Za-z0-9_-]{11})/i);
   return m ? m[1] : '';
 }
 
 function extractYoutubePlaylistId(rawUrl) {
-  const s = String(rawUrl || '').trim();
+  let s = String(rawUrl || '').trim();
+  const iframeSrc = s.match(/src=["']([^"']+)["']/i);
+  if (iframeSrc) s = iframeSrc[1].trim();
   const m = s.match(/[?&]list=([A-Za-z0-9_-]+)/i);
   return m ? m[1] : '';
 }
@@ -1919,12 +1923,14 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       } else {
         const url = String(ad.url || '').trim();
         if (!url) return sendJson(res, 400, { error: 'Ad video or photo URL required.' });
-        const type = ad.type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : 'image';
+        const ytId = extractYoutubeVideoId(url);
+        const type = ytId ? 'youtube' : (ad.type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(url) ? 'video' : 'image');
         db.ads.unshift({
           id: 'ad-' + Date.now(),
           title: String(ad.title || 'Chatkaro Special Ad').trim(),
           type,
           url,
+          youtubeId: ytId || undefined,
           linkedDishId: String(ad.linkedDishId || 'veg-angara').trim(),
           active: ad.active !== false,
           createdAt: Date.now()

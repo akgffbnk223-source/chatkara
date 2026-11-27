@@ -15,7 +15,8 @@
 <body>
   <!-- Continuous Looping YouTube Website Background Video (Admin Controlled) -->
   <div id="siteBgVideoWrap" class="site-bg-video-wrap hidden" aria-hidden="true">
-    <iframe id="siteBgVideoFrame" title="Website Background Video" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <div id="siteBgVideoHost" class="site-bg-video-host"></div>
+    <video id="siteBgDirectVideo" class="site-bg-direct-video hidden" autoplay muted loop playsinline preload="auto"></video>
     <div class="site-bg-video-scrim"></div>
   </div>
   <!-- Top Live Announcement Bar -->
@@ -121,6 +122,7 @@
                 <img id="heroAdImg" class="hero-ad-img" src="assets/veg-angara.jpg" alt="Chatkaro Food Hub Special" />
               </div>
               <video id="heroAdVideo" class="hero-ad-video hidden" autoplay muted playsinline preload="auto"></video>
+              <iframe id="heroAdYtFrame" class="hero-ad-video hidden" title="YouTube Ad Video" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
               <div class="hero-ad-progress-track">
                 <div class="hero-ad-progress-fill" id="heroAdProgress"></div>
               </div>
