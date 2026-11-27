@@ -45,7 +45,12 @@ function createDefaultDb() {
       bgMusicEnabled: true,
       bgMusicUrl: '',
       bgMusicVideoId: '',
+      bgMusicPlaylistId: '',
       bgMusicTitle: 'Calm Cafe Music',
+      bgVideoEnabled: true,
+      bgVideoUrl: '',
+      bgVideoVideoId: '',
+      bgVideoPlaylistId: '',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       googleClientId: '',
       googlePlacesApiKey: '',
@@ -205,7 +210,7 @@ function loadDb() {
       if (!parsed.settings) parsed.settings = def.settings;
       if (!parsed.settings.brandTheme) parsed.settings.brandTheme = def.settings.brandTheme;
       if (!parsed.settings.dailyDeal) parsed.settings.dailyDeal = def.settings.dailyDeal;
-      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'instagramHandle', 'instagramReels'].forEach((k) => {
+      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'instagramHandle', 'instagramReels'].forEach((k) => {
         if (parsed.settings[k] === undefined) parsed.settings[k] = def.settings[k];
       });
       // Preserve env fallbacks if runtime settings are unset
@@ -213,6 +218,11 @@ function loadDb() {
         parsed.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
         parsed.settings.bgMusicVideoId = extractYoutubeVideoId(parsed.settings.bgMusicUrl);
         parsed.settings.bgMusicPlaylistId = extractYoutubePlaylistId(parsed.settings.bgMusicUrl);
+      }
+      if (!parsed.settings.bgVideoUrl && process.env.BG_VIDEO_URL) {
+        parsed.settings.bgVideoUrl = process.env.BG_VIDEO_URL.trim();
+        parsed.settings.bgVideoVideoId = extractYoutubeVideoId(parsed.settings.bgVideoUrl);
+        parsed.settings.bgVideoPlaylistId = extractYoutubePlaylistId(parsed.settings.bgVideoUrl);
       }
       if (!parsed.settings.bgMusicTitle && process.env.BG_MUSIC_TITLE) parsed.settings.bgMusicTitle = process.env.BG_MUSIC_TITLE.trim();
       if (!parsed.settings.razorpayKeyId && process.env.RAZORPAY_KEY_ID) parsed.settings.razorpayKeyId = process.env.RAZORPAY_KEY_ID.trim();
@@ -253,6 +263,11 @@ function loadDb() {
     initial.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
     initial.settings.bgMusicVideoId = extractYoutubeVideoId(initial.settings.bgMusicUrl);
     initial.settings.bgMusicPlaylistId = extractYoutubePlaylistId(initial.settings.bgMusicUrl);
+  }
+  if (process.env.BG_VIDEO_URL) {
+    initial.settings.bgVideoUrl = process.env.BG_VIDEO_URL.trim();
+    initial.settings.bgVideoVideoId = extractYoutubeVideoId(initial.settings.bgVideoUrl);
+    initial.settings.bgVideoPlaylistId = extractYoutubePlaylistId(initial.settings.bgVideoUrl);
   }
   if (process.env.BG_MUSIC_TITLE) initial.settings.bgMusicTitle = process.env.BG_MUSIC_TITLE.trim();
   if (process.env.RAZORPAY_KEY_ID) initial.settings.razorpayKeyId = process.env.RAZORPAY_KEY_ID.trim();
@@ -462,6 +477,10 @@ function getPublicSnapshot() {
       bgMusicVideoId: db.settings.bgMusicVideoId || extractYoutubeVideoId(db.settings.bgMusicUrl || process.env.BG_MUSIC_URL || ''),
       bgMusicPlaylistId: db.settings.bgMusicPlaylistId || extractYoutubePlaylistId(db.settings.bgMusicUrl || process.env.BG_MUSIC_URL || ''),
       bgMusicTitle: db.settings.bgMusicTitle || process.env.BG_MUSIC_TITLE || 'Calm Cafe Music',
+      bgVideoEnabled: db.settings.bgVideoEnabled !== false,
+      bgVideoUrl: db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || '',
+      bgVideoVideoId: db.settings.bgVideoVideoId || extractYoutubeVideoId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
+      bgVideoPlaylistId: db.settings.bgVideoPlaylistId || extractYoutubePlaylistId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
       googleClientId: db.settings.googleClientId || process.env.GOOGLE_CLIENT_ID || '',
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
@@ -1986,7 +2005,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       [
         'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
-        'bgMusicUrl', 'bgMusicTitle',
+        'bgMusicUrl', 'bgMusicTitle', 'bgVideoUrl',
         'address', 'plusCode', 'googleClientId', 'googlePlaceId',
         'merchantUpiId', 'razorpayKeyId',
         'phonepeMerchantId', 'phonepeSaltIndex', 'phonepeEnv'
@@ -2003,6 +2022,11 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       if (s.bgMusicUrl !== undefined) {
         db.settings.bgMusicVideoId = extractYoutubeVideoId(s.bgMusicUrl);
         db.settings.bgMusicPlaylistId = extractYoutubePlaylistId(s.bgMusicUrl);
+      }
+      if (s.bgVideoEnabled !== undefined) db.settings.bgVideoEnabled = Boolean(s.bgVideoEnabled);
+      if (s.bgVideoUrl !== undefined) {
+        db.settings.bgVideoVideoId = extractYoutubeVideoId(s.bgVideoUrl);
+        db.settings.bgVideoPlaylistId = extractYoutubePlaylistId(s.bgVideoUrl);
       }
       if (s.rating !== undefined) db.settings.rating = Number(s.rating);
       if (s.reviewCount !== undefined) db.settings.reviewCount = Number(s.reviewCount);

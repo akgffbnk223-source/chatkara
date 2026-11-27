@@ -269,48 +269,84 @@
     const canvas = $('heroFxCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const isMobile = window.innerWidth <= 640;
     let sparks = [];
+    let heroVisible = true;
+    let rafId = 0;
+    let cachedPrimary = '#dc2626';
+    let cachedAccent = '#fbbf24';
+
+    function refreshThemeCache() {
+      const st = getComputedStyle(document.documentElement);
+      cachedPrimary = st.getPropertyValue('--primary').trim() || '#dc2626';
+      cachedAccent = st.getPropertyValue('--accent').trim() || '#fbbf24';
+    }
+    refreshThemeCache();
+    window.addEventListener('chatkaro-theme-updated', refreshThemeCache);
 
     function resize() {
       canvas.width = canvas.offsetWidth || 1000;
       canvas.height = canvas.offsetHeight || 500;
     }
     resize();
-    window.addEventListener('resize', resize);
+    let resizeT = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(resize, 180);
+    }, { passive: true });
 
-    for (let i = 0; i < 28; i++) {
+    const sparkCount = isMobile ? 10 : 22;
+    for (let i = 0; i < sparkCount; i++) {
       sparks.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: 1.5 + Math.random() * 3,
-        vy: -0.35 - Math.random() * 0.65,
-        vx: (Math.random() - 0.5) * 0.4,
-        alpha: 0.15 + Math.random() * 0.45
+        r: 1.5 + Math.random() * 2.5,
+        vy: -0.35 - Math.random() * 0.55,
+        vx: (Math.random() - 0.5) * 0.35,
+        alpha: 0.16 + Math.random() * 0.38
       });
     }
 
     function tick() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!document.body.classList.contains('no-fx')) {
-        const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#f97316';
-        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#fbbf24';
-        sparks.forEach((s, idx) => {
-          s.y += s.vy;
-          s.x += s.vx;
-          if (s.y < -10) {
-            s.y = canvas.height + 10;
-            s.x = Math.random() * canvas.width;
-          }
-          ctx.globalAlpha = s.alpha;
-          ctx.fillStyle = idx % 2 === 0 ? primary : accent;
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-          ctx.fill();
-        });
+      rafId = 0;
+      if (!heroVisible || document.hidden || document.body.classList.contains('no-fx') || document.body.classList.contains('admin-open')) {
+        return;
       }
-      requestAnimationFrame(tick);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let idx = 0; idx < sparks.length; idx++) {
+        const s = sparks[idx];
+        s.y += s.vy;
+        s.x += s.vx;
+        if (s.y < -10) {
+          s.y = canvas.height + 10;
+          s.x = Math.random() * canvas.width;
+        }
+        ctx.globalAlpha = s.alpha;
+        ctx.fillStyle = idx % 2 === 0 ? cachedPrimary : cachedAccent;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      rafId = requestAnimationFrame(tick);
     }
-    requestAnimationFrame(tick);
+
+    function startIfNeeded() {
+      if (!rafId && heroVisible && !document.hidden) rafId = requestAnimationFrame(tick);
+    }
+
+    if ('IntersectionObserver' in window) {
+      const heroEl = $('home');
+      if (heroEl) {
+        new IntersectionObserver((entries) => {
+          heroVisible = Boolean(entries[0]?.isIntersecting);
+          if (heroVisible) startIfNeeded();
+        }, { threshold: 0.02 }).observe(heroEl);
+      }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) startIfNeeded();
+    });
+    startIfNeeded();
   }
 
   function launchConfetti() {
@@ -404,6 +440,7 @@
     root.style.setProperty('--text-strong', bt.text);
     root.style.setProperty('--surface-alt', light ? '#f3ece3' : 'rgba(255,255,255,0.06)');
     root.style.setProperty('--border', light ? '#d5c4b1' : 'rgba(255,255,255,0.14)');
+    window.dispatchEvent(new Event('chatkaro-theme-updated'));
   }
 
   $('themeToggleBtn').addEventListener('click', () => {
@@ -518,6 +555,7 @@
     renderMyOrderBanner();
     renderAuthUI();
     syncBgMusicPlayer();
+    syncBgVideoPlayer();
     if (!$('adminModal').classList.contains('hidden') && appState.adminToken) {
       refreshSalesAndRenderAdmin();
     }
@@ -867,6 +905,37 @@
       return;
     }
     createOrLoadYtPlayer(vid, pid);
+  }
+
+  let activeBgVideoSig = '';
+  function syncBgVideoPlayer() {
+    const wrap = $('siteBgVideoWrap');
+    const frame = $('siteBgVideoFrame');
+    if (!wrap || !frame) return;
+    const s = appState.settings || {};
+    const vid = String(s.bgVideoVideoId || '').trim();
+    const pid = String(s.bgVideoPlaylistId || '').trim();
+    const enabled = s.bgVideoEnabled !== false && Boolean(vid || pid);
+    if (!enabled) {
+      if (activeBgVideoSig !== '') {
+        activeBgVideoSig = '';
+        frame.removeAttribute('src');
+      }
+      wrap.classList.add('hidden');
+      document.body.classList.remove('has-bg-video');
+      return;
+    }
+    const sig = `${vid}:${pid}`;
+    wrap.classList.remove('hidden');
+    document.body.classList.add('has-bg-video');
+    if (activeBgVideoSig !== sig) {
+      activeBgVideoSig = sig;
+      const baseParams = 'autoplay=1&mute=1&controls=0&disablekb=1&fs=0&loop=1&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3';
+      const src = pid && !vid
+        ? `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(pid)}&${baseParams}`
+        : `https://www.youtube.com/embed/${encodeURIComponent(vid)}?${baseParams}&playlist=${encodeURIComponent(pid || vid)}`;
+      frame.src = src;
+    }
   }
 
   $('musicFloatBtn')?.addEventListener('click', (e) => {
@@ -3585,6 +3654,17 @@
           </label>
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <strong>🎬 Website Background YouTube Video (Visible Everywhere, Continuous Loop)</strong>
+          <div>
+            <label>YouTube Background Video Link (Watch / Share / Shorts / Playlist URL)</label>
+            <input type="url" id="admBgVideoUrl" value="${escapeHtml(s.bgVideoUrl || '')}" placeholder="https://www.youtube.com/watch?v=... or youtu.be/..." />
+          </div>
+          <label class="small" style="display:flex;align-items:center;gap:0.45rem;margin-top:0.2rem;">
+            <input type="checkbox" id="admBgVideoEnabled" ${s.bgVideoEnabled !== false ? 'checked' : ''} style="width:auto;" />
+            🎬 Show this looping YouTube video in website background for all phones &amp; PCs (Leave link empty or uncheck to stop)
+          </label>
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
           <label>✨ Gemini API Key (Enables Real AI Chat, Daily Ads &amp; Smart Dish Photos)</label>
           <div class="admin-controls-inline">
             <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AQ.Ab8... or AIza..." style="flex:1;" />
@@ -3662,6 +3742,8 @@
           bgMusicUrl: $('admMusicUrl').value,
           bgMusicTitle: $('admMusicTitle').value,
           bgMusicEnabled: $('admMusicEnabled').checked,
+          bgVideoUrl: $('admBgVideoUrl').value,
+          bgVideoEnabled: $('admBgVideoEnabled').checked,
           address: $('admAddress').value,
           merchantUpiId: $('admMerchantUpi').value,
           razorpayKeyId: $('admRzpKeyId').value,
