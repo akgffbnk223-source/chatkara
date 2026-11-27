@@ -243,8 +243,9 @@
   // ================= VISUAL EFFECTS: HERO PARTICLES, SCROLL REVEAL & CONFETTI =================
   function initScrollReveal() {
     const els = document.querySelectorAll('.reveal');
+    const showAll = () => els.forEach((el) => el.classList.add('visible'));
     if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('visible'));
+      showAll();
       return;
     }
     const io = new IntersectionObserver(
@@ -256,9 +257,11 @@
           }
         });
       },
-      { threshold: 0.08 }
+      { threshold: 0, rootMargin: '140px 0px' }
     );
     els.forEach((el) => io.observe(el));
+    // Guarantee every section becomes visible even on tall mobile viewports
+    setTimeout(showAll, 550);
   }
 
   function initHeroParticles() {
@@ -419,7 +422,9 @@
     const es = new EventSource('/api/events');
     es.addEventListener('state', (ev) => {
       try {
-        applySnapshot(JSON.parse(ev.data));
+        const snap = JSON.parse(ev.data);
+        applySnapshot(snap);
+        persistSnapshotToCache(snap);
         $('syncStatusBadge').textContent = '● Live Sync';
       } catch {}
     });
@@ -519,19 +524,77 @@
     initGoogleIdentityIfConfigured();
   }
 
-  async function initialFetch() {
-    if (!isHttp) {
-      activateStaticMode();
-      return;
-    }
+  function persistSnapshotToCache(snap) {
     try {
-      const snap = await api('/api/state');
-      appState.staticMode = false;
-      applySnapshot(snap);
-      connectRealtime();
-    } catch {
-      activateStaticMode();
+      if (!snap || !Array.isArray(snap.menu) || !snap.menu.length) return;
+      localStorage.setItem(
+        'chatkaro_cached_snap_v2',
+        JSON.stringify({
+          settings: snap.settings,
+          menu: snap.menu,
+          ads: snap.ads,
+          tables: snap.tables,
+          reviews: snap.reviews,
+          mapPhotos: snap.mapPhotos,
+          savedAt: Date.now()
+        })
+      );
+    } catch {}
+  }
+
+  function bootInstantFromCacheOrMenu() {
+    try {
+      const raw = localStorage.getItem('chatkaro_cached_snap_v2');
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && Array.isArray(cached.menu) && cached.menu.length) {
+          applySnapshot(cached);
+          return true;
+        }
+      }
+    } catch {}
+    activateStaticMode();
+    return false;
+  }
+
+  async function fetchStateWithTimeout(timeoutMs = 9000) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch('/api/state', { signal: ctrl.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error('State HTTP ' + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(tid);
     }
+  }
+
+  async function initialFetch() {
+    // 1. Instant 0ms render so all 76 dishes load immediately even on slow 2G/3G or sleeping server
+    bootInstantFromCacheOrMenu();
+
+    if ('serviceWorker' in navigator && isHttp) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    if (!isHttp) return;
+
+    const tryLiveSync = async (attempt = 0) => {
+      try {
+        const snap = await fetchStateWithTimeout(9000);
+        appState.staticMode = false;
+        $('syncStatusBadge').textContent = '● Live Sync';
+        applySnapshot(snap);
+        persistSnapshotToCache(snap);
+        connectRealtime();
+      } catch {
+        // Render free tier cold-start retry silently in background while menu is already usable
+        if (attempt < 8) {
+          setTimeout(() => tryLiveSync(attempt + 1), 6000);
+        }
+      }
+    };
+    tryLiveSync(0);
   }
 
   function getLiveOpenStatusText() {
@@ -1142,7 +1205,7 @@
       return;
     }
     grid.innerHTML = filtered
-      .map((item) => {
+      .map((item, idx) => {
         const qty = appState.cart[item.id] || 0;
         const soldOut = item.available === false;
         const dishImg = getDishImage(item);
@@ -1159,7 +1222,7 @@
           : `<button type="button" class="btn btn-primary btn-sm menu-order-btn" data-action="inc" data-id="${item.id}">+ Order Now</button>`;
 
         const mediaHtml = dishImg
-          ? `<img class="dish-photo-img" src="${escapeHtml(dishImg)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='assets/veg-kadai.jpg';" />`
+          ? `<img class="dish-photo-img" src="${escapeHtml(dishImg)}" alt="${escapeHtml(item.name)}" loading="${idx < 14 ? 'eager' : 'lazy'}" decoding="async" onerror="if(!this.dataset.r){this.dataset.r='1';const u=this.src;setTimeout(()=>{this.src=u+(u.includes('?')?'&':'?')+'t=1';},700);}else{this.onerror=null;this.src='assets/veg-kadai.jpg';}" />`
           : `<div class="dish-no-photo-placeholder" aria-label="No dish photo"><span>${escapeHtml(item.emoji)}</span><small>100% Pure Veg</small></div>`;
 
         return `

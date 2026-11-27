@@ -1673,6 +1673,12 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
   }
   const ext = path.extname(fullPath).toLowerCase();
   const mime = MIME_TYPES[ext] || 'application/octet-stream';
+  const isAsset = pathname.startsWith('/assets/');
+  const cacheControl = pathname === '/sw.js'
+    ? 'no-cache, no-store, must-revalidate'
+    : isAsset
+    ? 'public, max-age=604800, stale-while-revalidate=86400'
+    : 'public, max-age=60';
   const stat = fs.statSync(fullPath);
   const range = req.headers.range;
   if (range) {
@@ -1685,7 +1691,8 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
           'Content-Range': `bytes ${start}-${end}/${stat.size}`,
           'Accept-Ranges': 'bytes',
           'Content-Length': end - start + 1,
-          'Content-Type': mime
+          'Content-Type': mime,
+          'Cache-Control': cacheControl
         });
         return fs.createReadStream(fullPath, { start, end }).pipe(res);
       }
@@ -1694,7 +1701,8 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
   res.writeHead(200, {
     'Content-Type': mime,
     'Content-Length': stat.size,
-    'Accept-Ranges': 'bytes'
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': cacheControl
   });
   fs.createReadStream(fullPath).pipe(res);
 });
