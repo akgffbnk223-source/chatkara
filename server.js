@@ -380,19 +380,20 @@ function getPublicSnapshot() {
       instagramHandle: db.settings.instagramHandle || 'chatkaro_the_food_hub',
       instagramReels: db.settings.instagramReels || 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
       bgMusicEnabled: db.settings.bgMusicEnabled !== false,
-      bgMusicUrl: db.settings.bgMusicUrl || '',
-      bgMusicVideoId: db.settings.bgMusicVideoId || extractYoutubeVideoId(db.settings.bgMusicUrl || ''),
-      bgMusicTitle: db.settings.bgMusicTitle || 'Calm Cafe Music',
-      googleClientId: db.settings.googleClientId,
+      bgMusicUrl: db.settings.bgMusicUrl || process.env.BG_MUSIC_URL || '',
+      bgMusicVideoId: db.settings.bgMusicVideoId || extractYoutubeVideoId(db.settings.bgMusicUrl || process.env.BG_MUSIC_URL || ''),
+      bgMusicPlaylistId: db.settings.bgMusicPlaylistId || extractYoutubePlaylistId(db.settings.bgMusicUrl || process.env.BG_MUSIC_URL || ''),
+      bgMusicTitle: db.settings.bgMusicTitle || process.env.BG_MUSIC_TITLE || 'Calm Cafe Music',
+      googleClientId: db.settings.googleClientId || process.env.GOOGLE_CLIENT_ID || '',
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
       dailyDeal: db.settings.dailyDeal,
       brandTheme: db.settings.brandTheme,
       hasPlacesKey: Boolean(db.settings.googlePlacesApiKey && db.settings.googlePlaceId),
       hasGeminiKey: Boolean(getActiveGeminiKey()),
-      merchantUpiId: db.settings.merchantUpiId || '',
-      razorpayKeyId: db.settings.razorpayKeyId || '',
-      hasRazorpay: Boolean(db.settings.razorpayKeyId && db.settings.razorpayKeySecret),
+      merchantUpiId: db.settings.merchantUpiId || process.env.MERCHANT_UPI_ID || '',
+      razorpayKeyId: db.settings.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '',
+      hasRazorpay: Boolean((db.settings.razorpayKeyId || process.env.RAZORPAY_KEY_ID) && (db.settings.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET)),
       hasPhonePeGateway: Boolean(db.settings.phonepeMerchantId && db.settings.phonepeSaltKey),
       phonepeEnv: db.settings.phonepeEnv || 'sandbox'
     },
@@ -547,8 +548,14 @@ function extractYoutubeVideoId(rawUrl) {
   const s = String(rawUrl || '').trim();
   if (!s) return '';
   if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
-  const m = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
+  const m = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
     || s.match(/[?&]v=([A-Za-z0-9_-]{11})/i);
+  return m ? m[1] : '';
+}
+
+function extractYoutubePlaylistId(rawUrl) {
+  const s = String(rawUrl || '').trim();
+  const m = s.match(/[?&]list=([A-Za-z0-9_-]+)/i);
   return m ? m[1] : '';
 }
 
@@ -1795,20 +1802,27 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
         'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
         'bgMusicUrl', 'bgMusicTitle',
-        'address', 'plusCode', 'googleClientId', 'googlePlacesApiKey', 'googlePlaceId', 'geminiApiKey',
-        'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret',
-        'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv'
+        'address', 'plusCode', 'googleClientId', 'googlePlaceId',
+        'merchantUpiId', 'razorpayKeyId',
+        'phonepeMerchantId', 'phonepeSaltIndex', 'phonepeEnv'
       ].forEach((k) => {
         if (s[k] !== undefined) db.settings[k] = String(s[k]).trim();
+      });
+      // Preserve secrets unless non-empty replacement value is sent
+      ['geminiApiKey', 'razorpayKeySecret', 'phonepeSaltKey', 'googlePlacesApiKey'].forEach((k) => {
+        if (s[k] !== undefined && String(s[k]).trim() !== '') {
+          db.settings[k] = String(s[k]).trim();
+        }
       });
       if (s.bgMusicEnabled !== undefined) db.settings.bgMusicEnabled = Boolean(s.bgMusicEnabled);
       if (s.bgMusicUrl !== undefined) {
         db.settings.bgMusicVideoId = extractYoutubeVideoId(s.bgMusicUrl);
+        db.settings.bgMusicPlaylistId = extractYoutubePlaylistId(s.bgMusicUrl);
       }
       if (s.rating !== undefined) db.settings.rating = Number(s.rating);
       if (s.reviewCount !== undefined) db.settings.reviewCount = Number(s.reviewCount);
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { ok: true });
+      return sendJson(res, 200, { ok: true, state: getPublicSnapshot() });
     }
 
     if (pathname === '/api/admin/daily-ai-ad' && req.method === 'POST') {
@@ -1816,7 +1830,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const campaign = await refreshDailyAiCampaign(true);
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { ok: true, dailyAiAd: campaign });
+      return sendJson(res, 200, { ok: true, dailyAiAd: campaign, state: getPublicSnapshot() });
     }
 
     if (pathname === '/api/admin/test-gemini' && req.method === 'POST') {
@@ -1941,4 +1955,10 @@ server.listen(PORT, () => {
   setInterval(() => {
     refreshDailyAiCampaign(false).then(() => broadcast('state', getPublicSnapshot())).catch(() => {});
   }, 3600 * 1000);
+  // Keep SSE connections alive across mobile networks & Render proxies
+  setInterval(() => {
+    for (const client of sseClients) {
+      try { client.write(': ping\n\n'); } catch { sseClients.delete(client); }
+    }
+  }, 20000);
 });

@@ -888,29 +888,35 @@
 
   <aside class="ai-widget hidden" id="aiWidget" aria-label="Chatkaro Gemini AI Assistant">
     <div class="ai-widget-head">
-      <div>
-        <strong>✨ Chatkaro Gemini AI</strong>
-        <small id="aiEngineBadge">Gemini Smart Assistant</small>
+      <div class="ai-head-left">
+        <span class="ai-avatar-dot" aria-hidden="true">🤖</span>
+        <div>
+          <strong>Chatkaro Gemini AI</strong>
+          <small id="aiEngineBadge">● Online • Ask Anything</small>
+        </div>
       </div>
-      <button type="button" class="close-drawer-btn" id="closeAiBtn" aria-label="Close AI chat">✕</button>
+      <div class="ai-head-actions">
+        <button type="button" class="ai-head-clear" id="clearAiBtn" title="Clear conversation">↺ Clear</button>
+        <button type="button" class="close-drawer-btn" id="closeAiBtn" aria-label="Close AI chat">✕</button>
+      </div>
     </div>
     <div class="ai-widget-messages" id="aiMessages">
       <div class="ai-bubble bot">
         Namaste! 🙏 Main <strong>Chatkaro Gemini AI</strong> hoon. Aap mujhse <strong>kuch bhi</strong> pooch sakte hain ya baat kar sakte hain:<br/>
         • Koi bhi general sawal, Talala/Sasan Gir tips ya friendly chat<br/>
         • Taste ke hisaab se best dish recommendation &amp; prices<br/>
-        • Live tables, timings, payment, music ya order help!
+        • Live tables, timings, payment, song ya order help!
       </div>
     </div>
     <div class="ai-quick-prompts">
-      <button type="button" class="quick-ai-btn" data-q="Kya kya milega menu mein?">🍽️ Kya milega?</button>
-      <button type="button" class="quick-ai-btn" data-q="Kya kya sold out hai?">❌ Sold out?</button>
-      <button type="button" class="quick-ai-btn" data-q="Order kaise karu?">🛒 Order kaise karu?</button>
-      <button type="button" class="quick-ai-btn" data-q="Koi table khali hai kya?">🪑 Table khali?</button>
+      <button type="button" class="quick-ai-btn" data-q="Aaj kuch spicy aur chatpata veg suggest karo!">🌶️ Spicy Suggest</button>
+      <button type="button" class="quick-ai-btn" data-q="Kya kya milega menu mein?">🍽️ Menu</button>
+      <button type="button" class="quick-ai-btn" data-q="Koi table khali hai kya?">🪑 Tables</button>
+      <button type="button" class="quick-ai-btn" data-q="Order kaise karu?">🛒 Order Help</button>
     </div>
     <form class="ai-widget-form" id="aiChatForm">
-      <input type="text" id="aiChatInput" placeholder="Ask in Hindi, Hinglish or English..." required />
-      <button type="submit" class="btn btn-primary btn-sm">Ask</button>
+      <input type="text" id="aiChatInput" placeholder="Kuch bhi poochhein (Hindi, Hinglish, English)..." required />
+      <button type="submit" class="btn btn-primary btn-sm">Send →</button>
     </form>
   </aside>
 

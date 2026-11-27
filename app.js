@@ -598,6 +598,22 @@
       }
     };
     tryLiveSync(0);
+
+    // Keep all phones & PCs auto-synced even if mobile 4G throttles SSE
+    const syncQuietly = async () => {
+      try {
+        const snap = await fetchStateWithTimeout(8000);
+        appState.staticMode = false;
+        $('syncStatusBadge').textContent = '● Live Sync';
+        applySnapshot(snap);
+        persistSnapshotToCache(snap);
+      } catch {}
+    };
+    setInterval(syncQuietly, 15000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') syncQuietly();
+    });
+    window.addEventListener('online', syncQuietly);
   }
 
   function getLiveOpenStatusText() {
@@ -716,7 +732,8 @@
     if (!btn) return;
     const s = appState.settings || {};
     const vid = String(s.bgMusicVideoId || '').trim();
-    if (!vid || s.bgMusicEnabled === false) {
+    const pid = String(s.bgMusicPlaylistId || '').trim();
+    if ((!vid && !pid) || s.bgMusicEnabled === false) {
       btn.classList.add('hidden');
       btn.classList.remove('playing');
       return;
@@ -734,15 +751,18 @@
     }
   }
 
-  function createOrLoadYtPlayer(videoId) {
-    if (!videoId) return;
+  function createOrLoadYtPlayer(videoId, playlistId = '') {
+    if (!videoId && !playlistId) return;
     if (!window.YT || !window.YT.Player) {
       bgMusicState.pendingCreateId = videoId;
+      bgMusicState.pendingPlaylistId = playlistId;
       if (!bgMusicState.apiLoading) {
         bgMusicState.apiLoading = true;
         window.onYouTubeIframeAPIReady = () => {
           bgMusicState.apiReady = true;
-          if (bgMusicState.pendingCreateId) createOrLoadYtPlayer(bgMusicState.pendingCreateId);
+          if (bgMusicState.pendingCreateId || bgMusicState.pendingPlaylistId) {
+            createOrLoadYtPlayer(bgMusicState.pendingCreateId, bgMusicState.pendingPlaylistId);
+          }
         };
         const sc = document.createElement('script');
         sc.src = 'https://www.youtube.com/iframe_api';
@@ -751,12 +771,14 @@
       }
       return;
     }
-    if (bgMusicState.player && bgMusicState.currentVideoId === videoId) {
+    const targetSig = `${videoId || ''}:${playlistId || ''}`;
+    if (bgMusicState.player && bgMusicState.currentSig === targetSig) {
       applyBgMusicPlayState();
       return;
     }
-    if (bgMusicState.player && typeof bgMusicState.player.loadVideoById === 'function') {
+    if (bgMusicState.player && typeof bgMusicState.player.loadVideoById === 'function' && videoId) {
       bgMusicState.currentVideoId = videoId;
+      bgMusicState.currentSig = targetSig;
       bgMusicState.player.loadVideoById({ videoId, startSeconds: 0 });
       applyBgMusicPlayState();
       return;
@@ -765,31 +787,51 @@
     if (!host) return;
     host.innerHTML = '<div id="ytMusicInner"></div>';
     bgMusicState.currentVideoId = videoId;
+    bgMusicState.currentSig = targetSig;
+    const pVars = {
+      autoplay: 1,
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      loop: 1,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0,
+      origin: window.location.origin
+    };
+    if (playlistId && !videoId) {
+      pVars.listType = 'playlist';
+      pVars.list = playlistId;
+    } else if (videoId) {
+      pVars.playlist = playlistId || videoId;
+    }
     bgMusicState.player = new window.YT.Player('ytMusicInner', {
-      height: '1',
-      width: '1',
-      videoId,
-      playerVars: {
-        autoplay: 1,
-        controls: 0,
-        disablekb: 1,
-        fs: 0,
-        loop: 1,
-        playlist: videoId,
-        modestbranding: 1,
-        playsinline: 1,
-        rel: 0
-      },
+      height: '135',
+      width: '240',
+      videoId: videoId || undefined,
+      playerVars: pVars,
       events: {
         onReady: (e) => {
-          e.target.setVolume(45);
+          // Start muted first for instant browser autoplay compliance; unmute cleanly on first tap/gesture
+          if (!bgMusicState.unlockedByGesture) {
+            try { e.target.mute(); } catch {}
+          } else {
+            try { e.target.unMute(); e.target.setVolume(55); } catch {}
+          }
           applyBgMusicPlayState();
         },
         onStateChange: (e) => {
-          if (e.data === window.YT.PlayerState.ENDED && !bgMusicState.userOff && appState.settings.bgMusicEnabled !== false) {
-            e.target.seekTo(0);
-            e.target.playVideo();
+          const shouldPlay = !bgMusicState.userOff && appState.settings.bgMusicEnabled !== false;
+          if (!shouldPlay) return;
+          if (e.data === window.YT.PlayerState.ENDED) {
+            try {
+              e.target.seekTo(0, true);
+              e.target.playVideo();
+            } catch {}
           }
+        },
+        onError: () => {
+          showToast('Note: This YouTube video restricts background embedding; try another music link.');
         }
       }
     });
@@ -800,12 +842,14 @@
     const p = bgMusicState.player;
     updateMusicButtonUI();
     if (!p || typeof p.playVideo !== 'function') return;
-    if (!s.bgMusicVideoId || s.bgMusicEnabled === false || bgMusicState.userOff) {
+    if ((!s.bgMusicVideoId && !s.bgMusicPlaylistId) || s.bgMusicEnabled === false || bgMusicState.userOff) {
       try { p.pauseVideo(); } catch {}
     } else {
       try {
-        p.unMute();
-        p.setVolume(45);
+        if (bgMusicState.unlockedByGesture) {
+          p.unMute();
+          p.setVolume(55);
+        }
         p.playVideo();
       } catch {}
     }
@@ -814,14 +858,15 @@
   function syncBgMusicPlayer() {
     const s = appState.settings || {};
     const vid = String(s.bgMusicVideoId || '').trim();
+    const pid = String(s.bgMusicPlaylistId || '').trim();
     updateMusicButtonUI();
-    if (!vid || s.bgMusicEnabled === false) {
+    if ((!vid && !pid) || s.bgMusicEnabled === false) {
       if (bgMusicState.player && typeof bgMusicState.player.pauseVideo === 'function') {
         try { bgMusicState.player.pauseVideo(); } catch {}
       }
       return;
     }
-    createOrLoadYtPlayer(vid);
+    createOrLoadYtPlayer(vid, pid);
   }
 
   $('musicFloatBtn')?.addEventListener('click', (e) => {
@@ -3418,9 +3463,13 @@
           googlePlaceId: $('admPlaceId').value,
           googlePlacesApiKey: $('admPlacesKey').value
         };
-        await api('/api/admin/settings', 'POST', { settings: payload }, pinHeaders);
+        const res = await api('/api/admin/settings', 'POST', { settings: payload }, pinHeaders);
         appState.adminFullSettings = { ...(appState.adminFullSettings || {}), ...payload };
-        showToast('Settings, Music, Gateways & Gemini saved!');
+        if (res?.state) {
+          applySnapshot(res.state);
+          persistSnapshotToCache(res.state);
+        }
+        showToast('Settings, Music, Gateways & Gemini saved for all devices! ✅');
       });
 
       $('admTestGeminiBtn')?.addEventListener('click', async () => {
@@ -3457,11 +3506,27 @@
   }
 
   // ================= FLOATING GEMINI AI ASSISTANT =================
+  function formatAiMessageHtml(raw) {
+    let html = escapeHtml(String(raw || ''));
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:4px;">$1</code>');
+    html = html.replace(/\n/g, '<br/>');
+    return html;
+  }
+
   $('openAiFab').addEventListener('click', () => {
     $('aiWidget').classList.toggle('hidden');
     if (!$('aiWidget').classList.contains('hidden')) $('aiChatInput').focus();
   });
   $('closeAiBtn').addEventListener('click', () => $('aiWidget').classList.add('hidden'));
+  $('clearAiBtn')?.addEventListener('click', () => {
+    appState.aiHistory = [];
+    const box = $('aiMessages');
+    if (box) {
+      box.innerHTML = `<div class="ai-bubble bot">Namaste! 🙏 Nayi conversation shuru ho gayi hai. Poochhein kuch bhi!</div>`;
+    }
+  });
 
   async function askAiAssistant(question) {
     const q = question.trim();
@@ -3475,16 +3540,27 @@
 
     const typingBubble = document.createElement('div');
     typingBubble.className = 'ai-bubble bot';
-    typingBubble.textContent = 'Thinking... ✨';
+    typingBubble.innerHTML = '<em>Thinking... ✨</em>';
     box.appendChild(typingBubble);
     box.scrollTop = box.scrollHeight;
 
     try {
-      const res = await api('/api/ai-chat', 'POST', { message: q, history: appState.aiHistory });
-      typingBubble.textContent = res.reply;
+      let res;
+      if (isHttp) {
+        const r = await fetch('/api/ai-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: q, history: appState.aiHistory })
+        });
+        res = await r.json();
+        if (!r.ok) throw new Error(res.error || 'AI error');
+      } else {
+        res = await api('/api/ai-chat', 'POST', { message: q, history: appState.aiHistory });
+      }
+      typingBubble.innerHTML = formatAiMessageHtml(res.reply);
       appState.aiHistory.push({ role: 'user', text: q }, { role: 'model', text: res.reply });
       if (res.engine && !res.engine.includes('fallback') && !res.engine.includes('smart-menu')) {
-        $('aiEngineBadge').textContent = `Gemini Live (${res.engine}) ✨`;
+        $('aiEngineBadge').textContent = `● Gemini Live (${res.engine})`;
       }
     } catch (err) {
       typingBubble.textContent = 'Error: ' + err.message;
