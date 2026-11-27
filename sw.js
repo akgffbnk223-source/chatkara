@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chatkaro-shell-v6';
+const CACHE_NAME = 'chatkaro-shell-v7';
 const IMG_CACHE = 'chatkaro-media-v3';
 const SHELL_ASSETS = [
   './',
@@ -70,5 +70,18 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || './#menu';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ('focus' in c) return c.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
   );
 });

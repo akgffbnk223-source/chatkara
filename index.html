@@ -58,6 +58,9 @@
       </nav>
 
       <div class="header-actions">
+        <button type="button" class="icon-pill-btn notif-bell-btn" id="headerNotifBtn" title="New Dish &amp; Discount Alerts" aria-label="Notifications">
+          🔔 <span class="notif-badge hidden" id="notifUnreadBadge">0</span>
+        </button>
         <button type="button" class="icon-pill-btn app-dl-pill" id="headerDownloadAppBtn" title="Download Phone App">📲 App</button>
         <button type="button" class="icon-pill-btn hover-pop" id="themeToggleBtn" title="Switch Dark / White theme">☀️ White</button>
         <button type="button" class="icon-pill-btn admin-pill hover-pop" id="openAdminBtn" title="Owner Admin Dashboard">⚙️ Admin</button>
@@ -1075,6 +1078,34 @@
     </button>
     <button type="button" class="mobile-nav-item highlight" id="mobileNavAppBtn"><span>📲</span><small>Get App</small></button>
   </nav>
+
+  <!-- Notifications Drawer Modal (New Dishes & Discounts) -->
+  <div class="modal-backdrop hidden" id="notifModal">
+    <div class="modal-card">
+      <button type="button" class="close-drawer-btn modal-close" id="closeNotifModalBtn" aria-label="Close">✕</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.6rem;flex-wrap:wrap;padding-right:2rem;">
+        <div>
+          <h2 style="margin:0;">🔔 Live Shop Alerts</h2>
+          <small class="muted">New dishes, mega discounts &amp; special offers</small>
+        </div>
+        <button type="button" class="btn btn-primary btn-xs" id="enablePushAlertsBtn">🔔 Enable Phone Alerts</button>
+      </div>
+      <div id="notifListWrap" style="margin-top:0.85rem;display:grid;gap:0.55rem;max-height:58vh;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Live Floating Offer / New Dish Popup Card -->
+  <div class="live-notice-card hidden" id="liveNoticeCard" role="status" aria-live="polite">
+    <img id="liveNoticeImg" src="assets/app-icon-192.png" alt="Offer" />
+    <div class="live-notice-body">
+      <strong id="liveNoticeTitle">🆕 New Update!</strong>
+      <p id="liveNoticeText"></p>
+      <div class="live-notice-actions">
+        <button type="button" class="btn btn-primary btn-xs" id="liveNoticeActionBtn">🍽️ View &amp; Order</button>
+        <button type="button" class="btn btn-outline btn-xs" id="liveNoticeCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Confetti Overlay Canvas -->
   <canvas id="confettiCanvas" class="confetti-canvas" aria-hidden="true"></canvas>

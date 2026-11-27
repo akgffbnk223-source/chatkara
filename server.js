@@ -35,6 +35,7 @@ function createDefaultDb() {
   return {
     settings: {
       restaurantName: 'Chatkaro Food Hub',
+      ownerName: 'Het',
       rating: 4.9,
       reviewCount: 113,
       priceRange: '₹1–300 per person',
@@ -213,9 +214,10 @@ function loadDb() {
       if (!parsed.settings) parsed.settings = def.settings;
       if (!parsed.settings.brandTheme) parsed.settings.brandTheme = def.settings.brandTheme;
       if (!parsed.settings.dailyDeal) parsed.settings.dailyDeal = def.settings.dailyDeal;
-      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'apkDownloadUrl', 'instagramHandle', 'instagramReels'].forEach((k) => {
+      ['ownerName', 'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'apkDownloadUrl', 'instagramHandle', 'instagramReels'].forEach((k) => {
         if (parsed.settings[k] === undefined) parsed.settings[k] = def.settings[k];
       });
+      if (!Array.isArray(parsed.notifications)) parsed.notifications = [];
       // Preserve env fallbacks if runtime settings are unset
       if (!parsed.settings.bgMusicUrl && process.env.BG_MUSIC_URL) {
         parsed.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
@@ -466,6 +468,7 @@ function getPublicSnapshot() {
   return {
     settings: {
       restaurantName: db.settings.restaurantName,
+      ownerName: db.settings.ownerName || 'Het',
       rating: db.settings.rating,
       reviewCount: db.settings.reviewCount,
       priceRange: db.settings.priceRange || '₹1–300 per person',
@@ -500,6 +503,7 @@ function getPublicSnapshot() {
     },
     menu: db.menu,
     ads: Array.isArray(db.ads) ? db.ads : [],
+    notifications: Array.isArray(db.notifications) ? db.notifications.slice(0, 12) : [],
     dailyAiAd: db.dailyAiAd || null,
     tables: db.tables,
     orders: realOrders.slice(0, 60),
@@ -1709,19 +1713,49 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
   }
 }
 
+function pushShopNotification({ type = 'offer', title, body, dishId = '', image = '' }) {
+  if (!Array.isArray(db.notifications)) db.notifications = [];
+  const note = {
+    id: 'ntf-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+    type,
+    title: String(title || 'Chatkaro Food Hub Update').trim(),
+    body: String(body || '').trim(),
+    dishId: String(dishId || '').trim(),
+    image: String(image || '').trim(),
+    createdAt: Date.now()
+  };
+  db.notifications.unshift(note);
+  db.notifications = db.notifications.slice(0, 25);
+  broadcast('notice', note);
+  return note;
+}
+
     if (pathname === '/api/admin/menu' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const item = body.item || {};
       if (!item.name || item.price === undefined) return sendJson(res, 400, { error: 'Name and price required.' });
+      let notice = null;
       if (item.id && db.menu.some((m) => m.id === item.id)) {
-        db.menu = db.menu.map((m) => (m.id === item.id ? { ...m, ...item, price: Number(item.price) } : m));
+        const prev = db.menu.find((m) => m.id === item.id);
+        const newDisc = item.discountPct !== undefined ? Math.max(0, Math.min(80, Number(item.discountPct || 0))) : prev.discountPct;
+        const updatedItem = { ...prev, ...item, price: Number(item.price), discountPct: newDisc };
+        db.menu = db.menu.map((m) => (m.id === item.id ? updatedItem : m));
+        if (newDisc > 0 && Number(prev.discountPct || 0) !== newDisc) {
+          notice = pushShopNotification({
+            type: 'discount',
+            title: `🏷️ ${newDisc}% OFF on ${updatedItem.name}!`,
+            body: `Special Discount Live! Ab sirf ₹${updatedItem.price} mein — Order Now!`,
+            dishId: updatedItem.id,
+            image: updatedItem.image && updatedItem.image !== '__NONE__' ? updatedItem.image : 'assets/app-icon-192.png'
+          });
+        }
       } else {
         const newId = 'dish-' + Date.now();
         const cat = item.category || 'fast-food';
         const customImg = String(item.image || '').trim();
         const resolvedImg = customImg || (await autoFetchDishPhoto(item.name, cat, newId));
-        db.menu.unshift({
+        const created = {
           id: newId,
           name: String(item.name).trim(),
           guName: String(item.guName || '').trim(),
@@ -1736,10 +1770,18 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
           spicy: Boolean(item.spicy),
           discountPct: Math.max(0, Math.min(80, Number(item.discountPct || 0))),
           available: item.available !== false
+        };
+        db.menu.unshift(created);
+        notice = pushShopNotification({
+          type: 'new-dish',
+          title: `🆕 New Dish Added: ${created.name}!`,
+          body: `Fresh 100% Pure Veg @ ₹${created.price}${created.discountPct ? ` (${created.discountPct}% OFF)` : ''} — Tap to Order!`,
+          dishId: created.id,
+          image: created.image && created.image !== '__NONE__' ? created.image : 'assets/app-icon-192.png'
         });
       }
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { menu: db.menu, state: getPublicSnapshot() });
+      return sendJson(res, 200, { menu: db.menu, notice, state: getPublicSnapshot() });
     }
 
     if (pathname === '/api/admin/menu/bulk-discount' && req.method === 'POST') {
@@ -1747,8 +1789,34 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const pct = Math.max(0, Math.min(75, Number(body.discountPct || 0)));
       db.menu = db.menu.map((m) => ({ ...m, discountPct: pct }));
+      let notice = null;
+      if (pct > 0) {
+        notice = pushShopNotification({
+          type: 'discount',
+          title: `🔥 Mega Offer: Flat ${pct}% OFF on All Dishes!`,
+          body: `Har 100% Pure Veg dish par ${pct}% OFF shuru ho gaya hai — Abhi Order Karein!`,
+          image: 'assets/app-icon-192.png'
+        });
+      }
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { ok: true, discountPct: pct, menu: db.menu, state: getPublicSnapshot() });
+      return sendJson(res, 200, { ok: true, discountPct: pct, notice, menu: db.menu, state: getPublicSnapshot() });
+    }
+
+    if (pathname === '/api/admin/notify' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const title = String(body.title || '').trim();
+      const msg = String(body.body || '').trim();
+      if (!title && !msg) return sendJson(res, 400, { error: 'Notification title or message required.' });
+      const notice = pushShopNotification({
+        type: body.type || 'offer',
+        title: title || '📢 Chatkaro Food Hub Special Alert!',
+        body: msg,
+        dishId: body.dishId || '',
+        image: 'assets/app-icon-192.png'
+      });
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, notice, state: getPublicSnapshot() });
     }
 
     if (pathname === '/api/admin/backup' && req.method === 'GET') {
@@ -2042,7 +2110,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const s = body.settings || {};
       [
-        'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
+        'restaurantName', 'ownerName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
         'bgMusicUrl', 'bgMusicTitle', 'bgVideoUrl', 'apkDownloadUrl',
         'address', 'plusCode', 'googleClientId', 'googlePlaceId',

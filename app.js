@@ -472,6 +472,12 @@
         if (window.ChatkaroBridge.onGameRoomsUpdate) window.ChatkaroBridge.onGameRoomsUpdate(room);
       } catch {}
     });
+    es.addEventListener('notice', (ev) => {
+      try {
+        const note = JSON.parse(ev.data);
+        if (typeof handleIncomingNotice === 'function') handleIncomingNotice(note, true);
+      } catch {}
+    });
     es.onerror = () => {
       $('syncStatusBadge').textContent = '● Reconnecting...';
     };
@@ -525,6 +531,10 @@
     if (snap.settings) appState.settings = snap.settings;
     if (snap.menu) appState.menu = snap.menu;
     if (snap.ads) appState.ads = snap.ads;
+    if (snap.notifications) {
+      appState.notifications = snap.notifications;
+      if (typeof syncNotificationsUI === 'function') syncNotificationsUI(snap.notifications);
+    }
     if (snap.dailyAiAd) appState.dailyAiAd = snap.dailyAiAd;
     if (snap.tables) appState.tables = snap.tables;
     if (snap.orders) appState.orders = snap.orders;
@@ -2080,6 +2090,8 @@
       ? `PAID via ${(order.paymentMethod || 'online').toUpperCase()}`
       : 'Pay at Counter / COD';
     const isPaid = order.paymentStatus === 'paid';
+    const ownerName = String(appState.settings.ownerName || 'Het').trim() || 'Het';
+    const ownerUpper = ownerName.toUpperCase().slice(0, 14);
     const dt = order.createdAt ? new Date(order.createdAt) : new Date();
     const dateStr = dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const timeStr = dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -2089,38 +2101,41 @@
       return s + (m ? getDishPricing(m).save : Math.round(Number(i.price || 0) * 0.1)) * Number(i.qty || 1);
     }, 0);
 
-    $('orderConfirmMeta').textContent = `Official Royal Bill #${order.id} • ${order.orderType.toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''} • ${payLabel}`;
+    $('orderConfirmMeta').textContent = `Official Royal Bill #${order.id} • Owner: ${ownerName} • ${order.orderType.toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''}`;
     $('modalLiveEta').dataset.endsAt = order.etaEndsAt || '';
     $('orderReceiptBox').innerHTML = `
       <div class="royal-bill-card">
+        <div class="royal-bill-watermark">100% PURE VEG • ${escapeHtml(ownerUpper)}</div>
         <div class="royal-bill-header">
           <div class="royal-bill-emblem">👑</div>
           <h4>${escapeHtml(appState.settings.restaurantName || 'CHATKARO FOOD HUB')}</h4>
-          <p>100% PURE VEGETARIAN FAMILY RESTAURANT</p>
+          <p>100% PURE VEGETARIAN ROYAL FAMILY RESTAURANT</p>
+          <div class="royal-owner-pill">✨ Proprietor / Owner: ${escapeHtml(ownerName)}</div>
           <small>${escapeHtml(appState.settings.address || 'Beside Swaminarayan Mandir, Sasan Road, Talala')} • +91 ${(appState.settings.phone || '919054633908').replace(/^91/, '')}</small>
         </div>
 
         <div class="royal-bill-meta">
-          <div><span>Bill No:</span> <strong>#${escapeHtml(order.id)}</strong></div>
-          <div><span>Date:</span> <strong>${dateStr}, ${timeStr}</strong></div>
-          <div><span>Guest:</span> <strong>${escapeHtml(order.customerName)}</strong> (${escapeHtml(order.customerPhone)})</div>
-          <div><span>Mode:</span> <strong>${escapeHtml(order.orderType.toUpperCase())}${order.tableId ? ' • Table ' + escapeHtml(order.tableId) : ''}</strong></div>
+          <div><span>Invoice No:</span> <strong>#${escapeHtml(order.id)}</strong></div>
+          <div><span>Date &amp; Time:</span> <strong>${dateStr}, ${timeStr}</strong></div>
+          <div><span>Customer:</span> <strong>${escapeHtml(order.customerName)}</strong> (${escapeHtml(order.customerPhone)})</div>
+          <div><span>Order Mode:</span> <strong>${escapeHtml(order.orderType.toUpperCase())}${order.tableId ? ' • Table ' + escapeHtml(order.tableId) : ''}</strong></div>
           <div><span>Payment:</span> <strong style="color:${isPaid ? '#15803d' : '#b45309'};">${escapeHtml(payLabel)}${order.paymentId ? ' • ' + escapeHtml(order.paymentId) : ''}</strong></div>
+          <div><span>Owner:</span> <strong>${escapeHtml(ownerName)}</strong></div>
         </div>
 
         <table class="royal-bill-table">
           <thead>
             <tr>
-              <th>Item Description</th>
+              <th># Dish Item</th>
               <th style="text-align:center;">Qty</th>
               <th style="text-align:right;">Rate</th>
               <th style="text-align:right;">Amount</th>
             </tr>
           </thead>
           <tbody>
-            ${order.items.map((i) => `
+            ${order.items.map((i, idx) => `
               <tr>
-                <td>${escapeHtml(i.name)}</td>
+                <td><span class="royal-veg-dot"></span> ${idx + 1}. ${escapeHtml(i.name)}</td>
                 <td style="text-align:center;">${i.qty}</td>
                 <td style="text-align:right;">₹${i.price}</td>
                 <td style="text-align:right;"><strong>₹${i.price * i.qty}</strong></td>
@@ -2133,32 +2148,36 @@
           ${mrpSaved > 0 ? `<div class="bill-line discount"><span>🏷️ Menu MRP Discount Saved</span><span>−₹${mrpSaved}</span></div>` : ''}
           ${order.discount > 0 ? `<div class="bill-line discount"><span>🎟️ Promo Discount</span><span>−₹${order.discount}</span></div>` : ''}
           ${order.deliveryFee > 0 ? `<div class="bill-line"><span>🛵 Delivery Charge</span><span>₹${order.deliveryFee}</span></div>` : ''}
-          <div class="bill-line royal-grand-total"><span>GRAND TOTAL</span><span>₹${order.total}/-</span></div>
+          <div class="bill-line royal-grand-total"><span>GRAND TOTAL PAYABLE</span><span>₹${order.total}/-</span></div>
         </div>
 
         <div class="royal-bill-footer">
           <div class="royal-bill-thanks">
             <strong>🙏 Thank You for Dining With Us!</strong>
             <small>${escapeHtml(order.detail || 'Freshly cooked in pure veg kitchen')}</small>
-            <small>FSSAI Hygienic Standard • Authentic Talala Taste</small>
+            <small>FSSAI Hygienic Standard • Talala, Gujarat</small>
+            <div class="royal-sign-box">
+              <div class="royal-sign-script">${escapeHtml(ownerName)}</div>
+              <small style="color:#78716c;font-weight:700;">Authorized Signatory • Owner (${escapeHtml(ownerName)})</small>
+            </div>
           </div>
           <div class="mohar-stamp ${isPaid ? 'paid-stamp' : 'verified-stamp'}" aria-label="Official Restaurant Seal">
-            <svg viewBox="0 0 120 120" width="96" height="96">
+            <svg viewBox="0 0 120 120" width="102" height="102">
               <defs>
-                <path id="moharTopArc" d="M 18,60 A 42,42 0 1,1 102,60" />
-                <path id="moharBotArc" d="M 102,60 A 42,42 0 1,1 18,60" />
+                <path id="moharTopArc" d="M 16,60 A 44,44 0 1,1 104,60" />
+                <path id="moharBotArc" d="M 104,60 A 44,44 0 1,1 16,60" />
               </defs>
-              <circle cx="60" cy="60" r="55" fill="none" stroke="currentColor" stroke-width="3" />
-              <circle cx="60" cy="60" r="49" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2" />
-              <circle cx="60" cy="60" r="30" fill="none" stroke="currentColor" stroke-width="1.5" />
-              <text font-size="8.2" font-weight="800" fill="currentColor" letter-spacing="1.2">
+              <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="3" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2" />
+              <circle cx="60" cy="60" r="31" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <text font-size="7.8" font-weight="800" fill="currentColor" letter-spacing="1.1">
                 <textPath href="#moharTopArc" startOffset="50%" text-anchor="middle">★ CHATKARO FOOD HUB ★</textPath>
               </text>
-              <text font-size="7.5" font-weight="800" fill="currentColor" letter-spacing="1">
-                <textPath href="#moharBotArc" startOffset="50%" text-anchor="middle">TALALA • 100% PURE VEG</textPath>
+              <text font-size="6.9" font-weight="800" fill="currentColor" letter-spacing="0.9">
+                <textPath href="#moharBotArc" startOffset="50%" text-anchor="middle">OWNER: ${escapeHtml(ownerUpper)} • TALALA</textPath>
               </text>
-              <text x="60" y="56" text-anchor="middle" font-size="10.5" font-weight="900" fill="currentColor">${isPaid ? 'PAID ✓' : 'VERIFIED'}</text>
-              <text x="60" y="69" text-anchor="middle" font-size="7.2" font-weight="800" fill="currentColor">MOHAR SEAL</text>
+              <text x="60" y="56" text-anchor="middle" font-size="10.2" font-weight="900" fill="currentColor">${isPaid ? 'PAID ✓' : 'VERIFIED'}</text>
+              <text x="60" y="69" text-anchor="middle" font-size="6.8" font-weight="800" fill="currentColor">100% PURE VEG</text>
             </svg>
           </div>
         </div>
@@ -2166,7 +2185,8 @@
 
     const waPhone = appState.settings.phone || '919054633908';
     const waText = [
-      `*Official Bill — Chatkaro Food Hub (#${order.id})*`,
+      `*Royal Official Bill — Chatkaro Food Hub (#${order.id})*`,
+      `Owner: ${ownerName}`,
       `Customer: ${order.customerName} (${order.customerEmail || ''})`,
       `Phone: ${order.customerPhone}`,
       `Mode: ${order.orderType.toUpperCase()}${order.tableId ? ' | Table ' + order.tableId : ''}`,
@@ -3273,14 +3293,22 @@
             <button type="submit" class="btn btn-primary btn-sm" id="admAddDishSubmitBtn">Add Dish + Photo</button>
           </div>
         </form>
-        <div class="admin-row-card" style="margin-bottom:1rem;background:var(--surface-alt);justify-content:space-between;">
-          <strong>🏷️ All Dishes Discount (% OFF for MRP Strip)</strong>
+        <div class="admin-row-card" style="margin-bottom:0.75rem;background:var(--surface-alt);justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+          <strong>🏷️ All Dishes Discount (% OFF — Auto Sends Alert to Everyone!)</strong>
           <div class="admin-controls-inline">
             <input type="number" id="admBulkDiscInput" value="15" min="0" max="80" style="width:78px;" />
             <span class="small muted">% OFF on all</span>
-            <button type="button" class="btn btn-primary btn-xs" id="admBulkDiscBtn">Apply Discount to All Dishes</button>
+            <button type="button" class="btn btn-primary btn-xs" id="admBulkDiscBtn">Apply &amp; Notify Everyone</button>
           </div>
         </div>
+        <form id="admManualNotifForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);flex-wrap:wrap;gap:0.5rem;">
+          <strong>📢 Send Custom Offer Notice to All Phones &amp; Browsers</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="admNotifTitle" placeholder="Alert Title (e.g. 🎉 Sunday Special 20% OFF!)" style="flex:1;min-width:170px;" required />
+            <input type="text" id="admNotifBody" placeholder="Message (e.g. Aaj raat sabhi Paneer dishes par 20% OFF)" style="flex:1.4;min-width:200px;" required />
+            <button type="submit" class="btn btn-primary btn-xs">🔔 Send Notice to All</button>
+          </div>
+        </form>
         <div class="admin-grid-list">
           ${appState.menu
             .map(
@@ -3336,7 +3364,23 @@
         try {
           const res = await api('/api/admin/menu/bulk-discount', 'POST', { discountPct }, pinHeaders);
           if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
-          showToast(`Updated discount to ${discountPct}% OFF on all dishes! 🏷️`);
+          showToast(`Updated ${discountPct}% OFF & sent alert to everyone! 🔔`);
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('admManualNotifForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const res = await api('/api/admin/notify', 'POST', {
+            title: $('admNotifTitle').value.trim(),
+            body: $('admNotifBody').value.trim(),
+            type: 'offer'
+          }, pinHeaders);
+          $('admManualNotifForm').reset();
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast('📢 Notification sent to all phones & browsers!');
         } catch (err) {
           showToast(err.message);
         }
@@ -3851,8 +3895,10 @@
         <form id="admSettingsForm" class="stack-form">
           <div class="two-col">
             <div><label>Restaurant Name</label><input type="text" id="admRestName" value="${escapeHtml(s.restaurantName || '')}" /></div>
-            <div><label>Price Range</label><input type="text" id="admPriceRange" value="${escapeHtml(s.priceRange || '')}" /></div>
+            <div><label>Owner / Proprietor Full Name (Printed on Royal Bills)</label><input type="text" id="admOwnerName" value="${escapeHtml(s.ownerName || 'Het')}" placeholder="Het" /></div>
           </div>
+          <label>Price Range</label>
+          <input type="text" id="admPriceRange" value="${escapeHtml(s.priceRange || '')}" />
           <label>Top Announcement Banner</label>
           <input type="text" id="admAnnounce" value="${escapeHtml(s.announcement || '')}" />
           <label>Today’s Special Combo Deal</label>
@@ -3998,6 +4044,7 @@
         e.preventDefault();
         const payload = {
           restaurantName: $('admRestName').value,
+          ownerName: $('admOwnerName')?.value || 'Het',
           priceRange: $('admPriceRange').value,
           announcement: $('admAnnounce').value,
           dailyDeal: $('admDailyDeal').value,
@@ -4629,6 +4676,153 @@
     try { await navigator.clipboard.writeText(window.location.origin + window.location.pathname); } catch {}
     showToast('🔗 App download link copied! Share it on WhatsApp.');
   });
+
+  // ================= LIVE NEW DISH & DISCOUNT NOTIFICATIONS (ALL USERS + PUSH ALERTS) =================
+  let seenNoticeIds = new Set(JSON.parse(localStorage.getItem('chatkaro_seen_notices') || '[]'));
+  let lastReadNoticeAt = Number(localStorage.getItem('chatkaro_read_notice_at') || 0);
+  let activePopupDishId = '';
+  let liveNoticeHideTimer = null;
+
+  function persistSeenNotice(id) {
+    seenNoticeIds.add(id);
+    const trimmed = Array.from(seenNoticeIds).slice(-30);
+    seenNoticeIds = new Set(trimmed);
+    localStorage.setItem('chatkaro_seen_notices', JSON.stringify(trimmed));
+  }
+
+  function showOsPushNotification(note) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const icon = note.image && note.image.startsWith('assets/') ? note.image : 'assets/app-icon-192.png';
+    const opts = {
+      body: note.body || 'Tap to check new dish or discount at Chatkaro Food Hub!',
+      icon,
+      badge: 'assets/app-icon-192.png',
+      data: { url: './#menu' }
+    };
+    if (navigator.serviceWorker?.ready) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(note.title || 'Chatkaro Food Hub', opts))
+        .catch(() => { try { new Notification(note.title, opts); } catch {} });
+    } else {
+      try { new Notification(note.title, opts); } catch {}
+    }
+  }
+
+  function showLiveNoticePopup(note) {
+    if (!note || !note.id) return;
+    activePopupDishId = note.dishId || '';
+    if ($('liveNoticeImg')) $('liveNoticeImg').src = note.image || 'assets/app-icon-192.png';
+    if ($('liveNoticeTitle')) $('liveNoticeTitle').textContent = note.title || '🆕 Shop Offer Alert!';
+    if ($('liveNoticeText')) $('liveNoticeText').textContent = note.body || '';
+    $('liveNoticeCard')?.classList.remove('hidden');
+    clearTimeout(liveNoticeHideTimer);
+    liveNoticeHideTimer = setTimeout(() => $('liveNoticeCard')?.classList.add('hidden'), 11000);
+  }
+
+  function handleIncomingNotice(note, isRealTimeEvent = false) {
+    if (!note || !note.id) return;
+    if (!Array.isArray(appState.notifications)) appState.notifications = [];
+    if (!appState.notifications.some((n) => n.id === note.id)) {
+      appState.notifications.unshift(note);
+      appState.notifications = appState.notifications.slice(0, 12);
+    }
+    if (!seenNoticeIds.has(note.id)) {
+      persistSeenNotice(note.id);
+      if (isRealTimeEvent || Date.now() - Number(note.createdAt || 0) < 120000) {
+        showLiveNoticePopup(note);
+        showOsPushNotification(note);
+      }
+    }
+    syncNotificationsUI(appState.notifications);
+  }
+
+  function syncNotificationsUI(list) {
+    const items = Array.isArray(list) ? list : (appState.notifications || []);
+    const unread = items.filter((n) => Number(n.createdAt || 0) > lastReadNoticeAt).length;
+    const badge = $('notifUnreadBadge');
+    if (badge) {
+      if (unread > 0) {
+        badge.textContent = String(Math.min(9, unread));
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+    // Check if an unseen very recent (< 2 min) notice arrived while user was synced via snapshot
+    const fresh = items[0];
+    if (fresh && !seenNoticeIds.has(fresh.id)) {
+      persistSeenNotice(fresh.id);
+      if (Date.now() - Number(fresh.createdAt || 0) < 120000) {
+        showLiveNoticePopup(fresh);
+        showOsPushNotification(fresh);
+      }
+    }
+    if ($('notifListWrap')) {
+      $('notifListWrap').innerHTML = items.length
+        ? items.map((n) => `
+          <div class="notif-list-item" data-ntf-dish="${escapeHtml(n.dishId || '')}">
+            <img src="${escapeHtml(n.image || 'assets/app-icon-192.png')}" alt="" />
+            <div style="flex:1;min-width:0;">
+              <strong style="display:block;font-size:0.86rem;">${escapeHtml(n.title)}</strong>
+              <div class="muted small">${escapeHtml(n.body)}</div>
+              <small class="muted" style="font-size:0.7rem;">${new Date(n.createdAt || Date.now()).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</small>
+            </div>
+          </div>`).join('')
+        : '<p class="muted small">Abhi tak koi naya dish ya offer notification nahi hai — naya dish/discount aate hi yahan turant dikhega!</p>';
+    }
+  }
+
+  $('headerNotifBtn')?.addEventListener('click', () => {
+    lastReadNoticeAt = Date.now();
+    localStorage.setItem('chatkaro_read_notice_at', String(lastReadNoticeAt));
+    syncNotificationsUI(appState.notifications || []);
+    $('notifModal')?.classList.remove('hidden');
+  });
+  $('closeNotifModalBtn')?.addEventListener('click', () => $('notifModal')?.classList.add('hidden'));
+  $('notifModal')?.addEventListener('click', (e) => {
+    if (e.target === $('notifModal')) $('notifModal')?.classList.add('hidden');
+  });
+  $('notifListWrap')?.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-ntf-dish]');
+    if (!row) return;
+    $('notifModal')?.classList.add('hidden');
+    if (row.dataset.ntfDish) {
+      openDishDetailModal(row.dataset.ntfDish);
+    } else {
+      document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+  $('enablePushAlertsBtn')?.addEventListener('click', async () => {
+    if (!('Notification' in window)) return showToast('Browser alerts supported nahi hain — live popup notifications chal rahe hain!');
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      showToast('🔔 Phone & Browser Alerts ON! Har new dish & offer ki notice aayegi.');
+      showOsPushNotification({
+        title: 'Chatkaro Alerts Active! 🔔',
+        body: 'Nayi dish ya discount aate hi aapko turant notice milegi.',
+        image: 'assets/app-icon-192.png'
+      });
+    } else {
+      showToast('Alert permission allow karein browser settings se.');
+    }
+  });
+  $('liveNoticeCloseBtn')?.addEventListener('click', () => $('liveNoticeCard')?.classList.add('hidden'));
+  $('liveNoticeActionBtn')?.addEventListener('click', () => {
+    $('liveNoticeCard')?.classList.add('hidden');
+    if (activePopupDishId) {
+      openDishDetailModal(activePopupDishId);
+    } else {
+      document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Automatically offer alert permission softly after 1st click if not decided yet
+  window.addEventListener('pointerdown', () => {
+    if ('Notification' in window && Notification.permission === 'default' && !localStorage.getItem('chatkaro_asked_notif')) {
+      localStorage.setItem('chatkaro_asked_notif', '1');
+      Notification.requestPermission().catch(() => {});
+    }
+  }, { once: true, passive: true });
 
   initClientProtection();
   syncDownloadAppUI();
