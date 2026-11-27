@@ -42,6 +42,10 @@ function createDefaultDb() {
       phone: '919054633908',
       instagramHandle: 'chatkaro_the_food_hub',
       instagramReels: 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
+      bgMusicEnabled: true,
+      bgMusicUrl: '',
+      bgMusicVideoId: '',
+      bgMusicTitle: 'Calm Cafe Music',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       googleClientId: '',
       googlePlacesApiKey: '',
@@ -375,13 +379,17 @@ function getPublicSnapshot() {
       phone: db.settings.phone,
       instagramHandle: db.settings.instagramHandle || 'chatkaro_the_food_hub',
       instagramReels: db.settings.instagramReels || 'https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/',
+      bgMusicEnabled: db.settings.bgMusicEnabled !== false,
+      bgMusicUrl: db.settings.bgMusicUrl || '',
+      bgMusicVideoId: db.settings.bgMusicVideoId || extractYoutubeVideoId(db.settings.bgMusicUrl || ''),
+      bgMusicTitle: db.settings.bgMusicTitle || 'Calm Cafe Music',
       googleClientId: db.settings.googleClientId,
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
       dailyDeal: db.settings.dailyDeal,
       brandTheme: db.settings.brandTheme,
       hasPlacesKey: Boolean(db.settings.googlePlacesApiKey && db.settings.googlePlaceId),
-      hasGeminiKey: Boolean(db.settings.geminiApiKey),
+      hasGeminiKey: Boolean(getActiveGeminiKey()),
       merchantUpiId: db.settings.merchantUpiId || '',
       razorpayKeyId: db.settings.razorpayKeyId || '',
       hasRazorpay: Boolean(db.settings.razorpayKeyId && db.settings.razorpayKeySecret),
@@ -390,6 +398,7 @@ function getPublicSnapshot() {
     },
     menu: db.menu,
     ads: Array.isArray(db.ads) ? db.ads : [],
+    dailyAiAd: db.dailyAiAd || null,
     tables: db.tables,
     orders: realOrders.slice(0, 60),
     reviews: db.reviews.slice(0, 50),
@@ -530,6 +539,81 @@ function fetchGooglePlaces(placeId, apiKey) {
   });
 }
 
+function getActiveGeminiKey() {
+  return String(db?.settings?.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
+}
+
+function extractYoutubeVideoId(rawUrl) {
+  const s = String(rawUrl || '').trim();
+  if (!s) return '';
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i)
+    || s.match(/[?&]v=([A-Za-z0-9_-]{11})/i);
+  return m ? m[1] : '';
+}
+
+function getIstDateKey() {
+  try {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+const DAILY_AI_THEMES = [
+  { tag: '🔥 MASALA MONDAY', accent: '#ef4444', line: 'Spicy Veg Angara & smoky Tandoori specials hot off the flame today!' },
+  { tag: '🫓 TANDOOR TUESDAY', accent: '#f97316', line: 'Crispy Butter Naan, Stuffed Kulcha & sizzling Paneer Tikka combos!' },
+  { tag: '🧀 CHEESE WEDNESDAY', accent: '#eab308', line: 'Extra loaded Cheese Anguri, Cheese Butter Masala & Cheese Dosa!' },
+  { tag: '🥞 DOSA THURSDAY', accent: '#22c55e', line: 'Paper-thin Mysore Masala & Ghee Roast Dosas with piping hot Sambar!' },
+  { tag: '🥡 INDO-CHINESE FRIDAY', accent: '#ec4899', line: 'Wok-tossed Hakka Noodles, Dry Manchurian & fiery Schezwan Rice!' },
+  { tag: '🥜 ROYAL SATURDAY', accent: '#a855f7', line: 'Weekend family feast: Rich Kaju Curry, Kaju Paneer & Punjabi Thali!' },
+  { tag: '👨‍👩‍👧‍👦 FAMILY SUNDAY', accent: '#dc2626', line: 'Full Talala Pure-Veg celebration — order online or book your table live!' }
+];
+
+async function refreshDailyAiCampaign(force = false) {
+  const today = getIstDateKey();
+  if (!force && db.dailyAiAd && db.dailyAiAd.date === today) return db.dailyAiAd;
+
+  const avail = (db.menu || []).filter((m) => m.available !== false);
+  const dayIdx = new Date().getDay();
+  const baseTheme = DAILY_AI_THEMES[(dayIdx + 6) % 7];
+  const seed = Number(today.replace(/-/g, '')) || 1;
+  const picks = [];
+  if (avail.length) {
+    for (let i = 0; i < Math.min(4, avail.length); i++) {
+      picks.push(avail[(seed + i * 17) % avail.length]);
+    }
+  }
+
+  let headline = `${baseTheme.tag}: ${picks[0]?.name || 'Chef Special'} + Fresh Sides!`;
+  let subline = baseTheme.line;
+  const key = getActiveGeminiKey();
+  if (key && force) {
+    try {
+      const prompt = `Write a catchy 1-line pure-veg restaurant daily promo headline (max 9 words) and 1 short appetizing subline (max 14 words) in Hinglish/English for Chatkaro Food Hub Talala featuring: ${picks.map((p) => `${p.name} (₹${p.price})`).join(', ')}. Return plain JSON: {"headline":"...","subline":"..."}`;
+      const { text } = await callGeminiApi(key, prompt, [], 180);
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) {
+        const parsed = JSON.parse(m[0]);
+        if (parsed.headline) headline = String(parsed.headline).slice(0, 90);
+        if (parsed.subline) subline = String(parsed.subline).slice(0, 140);
+      }
+    } catch {}
+  }
+
+  db.dailyAiAd = {
+    date: today,
+    tag: baseTheme.tag,
+    accent: baseTheme.accent,
+    headline,
+    subline,
+    featuredIds: picks.map((p) => p.id),
+    updatedAt: Date.now()
+  };
+  saveDb();
+  return db.dailyAiAd;
+}
+
 function buildAiSystemContext() {
   const availableItems = db.menu.filter((m) => m.available !== false);
   const soldOutItems = db.menu.filter((m) => m.available === false);
@@ -537,70 +621,97 @@ function buildAiSystemContext() {
   const busyTables = db.tables.filter((t) => t.status === 'occupied').map((t) => `${t.label} (${t.occupantName})`);
 
   return [
-    `You are "Chatkaro AI", the friendly, helpful pure-vegetarian restaurant assistant for ${db.settings.restaurantName} in Talala, Gujarat.`,
-    `Reply warmly in the same language as the user (Hinglish, Hindi, Gujarati, or English). Keep replies concise, clear, and appetizing.`,
-    `Restaurant Details:`,
-    `- Pure Vegetarian (100% All-Veg)`,
+    `You are "Chatkaro AI", the warm, witty, super-helpful assistant and friendly conversational host for ${db.settings.restaurantName} in Talala (Gir), Gujarat.`,
+    `IMPORTANT: You can talk naturally with customers about ANYTHING they ask — whether it is general conversation (greetings, jokes, weather, Sasan Gir trip tips, spicy vs mild moods, health/veg info, birthday/party advice) OR restaurant questions (menu, prices, tables, timings, ordering, payments, live music). Always reply warmly in the customer's language (Hinglish, Hindi, Gujarati, or English), natural and engaging, never robotic!`,
+    `Restaurant Live Facts:`,
+    `- Pure Vegetarian (100% Pure Veg Kitchen)`,
     `- Address: ${db.settings.address} (Plus Code: ${db.settings.plusCode})`,
     `- Timing: ${db.settings.openHoursText}`,
-    `- Phone / WhatsApp: +${db.settings.phone}`,
+    `- Phone / WhatsApp: +${db.settings.phone} | Instagram: @${db.settings.instagramHandle || 'chatkaro_the_food_hub'}`,
     `- Rating: ${db.settings.rating}★ (${db.settings.reviewCount} reviews) | Price: ${db.settings.priceRange}`,
     `- Today's Deal: ${db.settings.dailyDeal || 'Use WELCOME5 for 5% OFF'}`,
     `- Live Tables Available: ${freeTables.length ? freeTables.join(', ') : 'All tables currently busy'}`,
     `- Currently Occupied Tables: ${busyTables.length ? busyTables.join(', ') : 'None'}`,
-    `- How to Order: 1) Click "Sign in" (Google Sign-In required to order), 2) Add dishes from Full Menu, 3) Open Cart & select Dine-In / Drive-Thru / No-Contact Delivery, 4) Apply promo code (WELCOME5, or play Tawa Rush game for CHATKARO10 10% OFF / CHATKARO20 20% OFF), 5) Click Order & Send on WhatsApp + track live countdown!`,
+    `- Ordering & Payment: Customer signs in with Gmail, adds dishes to Cart, picks Dine-In / Drive-Thru / No-Contact Delivery, pays via Razorpay, PhonePe/UPI, or Counter Cash, and gets a live countdown timer + WhatsApp confirmation. Game Tawa Rush unlocks CHATKARO10 (10% OFF) & CHATKARO20 (20% OFF).`,
     `- AVAILABLE MENU (${availableItems.length} items):`,
-    ...availableItems.map((m) => `  * ${m.name} [${m.category}] — ₹${m.price}${m.bestseller ? ' (Bestseller)' : ''}${m.spicy ? ' (Spicy)' : ''}`),
-    `- CURRENTLY SOLD OUT / UNAVAILABLE (${soldOutItems.length} items): ${soldOutItems.length ? soldOutItems.map((m) => m.name).join(', ') : 'None — everything on the menu is available right now!'}`
+    ...availableItems.map((m) => `  * ${m.name} [${m.category}] — ₹${m.price}${m.bestseller ? ' (Bestseller)' : ''}${m.spicy ? ' (Spicy)' : ''}${m.servedWith ? ' | Comes with: ' + m.servedWith : ''}`),
+    `- SOLD OUT ITEMS: ${soldOutItems.length ? soldOutItems.map((m) => m.name).join(', ') : 'None — all dishes available!'}`
   ].join('\n');
 }
 
-function callGeminiApi(apiKey, userMessage, history = []) {
-  return new Promise((resolve, reject) => {
-    const contents = [
-      ...history.slice(-6).map((h) => ({
-        role: h.role === 'model' ? 'model' : 'user',
-        parts: [{ text: String(h.text || '') }]
-      })),
-      { role: 'user', parts: [{ text: userMessage }] }
-    ];
+const GEMINI_CHAT_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-3.8-flash',
+  'gemma-4-26b-a4b-it'
+];
 
-    const payload = JSON.stringify({
-      system_instruction: { parts: [{ text: buildAiSystemContext() }] },
-      contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 420 }
-    });
+async function callSingleGeminiModel(apiKey, model, sysPrompt, contents, maxTokens = 650, externalSignal = null) {
+  const isGemma = model.startsWith('gemma');
+  const finalContents = isGemma
+    ? [
+        { role: 'user', parts: [{ text: `${sysPrompt}\n\nCustomer says: ${contents[0]?.parts?.[0]?.text || ''}` }] },
+        ...contents.slice(1)
+      ]
+    : contents;
 
-    const req = https.request(
+  const payloadObj = {
+    contents: finalContents,
+    generationConfig: { temperature: 0.78, maxOutputTokens: maxTokens }
+  };
+  if (!isGemma) payloadObj.system_instruction = { parts: [{ text: sysPrompt }] };
+
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(new Error('Gemini request timeout')), 14000);
+  if (externalSignal) {
+    if (externalSignal.aborted) ctrl.abort();
+    else externalSignal.addEventListener('abort', () => ctrl.abort(), { once: true });
+  }
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
-        hostname: 'generativelanguage.googleapis.com',
-        path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload)
-        }
-      },
-      (resp) => {
-        let raw = '';
-        resp.on('data', (c) => (raw += c));
-        resp.on('end', () => {
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.error) return reject(new Error(parsed.error.message || 'Gemini API error'));
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!text) return reject(new Error('Empty Gemini response'));
-            resolve(text);
-          } catch (e) {
-            reject(e);
-          }
-        });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadObj),
+        signal: ctrl.signal
       }
     );
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
+    const parsed = await resp.json();
+    if (parsed.error) throw new Error(parsed.error.message || `HTTP ${resp.status}`);
+    const text = parsed.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();
+    if (!text) throw new Error('Empty model response');
+    return { text, model };
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+async function callGeminiApi(apiKey, userMessage, history = [], maxTokens = 650) {
+  const sysPrompt = buildAiSystemContext();
+  const contents = [
+    ...history.slice(-12).map((h) => ({
+      role: h.role === 'model' ? 'model' : 'user',
+      parts: [{ text: String(h.text || '') }]
+    })),
+    { role: 'user', parts: [{ text: userMessage }] }
+  ];
+
+  // Race top models in parallel so whichever is fastest/uncongested answers cleanly
+  const masterCtrl = new AbortController();
+  try {
+    const winner = await Promise.any(
+      GEMINI_CHAT_MODELS.map((model) => callSingleGeminiModel(apiKey, model, sysPrompt, contents, maxTokens, masterCtrl.signal))
+    );
+    masterCtrl.abort();
+    return winner;
+  } catch (aggErr) {
+    masterCtrl.abort();
+    const firstMsg = aggErr?.errors?.[0]?.message || aggErr?.message || 'All Gemini models unavailable';
+    throw new Error(firstMsg);
+  }
 }
 
 function smartMenuFallbackReply(query) {
@@ -718,10 +829,11 @@ const server = http.createServer(async (req, res) => {
       const history = Array.isArray(body.history) ? body.history : [];
       if (!message) return sendJson(res, 400, { error: 'Ask a question first.' });
 
-      if (db.settings.geminiApiKey) {
+      const activeKey = getActiveGeminiKey();
+      if (activeKey) {
         try {
-          const reply = await callGeminiApi(db.settings.geminiApiKey, message, history);
-          return sendJson(res, 200, { reply, engine: 'gemini-2.5-flash' });
+          const { text, model } = await callGeminiApi(activeKey, message, history);
+          return sendJson(res, 200, { reply: text, engine: model });
         } catch (err) {
           const fallback = smartMenuFallbackReply(message);
           return sendJson(res, 200, { reply: fallback, engine: 'smart-fallback', note: err.message });
@@ -1266,48 +1378,142 @@ const CATEGORY_DEFAULT_PHOTO = {
   'beverages': 'assets/dishes/bev-mango-lassi.jpg'
 };
 
+function generateCustomDishSvgPhoto(dishName, category, dishId, dishesDir) {
+  const safeName = String(dishName || 'Pure Veg Special').replace(/[<>&"']/g, '').slice(0, 34);
+  const slug = safeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) || 'dish';
+  const fileName = `ai-${slug}-${String(dishId).slice(-5)}.svg`;
+  const palettes = {
+    'veg-prep': ['#14532d', '#dc2626', '#fbbf24'],
+    'kaju-prep': ['#78350f', '#d97706', '#fde68a'],
+    'cheese-prep': ['#713f12', '#f59e0b', '#fef08a'],
+    'tandoor': ['#7f1d1d', '#ea580c', '#fed7aa'],
+    'south-indian': ['#1e3a8a', '#059669', '#fde047'],
+    'chinese': ['#4c0519', '#e11d48', '#fb923c'],
+    'punjabi': ['#7c2d12', '#b91c1c', '#fcd34d'],
+    'fast-food': ['#3b0764', '#dc2626', '#facc15'],
+    'beverages': ['#0f172a', '#0284c7', '#67e8f9']
+  };
+  const [c1, c2, c3] = palettes[category] || palettes['veg-prep'];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+      <stop offset="0%" stop-color="${c2}"/>
+      <stop offset="100%" stop-color="${c1}"/>
+    </radialGradient>
+    <radialGradient id="bowl" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="60%" stop-color="#b91c1c"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </radialGradient>
+  </defs>
+  <rect width="720" height="480" fill="url(#bg)"/>
+  <circle cx="360" cy="235" r="158" fill="rgba(0,0,0,0.42)"/>
+  <circle cx="360" cy="222" r="148" fill="#18181b" stroke="${c3}" stroke-width="5"/>
+  <circle cx="360" cy="222" r="126" fill="url(#bowl)"/>
+  <circle cx="322" cy="195" r="18" fill="#fde047" opacity="0.9"/>
+  <circle cx="395" cy="202" r="20" fill="#fef3c7" opacity="0.9"/>
+  <circle cx="354" cy="248" r="17" fill="#22c55e" opacity="0.85"/>
+  <circle cx="406" cy="248" r="13" fill="#fde047" opacity="0.85"/>
+  <circle cx="315" cy="242" r="14" fill="#ef4444" opacity="0.9"/>
+  <path d="M320 92 Q310 66 326 42 M360 85 Q350 56 368 30 M400 92 Q390 66 406 42" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="5" stroke-linecap="round"/>
+  <rect x="28" y="24" width="24" height="24" rx="4" fill="#fff" stroke="#16a34a" stroke-width="3"/>
+  <circle cx="40" cy="36" r="7" fill="#16a34a"/>
+  <rect x="90" y="394" width="540" height="58" rx="29" fill="rgba(12,12,14,0.86)" stroke="${c3}" stroke-width="2"/>
+  <text x="360" y="431" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="800">${safeName}</text>
+</svg>`;
+  if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
+  fs.writeFileSync(path.join(dishesDir, fileName), svg);
+  return `assets/dishes/${fileName}`;
+}
+
+async function generateDishPhotoWithGemini(dishName, dishId, dishesDir) {
+  const key = getActiveGeminiKey();
+  if (!key) return null;
+  for (const model of ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.1-flash-lite-image']) {
+    try {
+      const prompt = `Photorealistic restaurant food photography of Indian 100% pure vegetarian dish "${dishName}", served hot in an appetizing bowl or plate on a dark rustic wooden dining table, garnished freshly, warm lighting, zero text or watermarks`;
+      const payload = JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+      });
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!r.ok) {
+        if (r.status === 429 || r.status === 403) continue;
+        continue;
+      }
+      const j = await r.json();
+      const part = (j.candidates?.[0]?.content?.parts || []).find((p) => p.inlineData || p.inline_data);
+      const inline = part?.inlineData || part?.inline_data;
+      if (!inline?.data) continue;
+      const buf = Buffer.from(inline.data, 'base64');
+      if (buf.length < 4000) continue;
+      const ext = (inline.mimeType || '').includes('png') ? 'png' : 'jpg';
+      const slug = String(dishName || 'dish').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) || 'dish';
+      const fileName = `ai-${slug}-${String(dishId).slice(-5)}.${ext}`;
+      if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
+      fs.writeFileSync(path.join(dishesDir, fileName), buf);
+      return `assets/dishes/${fileName}`;
+    } catch {}
+  }
+  return null;
+}
+
 async function autoFetchDishPhoto(dishName, category, dishId) {
-  const fallback = CATEGORY_DEFAULT_PHOTO[category] || 'assets/veg-kadai.jpg';
+  const dishesDir = path.join(ROOT_DIR, 'assets', 'dishes');
   try {
     const cleanQuery = String(dishName || '').replace(/\(.*?\)/g, '').trim();
-    if (!cleanQuery) return fallback;
+    if (!cleanQuery) return generateCustomDishSvgPhoto(dishName, category, dishId, dishesDir);
+
+    // 1. Try Gemini AI Dish Image Generation first if configured
+    const aiGenerated = await generateDishPhotoWithGemini(cleanQuery, dishId, dishesDir);
+    if (aiGenerated) return aiGenerated;
+
+    // 2. Fallback to curated food-verified Wikimedia Commons photo
     const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(cleanQuery + ' indian dish food filetype:bitmap')}&gsrlimit=12&prop=imageinfo|categories&iiprop=url|mime|size&iiurlwidth=720&cllimit=20&format=json`;
     const r = await fetch(searchUrl, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
-    if (!r.ok) return fallback;
-    const j = await r.json();
-    const badWords = /chicken|egg|meat|fish|prawn|shrimp|mutton|beef|pork|crab|ham|bacon|sausage|turkey|salmon|tuna|duck|beer|wine|alcohol|kingfisher|bottle|burger king|mcdonald|kfc|subway|book|cookery|1919|portrait|person|man|woman|boy|girl|selfie|cosplay|japanimes|festival|event|logo|icon|map|chart/i;
-    const goodCats = /food|dish|cuisine|indian|soup|rice|dosa|curry|paneer|burger|sandwich|vegetarian|noodle|street food|meals|snacks|masala|bread|naan|roti|dessert|drink|beverage/i;
-    const candidates = Object.values(j.query?.pages || {})
-      .map((p) => ({
-        title: p.title || '',
-        url: p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url || '',
-        mime: p.imageinfo?.[0]?.mime || '',
-        w: p.imageinfo?.[0]?.width || 0,
-        cats: (p.categories || []).map((c) => c.title).join(' | ')
-      }))
-      .filter((x) => (
-        x.url &&
-        x.mime === 'image/jpeg' &&
-        x.w >= 400 &&
-        !badWords.test(x.title) &&
-        !badWords.test(x.cats) &&
-        goodCats.test(`${x.cats} ${x.title}`)
-      ));
-    if (!candidates.length) return fallback;
-
-    const imgRes = await fetch(candidates[0].url, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
-    if (!imgRes.ok) return fallback;
-    const buf = Buffer.from(await imgRes.arrayBuffer());
-    if (buf.length < 7000) return fallback;
-
-    const dishesDir = path.join(ROOT_DIR, 'assets', 'dishes');
-    if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
-    const slug = cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'dish';
-    const fileName = `${slug}-${String(dishId).slice(-5)}.jpg`;
-    fs.writeFileSync(path.join(dishesDir, fileName), buf);
-    return `assets/dishes/${fileName}`;
+    if (r.ok) {
+      const j = await r.json();
+      const badWords = /chicken|egg|meat|fish|prawn|shrimp|mutton|beef|pork|crab|ham|bacon|sausage|turkey|salmon|tuna|duck|beer|wine|alcohol|kingfisher|bottle|burger king|mcdonald|kfc|subway|book|cookery|1919|portrait|person|man|woman|boy|girl|selfie|cosplay|japanimes|festival|event|logo|icon|map|chart/i;
+      const goodCats = /food|dish|cuisine|indian|soup|rice|dosa|curry|paneer|burger|sandwich|vegetarian|noodle|street food|meals|snacks|masala|bread|naan|roti|dessert|drink|beverage/i;
+      const candidates = Object.values(j.query?.pages || {})
+        .map((p) => ({
+          title: p.title || '',
+          url: p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url || '',
+          mime: p.imageinfo?.[0]?.mime || '',
+          w: p.imageinfo?.[0]?.width || 0,
+          cats: (p.categories || []).map((c) => c.title).join(' | ')
+        }))
+        .filter((x) => (
+          x.url &&
+          x.mime === 'image/jpeg' &&
+          x.w >= 400 &&
+          !badWords.test(x.title) &&
+          !badWords.test(x.cats) &&
+          goodCats.test(`${x.cats} ${x.title}`)
+        ));
+      if (candidates.length) {
+        const imgRes = await fetch(candidates[0].url, { headers: { 'User-Agent': 'ChatkaroFoodHub/1.0' } });
+        if (imgRes.ok) {
+          const buf = Buffer.from(await imgRes.arrayBuffer());
+          if (buf.length >= 7000) {
+            if (!fs.existsSync(dishesDir)) fs.mkdirSync(dishesDir, { recursive: true });
+            const slug = cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'dish';
+            const fileName = `${slug}-${String(dishId).slice(-5)}.jpg`;
+            fs.writeFileSync(path.join(dishesDir, fileName), buf);
+            return `assets/dishes/${fileName}`;
+          }
+        }
+      }
+    }
+    // 3. Always create a dish-specific pure-veg AI SVG card if neither above returned an image
+    return generateCustomDishSvgPhoto(cleanQuery, category, dishId, dishesDir);
   } catch {
-    return fallback;
+    return generateCustomDishSvgPhoto(dishName, category, dishId, dishesDir);
   }
 }
 
@@ -1588,16 +1794,38 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       [
         'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
+        'bgMusicUrl', 'bgMusicTitle',
         'address', 'plusCode', 'googleClientId', 'googlePlacesApiKey', 'googlePlaceId', 'geminiApiKey',
         'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret',
         'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv'
       ].forEach((k) => {
         if (s[k] !== undefined) db.settings[k] = String(s[k]).trim();
       });
+      if (s.bgMusicEnabled !== undefined) db.settings.bgMusicEnabled = Boolean(s.bgMusicEnabled);
+      if (s.bgMusicUrl !== undefined) {
+        db.settings.bgMusicVideoId = extractYoutubeVideoId(s.bgMusicUrl);
+      }
       if (s.rating !== undefined) db.settings.rating = Number(s.rating);
       if (s.reviewCount !== undefined) db.settings.reviewCount = Number(s.reviewCount);
       recalculateTopAndBroadcast();
       return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/api/admin/daily-ai-ad' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const campaign = await refreshDailyAiCampaign(true);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, dailyAiAd: campaign });
+    }
+
+    if (pathname === '/api/admin/test-gemini' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const testKey = String(body.apiKey || '').trim() || getActiveGeminiKey();
+      if (!testKey) return sendJson(res, 400, { error: 'No Gemini API Key provided.' });
+      const { text, model } = await callGeminiApi(testKey, 'Say Namaste from Chatkaro AI in 6 words!', []);
+      return sendJson(res, 200, { ok: true, model, sample: text });
     }
 
     // Multiplayer Game Room
@@ -1709,4 +1937,8 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
 
 server.listen(PORT, () => {
   console.log(`Chatkaro Food Hub live server running at http://localhost:${PORT}`);
+  refreshDailyAiCampaign(false).catch(() => {});
+  setInterval(() => {
+    refreshDailyAiCampaign(false).then(() => broadcast('state', getPublicSnapshot())).catch(() => {});
+  }, 3600 * 1000);
 });

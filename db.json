@@ -10,6 +10,10 @@
     "phone": "919054633908",
     "instagramHandle": "chatkaro_the_food_hub",
     "instagramReels": "https://www.instagram.com/reels/DeoG7QDA2O3/\nhttps://www.instagram.com/reel/DfLrI3hzTGD/",
+    "bgMusicEnabled": true,
+    "bgMusicUrl": "",
+    "bgMusicVideoId": "",
+    "bgMusicTitle": "Calm Cafe Music",
     "adminPin": "9054",
     "googleClientId": "",
     "googlePlacesApiKey": "",
@@ -22,7 +26,7 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795731723270,
+    "lastMapsSyncAt": 1795775831248,
     "announcement": "🌿 100% Pure Vegetarian • 🕒 12:00 PM–3:00 PM & 6:00 PM–11:50 PM (Break 3–6 PM)",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
@@ -1157,7 +1161,7 @@
       "url": "assets/ads/reel-1.mp4",
       "linkedDishId": "veg-angara",
       "active": true,
-      "createdAt": 1795731723270
+      "createdAt": 1795775831248
     },
     {
       "id": "ad-insta-2",
@@ -1166,7 +1170,7 @@
       "url": "assets/ads/reel-2.mp4",
       "linkedDishId": "cheese-anguri",
       "active": true,
-      "createdAt": 1795731722270
+      "createdAt": 1795775830248
     }
   ],
   "tables": [
@@ -1178,7 +1182,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 2,
@@ -1188,7 +1192,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 3,
@@ -1198,7 +1202,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 4,
@@ -1208,7 +1212,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 5,
@@ -1218,7 +1222,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 6,
@@ -1228,7 +1232,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 7,
@@ -1238,7 +1242,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     },
     {
       "id": 8,
@@ -1248,7 +1252,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795731723270
+      "updatedAt": 1795775831248
     }
   ],
   "customers": {},
@@ -1261,7 +1265,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795730283270
+      "createdAt": 1795774391248
     },
     {
       "id": "rev-2",
@@ -1270,7 +1274,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793139723270
+      "createdAt": 1793183831248
     },
     {
       "id": "rev-3",
@@ -1279,7 +1283,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793917323270
+      "createdAt": 1793961431248
     },
     {
       "id": "rev-4",
@@ -1288,7 +1292,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794522123270
+      "createdAt": 1794566231248
     }
   ],
   "mapPhotos": [
@@ -1298,7 +1302,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795558923270
+      "createdAt": 1795603031248
     },
     {
       "id": "mp-2",
@@ -1306,7 +1310,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795472523270
+      "createdAt": 1795516631248
     },
     {
       "id": "mp-3",
@@ -1314,7 +1318,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795386123270
+      "createdAt": 1795430231248
     },
     {
       "id": "mp-4",
@@ -1322,7 +1326,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795299723270
+      "createdAt": 1795343831248
     },
     {
       "id": "mp-5",
@@ -1330,7 +1334,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795213323270
+      "createdAt": 1795257431248
     },
     {
       "id": "mp-6",
@@ -1338,8 +1342,22 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795730283270
+      "createdAt": 1795774391248
     }
   ],
-  "chatMessages": []
+  "chatMessages": [],
+  "dailyAiAd": {
+    "date": "2026-11-27",
+    "tag": "🥡 INDO-CHINESE FRIDAY",
+    "accent": "#ec4899",
+    "headline": "🥡 INDO-CHINESE FRIDAY: Chilli Garlic Noodles + Fresh Sides!",
+    "subline": "Wok-tossed Hakka Noodles, Dry Manchurian & fiery Schezwan Rice!",
+    "featuredIds": [
+      "chi-chilli-garlic-noodles",
+      "veg-mix",
+      "cheese-anguri",
+      "dosa-mysore"
+    ],
+    "updatedAt": 1795775831496
+  }
 }

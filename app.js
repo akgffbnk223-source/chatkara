@@ -49,6 +49,7 @@
     },
     menu: [],
     ads: [],
+    dailyAiAd: null,
     tables: [],
     orders: [],
     reviews: [],
@@ -487,6 +488,7 @@
     if (snap.settings) appState.settings = snap.settings;
     if (snap.menu) appState.menu = snap.menu;
     if (snap.ads) appState.ads = snap.ads;
+    if (snap.dailyAiAd) appState.dailyAiAd = snap.dailyAiAd;
     if (snap.tables) appState.tables = snap.tables;
     if (snap.orders) appState.orders = snap.orders;
     if (snap.reviews) appState.reviews = snap.reviews;
@@ -515,6 +517,7 @@
     renderReviews();
     renderMyOrderBanner();
     renderAuthUI();
+    syncBgMusicPlayer();
     if (!$('adminModal').classList.contains('hidden') && appState.adminToken) {
       refreshSalesAndRenderAdmin();
     }
@@ -617,11 +620,12 @@
     $('brandTitle').textContent = (s.restaurantName || 'Chatkaro').split(' ')[0];
     $('topAnnouncement').textContent = s.announcement || '';
     if ($('dailyDealBanner')) {
-      $('dailyDealBanner').textContent = s.dailyDeal || '';
-      $('dailyDealBanner').classList.toggle('hidden', !s.dailyDeal);
+      const dailyMsg = appState.dailyAiAd?.headline ? `${appState.dailyAiAd.headline} — ${appState.dailyAiAd.subline}` : (s.dailyDeal || '');
+      $('dailyDealBanner').textContent = dailyMsg;
+      $('dailyDealBanner').classList.toggle('hidden', !dailyMsg);
     }
     if ($('aiEngineBadge')) {
-      $('aiEngineBadge').textContent = s.hasGeminiKey ? 'Powered by Gemini AI ✨' : 'Live Menu & Ordering Helper';
+      $('aiEngineBadge').textContent = s.hasGeminiKey ? 'Gemini AI Live ✨' : 'Live Menu & Ordering Helper';
     }
     $('topHoursText').textContent = s.openHoursText || defaultHours;
     $('heroHoursBadge').textContent = getLiveOpenStatusText();
@@ -694,6 +698,154 @@
       )
       .join('');
   }
+
+  // ================= BACKGROUND YOUTUBE MUSIC PLAYER (LOOP + ADMIN/CUSTOMER OFF/ON) =================
+  const bgMusicState = {
+    player: null,
+    apiLoading: false,
+    apiReady: false,
+    currentVideoId: '',
+    userOff: localStorage.getItem('chatkaro_music_off') === '1',
+    unlockedByGesture: false,
+    pendingCreateId: ''
+  };
+
+  function updateMusicButtonUI() {
+    const btn = $('musicFloatBtn');
+    const lbl = $('musicFloatLabel');
+    if (!btn) return;
+    const s = appState.settings || {};
+    const vid = String(s.bgMusicVideoId || '').trim();
+    if (!vid || s.bgMusicEnabled === false) {
+      btn.classList.add('hidden');
+      btn.classList.remove('playing');
+      return;
+    }
+    btn.classList.remove('hidden');
+    if (bgMusicState.userOff) {
+      btn.classList.remove('playing');
+      if (lbl) lbl.textContent = 'Music Off';
+      btn.querySelector('.music-eq').textContent = '🔇';
+    } else {
+      btn.classList.add('playing');
+      const title = String(s.bgMusicTitle || 'Shop Music').slice(0, 18);
+      if (lbl) lbl.textContent = title;
+      btn.querySelector('.music-eq').textContent = '🎵';
+    }
+  }
+
+  function createOrLoadYtPlayer(videoId) {
+    if (!videoId) return;
+    if (!window.YT || !window.YT.Player) {
+      bgMusicState.pendingCreateId = videoId;
+      if (!bgMusicState.apiLoading) {
+        bgMusicState.apiLoading = true;
+        window.onYouTubeIframeAPIReady = () => {
+          bgMusicState.apiReady = true;
+          if (bgMusicState.pendingCreateId) createOrLoadYtPlayer(bgMusicState.pendingCreateId);
+        };
+        const sc = document.createElement('script');
+        sc.src = 'https://www.youtube.com/iframe_api';
+        sc.async = true;
+        document.head.appendChild(sc);
+      }
+      return;
+    }
+    if (bgMusicState.player && bgMusicState.currentVideoId === videoId) {
+      applyBgMusicPlayState();
+      return;
+    }
+    if (bgMusicState.player && typeof bgMusicState.player.loadVideoById === 'function') {
+      bgMusicState.currentVideoId = videoId;
+      bgMusicState.player.loadVideoById({ videoId, startSeconds: 0 });
+      applyBgMusicPlayState();
+      return;
+    }
+    const host = $('bgMusicPlayerHost');
+    if (!host) return;
+    host.innerHTML = '<div id="ytMusicInner"></div>';
+    bgMusicState.currentVideoId = videoId;
+    bgMusicState.player = new window.YT.Player('ytMusicInner', {
+      height: '1',
+      width: '1',
+      videoId,
+      playerVars: {
+        autoplay: 1,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        loop: 1,
+        playlist: videoId,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0
+      },
+      events: {
+        onReady: (e) => {
+          e.target.setVolume(45);
+          applyBgMusicPlayState();
+        },
+        onStateChange: (e) => {
+          if (e.data === window.YT.PlayerState.ENDED && !bgMusicState.userOff && appState.settings.bgMusicEnabled !== false) {
+            e.target.seekTo(0);
+            e.target.playVideo();
+          }
+        }
+      }
+    });
+  }
+
+  function applyBgMusicPlayState() {
+    const s = appState.settings || {};
+    const p = bgMusicState.player;
+    updateMusicButtonUI();
+    if (!p || typeof p.playVideo !== 'function') return;
+    if (!s.bgMusicVideoId || s.bgMusicEnabled === false || bgMusicState.userOff) {
+      try { p.pauseVideo(); } catch {}
+    } else {
+      try {
+        p.unMute();
+        p.setVolume(45);
+        p.playVideo();
+      } catch {}
+    }
+  }
+
+  function syncBgMusicPlayer() {
+    const s = appState.settings || {};
+    const vid = String(s.bgMusicVideoId || '').trim();
+    updateMusicButtonUI();
+    if (!vid || s.bgMusicEnabled === false) {
+      if (bgMusicState.player && typeof bgMusicState.player.pauseVideo === 'function') {
+        try { bgMusicState.player.pauseVideo(); } catch {}
+      }
+      return;
+    }
+    createOrLoadYtPlayer(vid);
+  }
+
+  $('musicFloatBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    bgMusicState.userOff = !bgMusicState.userOff;
+    localStorage.setItem('chatkaro_music_off', bgMusicState.userOff ? '1' : '0');
+    applyBgMusicPlayState();
+    showToast(bgMusicState.userOff ? '🔇 Background music off' : '🎵 Background music playing!');
+  });
+
+  // Auto-unlock YouTube background audio on first customer tap/click if Admin enabled a song
+  ['pointerdown', 'keydown'].forEach((evt) => {
+    window.addEventListener(
+      evt,
+      () => {
+        if (bgMusicState.unlockedByGesture) return;
+        bgMusicState.unlockedByGesture = true;
+        if (!bgMusicState.userOff && appState.settings?.bgMusicEnabled !== false && appState.settings?.bgMusicVideoId) {
+          applyBgMusicPlayState();
+        }
+      },
+      { passive: true }
+    );
+  });
 
   // ================= GOOGLE / GMAIL LOGIN & PROFILE =================
   let gisInitializedFor = '';
@@ -1103,7 +1255,12 @@
       imgEl.classList.add(motionClass);
       heroAdState.lastSrc = nextSrc;
 
-      $('heroAdCat').textContent = isCustomImgAd ? '📸 SPECIAL PHOTO AD' : (CAT_LABELS[dish.category] || '🍲 PURE VEG');
+      const isDailyPick = !isCustomImgAd && (appState.dailyAiAd?.featuredIds || []).includes(dish.id);
+      $('heroAdCat').textContent = isCustomImgAd
+        ? '📸 SPECIAL PHOTO AD'
+        : isDailyPick
+        ? `🤖 TODAY AI AD • ${CAT_LABELS[dish.category] || 'PURE VEG'}`
+        : (CAT_LABELS[dish.category] || '🍲 PURE VEG');
       $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
       $('heroAdTitle').textContent = isCustomImgAd ? entry.ad.title : (dish.guName ? `${dish.name} (${dish.guName})` : dish.name);
       $('heroAdServed').textContent = isCustomImgAd
@@ -1953,6 +2110,7 @@
 
   $('openAdminBtn').addEventListener('click', () => {
     $('adminModal').classList.remove('hidden');
+    document.body.classList.add('admin-open');
     if (appState.adminToken) {
       $('adminLockScreen').classList.add('hidden');
       $('adminDashboard').classList.remove('hidden');
@@ -1964,7 +2122,10 @@
       $('lockAdminBtn').classList.add('hidden');
     }
   });
-  $('closeAdminBtn').addEventListener('click', () => $('adminModal').classList.add('hidden'));
+  $('closeAdminBtn').addEventListener('click', () => {
+    $('adminModal').classList.add('hidden');
+    document.body.classList.remove('admin-open');
+  });
   $('lockAdminBtn').addEventListener('click', () => {
     lockAdminPanel();
     showToast('Admin Panel locked 🔒');
@@ -2347,9 +2508,25 @@
               <div class="acru-quick-actions">
                 <button type="button" class="acru-qa-btn" data-jump="orders"><span>📋</span>Orders</button>
                 <button type="button" class="acru-qa-btn" data-jump="parcels"><span>📦</span>Parcels</button>
-                <button type="button" class="acru-qa-btn" data-jump="menu"><span>🍽️</span>Menu</button>
+                <button type="button" class="acru-qa-btn" data-jump="ads"><span>🎬</span>Ads</button>
                 <button type="button" class="acru-qa-btn" id="exportSalesCsvBtn"><span>⬇</span>CSV</button>
               </div>
+            </div>
+
+            <div class="acru-card" style="background:linear-gradient(135deg,#f8fafc,#ecfdf5);">
+              <div class="acru-card-head">
+                <div>
+                  <div class="acru-card-title">🤖 Daily AI Ads &amp; 🎵 Music</div>
+                  <div class="acru-card-sub">${escapeHtml(appState.dailyAiAd?.tag || 'Auto Daily Spotlight')}</div>
+                </div>
+                <span class="acru-pill-tag">${sConf.hasGeminiKey ? 'Gemini Live' : 'Auto Mode'}</span>
+              </div>
+              <p class="small" style="margin:0 0 0.65rem;color:#334155;">${escapeHtml(appState.dailyAiAd?.headline || 'Daily rotating pure-veg dish ads active!')}</p>
+              <div class="admin-controls-inline" style="margin-bottom:0.55rem;">
+                <button type="button" class="btn btn-primary btn-xs" id="admRefreshAiAdBtn">🤖 Refresh Today's AI Ad</button>
+                <button type="button" class="btn btn-outline btn-xs" id="admQuickMusicToggleBtn">${sConf.bgMusicEnabled !== false ? '🎵 Shop Music: ON' : '🔇 Shop Music: OFF'}</button>
+              </div>
+              <div class="small muted">${sConf.bgMusicVideoId ? `Playing: ${escapeHtml(sConf.bgMusicTitle || 'YouTube Song')}` : 'Set YouTube song link in Gateways & Settings'}</div>
             </div>
 
             <div class="acru-card">
@@ -2387,6 +2564,29 @@
           await api('/api/admin/orders/purge-fake', 'DELETE', null, pinHeaders);
           showToast('Fake/test records permanently removed!');
           refreshSalesAndRenderAdmin();
+        });
+      }
+      if ($('admRefreshAiAdBtn')) {
+        $('admRefreshAiAdBtn').addEventListener('click', async () => {
+          $('admRefreshAiAdBtn').disabled = true;
+          $('admRefreshAiAdBtn').textContent = 'Generating AI Ad...';
+          try {
+            await api('/api/admin/daily-ai-ad', 'POST', {}, pinHeaders);
+            showToast('🤖 Fresh Daily AI Ad created & live!');
+          } catch (err) {
+            showToast(err.message);
+          } finally {
+            $('admRefreshAiAdBtn').disabled = false;
+            $('admRefreshAiAdBtn').textContent = "🤖 Refresh Today's AI Ad";
+          }
+        });
+      }
+      if ($('admQuickMusicToggleBtn')) {
+        $('admQuickMusicToggleBtn').addEventListener('click', async () => {
+          const cur = (appState.adminFullSettings || appState.settings).bgMusicEnabled !== false;
+          await api('/api/admin/settings', 'POST', { settings: { bgMusicEnabled: !cur } }, pinHeaders);
+          if (appState.adminFullSettings) appState.adminFullSettings.bgMusicEnabled = !cur;
+          showToast(!cur ? '🎵 Background music enabled for shop!' : '🔇 Background music turned off for shop.');
         });
       }
       if ($('acruGoGatewaysBtn')) {
@@ -3127,8 +3327,22 @@
           </div>
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
-          <label>✨ Gemini API Key (Enables Gemini 2.5 Flash Live AI Assistant)</label>
-          <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AIza... (from Google AI Studio)" />
+          <strong>🎵 Shop Background YouTube Music (Continuous Loop)</strong>
+          <div class="two-col">
+            <div><label>YouTube Song Link (Watch / Share / Shorts URL)</label><input type="url" id="admMusicUrl" value="${escapeHtml(s.bgMusicUrl || '')}" placeholder="https://www.youtube.com/watch?v=..." /></div>
+            <div><label>Song Display Name</label><input type="text" id="admMusicTitle" value="${escapeHtml(s.bgMusicTitle || 'Calm Cafe Music')}" placeholder="e.g. Lofi Instrumental" /></div>
+          </div>
+          <label class="small" style="display:flex;align-items:center;gap:0.45rem;margin-top:0.2rem;">
+            <input type="checkbox" id="admMusicEnabled" ${s.bgMusicEnabled !== false ? 'checked' : ''} style="width:auto;" />
+            🎵 Play background song automatically for shop visitors (Customers can also toggle Off/On)
+          </label>
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <label>✨ Gemini API Key (Enables Real AI Chat, Daily Ads &amp; Smart Dish Photos)</label>
+          <div class="admin-controls-inline">
+            <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AQ.Ab8... or AIza..." style="flex:1;" />
+            <button type="button" class="btn btn-outline btn-xs" id="admTestGeminiBtn">⚡ Test Gemini AI</button>
+          </div>
           <div class="two-col">
             <div><label>Google OAuth Client ID (1-Tap Gmail Login)</label><input type="text" id="admGClient" value="${escapeHtml(s.googleClientId || '')}" placeholder="xxx.apps.googleusercontent.com" /></div>
             <div><label>Google Place ID</label><input type="text" id="admPlaceId" value="${escapeHtml(s.googlePlaceId || '')}" placeholder="ChIJ..." /></div>
@@ -3188,6 +3402,9 @@
           phone: $('admPhone').value,
           instagramHandle: $('admInstaHandle').value,
           instagramReels: $('admInstaReels').value,
+          bgMusicUrl: $('admMusicUrl').value,
+          bgMusicTitle: $('admMusicTitle').value,
+          bgMusicEnabled: $('admMusicEnabled').checked,
           address: $('admAddress').value,
           merchantUpiId: $('admMerchantUpi').value,
           razorpayKeyId: $('admRzpKeyId').value,
@@ -3203,7 +3420,22 @@
         };
         await api('/api/admin/settings', 'POST', { settings: payload }, pinHeaders);
         appState.adminFullSettings = { ...(appState.adminFullSettings || {}), ...payload };
-        showToast('Settings, Razorpay & PhonePe saved!');
+        showToast('Settings, Music, Gateways & Gemini saved!');
+      });
+
+      $('admTestGeminiBtn')?.addEventListener('click', async () => {
+        const keyVal = $('admGeminiKey')?.value.trim();
+        $('admTestGeminiBtn').disabled = true;
+        $('admTestGeminiBtn').textContent = 'Testing...';
+        try {
+          const res = await api('/api/admin/test-gemini', 'POST', { apiKey: keyVal }, pinHeaders);
+          showToast(`✅ Working (${res.model}): ${res.sample}`);
+        } catch (err) {
+          showToast(`❌ Gemini Test Failed: ${err.message}`);
+        } finally {
+          $('admTestGeminiBtn').disabled = false;
+          $('admTestGeminiBtn').textContent = '⚡ Test Gemini AI';
+        }
       });
 
       $('admChangePinForm').addEventListener('submit', async (e) => {
@@ -3251,8 +3483,8 @@
       const res = await api('/api/ai-chat', 'POST', { message: q, history: appState.aiHistory });
       typingBubble.textContent = res.reply;
       appState.aiHistory.push({ role: 'user', text: q }, { role: 'model', text: res.reply });
-      if (res.engine === 'gemini-2.5-flash') {
-        $('aiEngineBadge').textContent = 'Gemini 2.5 Flash Live ✨';
+      if (res.engine && !res.engine.includes('fallback') && !res.engine.includes('smart-menu')) {
+        $('aiEngineBadge').textContent = `Gemini Live (${res.engine}) ✨`;
       }
     } catch (err) {
       typingBubble.textContent = 'Error: ' + err.message;
