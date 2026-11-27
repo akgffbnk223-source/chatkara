@@ -1555,14 +1555,17 @@
         heroAdState.duration = 25000;
       } else {
         if (ytEl) { ytEl.removeAttribute('src'); ytEl.classList.add('hidden'); }
-        if (muteBtn) muteBtn.classList.remove('hidden');
+        if (muteBtn) muteBtn.classList.add('hidden');
         if (videoEl) {
           videoEl.classList.remove('hidden');
-          videoEl.muted = heroAdState.muted;
+          videoEl.muted = true;
+          videoEl.volume = 0;
           videoEl.loop = false;
           videoEl.src = ad.url;
           videoEl.currentTime = 0;
           videoEl.onloadedmetadata = () => {
+            videoEl.muted = true;
+            videoEl.volume = 0;
             if (videoEl.duration && isFinite(videoEl.duration)) {
               heroAdState.duration = Math.min(60000, Math.max(3000, Math.round(videoEl.duration * 1000)));
             }
@@ -1575,11 +1578,11 @@
         }
       }
 
-      $('heroAdCat').textContent = '🎬 VIDEO REEL AD';
-      $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
-      $('heroAdTitle').textContent = ad.title || 'Chatkaro Live Kitchen Video';
-      $('heroAdServed').textContent = linked ? `🍲 Featured: ${linked.name} (₹${linked.price})` : '🔥 100% Pure Veg Kitchen';
-      $('heroAdPrice').textContent = linked ? `₹${linked.price}/-` : 'LIVE AD';
+      if ($('heroAdCat')) $('heroAdCat').textContent = '🎬 VIDEO REEL AD';
+      if ($('heroAdCounter')) $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
+      if ($('heroAdTitle')) $('heroAdTitle').textContent = ad.title || 'Chatkaro Live Kitchen Video';
+      if ($('heroAdServed')) $('heroAdServed').textContent = linked ? `🍲 Featured: ${linked.name} (₹${linked.price})` : '🔥 100% Pure Veg Kitchen';
+      if ($('heroAdPrice')) $('heroAdPrice').textContent = linked ? `₹${linked.price}/-` : 'LIVE AD';
     } else {
       heroAdState.isCurrentVideo = false;
       if (ytEl) { ytEl.removeAttribute('src'); ytEl.classList.add('hidden'); }
@@ -1625,17 +1628,21 @@
       heroAdState.lastSrc = nextSrc;
 
       const isDailyPick = !isCustomImgAd && (appState.dailyAiAd?.featuredIds || []).includes(dish.id);
-      $('heroAdCat').textContent = isCustomImgAd
-        ? '📸 SPECIAL PHOTO AD'
-        : isDailyPick
-        ? `🤖 TODAY AI AD • ${CAT_LABELS[dish.category] || 'PURE VEG'}`
-        : (CAT_LABELS[dish.category] || '🍲 PURE VEG');
-      $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
-      $('heroAdTitle').textContent = isCustomImgAd ? entry.ad.title : (dish.guName ? `${dish.name} (${dish.guName})` : dish.name);
-      $('heroAdServed').textContent = isCustomImgAd
-        ? (dish ? `🍲 Special: ${dish.name} (₹${dish.price})` : '🔥 100% Pure Veg')
-        : `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
-      $('heroAdPrice').textContent = dish ? `₹${dish.price}/-` : 'SPECIAL';
+      if ($('heroAdCat')) {
+        $('heroAdCat').textContent = isCustomImgAd
+          ? '📸 SPECIAL PHOTO AD'
+          : isDailyPick
+          ? `🤖 TODAY AI AD • ${CAT_LABELS[dish.category] || 'PURE VEG'}`
+          : (CAT_LABELS[dish.category] || '🍲 PURE VEG');
+      }
+      if ($('heroAdCounter')) $('heroAdCounter').textContent = `${heroAdState.idx + 1} / ${playlist.length}`;
+      if ($('heroAdTitle')) $('heroAdTitle').textContent = isCustomImgAd ? entry.ad.title : (dish.guName ? `${dish.name} (${dish.guName})` : dish.name);
+      if ($('heroAdServed')) {
+        $('heroAdServed').textContent = isCustomImgAd
+          ? (dish ? `🍲 Special: ${dish.name} (₹${dish.price})` : '🔥 100% Pure Veg')
+          : `🎁 ${dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad'}`;
+      }
+      if ($('heroAdPrice')) $('heroAdPrice').textContent = dish ? `₹${dish.price}/-` : 'SPECIAL';
     }
 
     // Preload next 2 image slides for seamless transitions
@@ -1689,29 +1696,19 @@
       }
     }, 50);
 
-    $('heroAdPrevBtn')?.addEventListener('click', () => advanceHeroAdSlide(-1));
-    $('heroAdNextBtn')?.addEventListener('click', () => advanceHeroAdSlide(1));
-    $('heroAdToggleBtn')?.addEventListener('click', () => {
-      heroAdState.paused = !heroAdState.paused;
-      $('heroAdToggleBtn').textContent = heroAdState.paused ? '▶' : '⏸';
-      const v = $('heroAdVideo');
-      if (heroAdState.isCurrentVideo && v) {
-        if (heroAdState.paused) v.pause();
-        else v.play().catch(() => {});
-      }
-    });
-    $('heroAdMuteBtn')?.addEventListener('click', () => {
-      heroAdState.muted = !heroAdState.muted;
-      $('heroAdMuteBtn').textContent = heroAdState.muted ? '🔇' : '🔊';
-      if ($('heroAdVideo')) $('heroAdVideo').muted = heroAdState.muted;
-    });
-    $('heroAdAddBtn')?.addEventListener('click', () => {
-      if (heroAdState.currentDishId) updateQty(heroAdState.currentDishId, 1);
-    });
-    $('heroMiniReelList')?.addEventListener('click', (e) => {
-      const card = e.target.closest('[data-quick-add]');
-      if (card) updateQty(card.dataset.quickAdd, 1);
-    });
+    // Force ALL Hero Ad videos permanently silent so their audio never overlaps shop music
+    const vGuard = $('heroAdVideo');
+    if (vGuard) {
+      vGuard.muted = true;
+      vGuard.volume = 0;
+      vGuard.addEventListener('volumechange', () => {
+        if (!vGuard.muted || vGuard.volume !== 0) {
+          vGuard.muted = true;
+          vGuard.volume = 0;
+        }
+      });
+    }
+    heroAdState.muted = true;
   }
 
   function getDishPricing(item) {

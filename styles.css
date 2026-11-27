@@ -276,6 +276,13 @@ body.no-fx * {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 24px; padding: 1.2rem; box-shadow: var(--shadow-md);
 }
+.hero-pure-ad-card {
+  padding: 0.45rem;
+}
+.hero-pure-ad-card .hero-ad-stage {
+  margin-top: 0;
+  height: 345px;
+}
 .platter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
 .tag-hot { background: var(--primary); color: #fff; font-size: 0.76rem; font-weight: 700; padding: 0.24rem 0.7rem; border-radius: 999px; }
 .price-tag { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
