@@ -2,9 +2,16 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Chatkaro Food Hub | Live Orders, Tables, Chat, Game, Maps &amp; Admin — Talala</title>
   <meta name="description" content="Chatkaro Food Hub in Talala, Gujarat (★ 4.9). Pure Veg South Indian, Punjabi &amp; Indo-Chinese. Live tables, guest chat, multiplayer game, Google Maps live photos &amp; reviews, and full Admin dashboard." />
+  <meta name="theme-color" content="#dc2626" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Chatkaro" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/app-icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/app-icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -51,6 +58,7 @@
       </nav>
 
       <div class="header-actions">
+        <button type="button" class="icon-pill-btn app-dl-pill" id="headerDownloadAppBtn" title="Download Phone App">📲 App</button>
         <button type="button" class="icon-pill-btn hover-pop" id="themeToggleBtn" title="Switch Dark / White theme">☀️ White</button>
         <button type="button" class="icon-pill-btn admin-pill hover-pop" id="openAdminBtn" title="Owner Admin Dashboard">⚙️ Admin</button>
         <button type="button" class="auth-pill-btn hover-pop" id="authHeaderBtn">
@@ -95,6 +103,7 @@
 
           <div class="hero-ctas">
             <a href="#menu" class="btn btn-primary btn-lg glow-btn">Explore Menu &amp; Order →</a>
+            <button type="button" class="btn btn-secondary btn-lg" id="heroDownloadAppBtn">📲 Download Phone App</button>
             <a href="#live-hub" class="btn btn-secondary btn-lg hover-pop">🪑 Live Tables &amp; Orders</a>
             <a href="#game" class="btn btn-secondary btn-lg hover-pop">🎮 Play Together</a>
           </div>
@@ -606,6 +615,33 @@
         </div>
       </div>
     </section>
+
+    <!-- Mobile App Download Banner Section -->
+    <section class="section app-download-section" id="app-download">
+      <div class="container">
+        <div class="app-download-band">
+          <div class="app-dl-left">
+            <img src="assets/app-icon-192.png" alt="Chatkaro App Icon" class="app-dl-icon" width="76" height="76" />
+            <div>
+              <span class="badge badge-veg">📲 OFFICIAL MOBILE APP • ANDROID &amp; iPHONE</span>
+              <h2>Download Chatkaro Food Hub App</h2>
+              <p class="muted" style="margin:0.3rem 0 0.7rem;">
+                Direct website se apne phone mein Chatkaro App install karein — full-screen app mode, 0% lag smooth menu, live table booking, AI Chat ordering aur instant Royal Stamped Bills!
+              </p>
+              <div class="app-dl-actions">
+                <button type="button" class="btn btn-primary btn-lg glow-btn" id="sectionDownloadAppBtn">📲 Download / Install App Now</button>
+                <a href="#" class="btn btn-secondary btn-lg hidden" id="sectionDirectApkBtn" download="Chatkaro-Food-Hub.apk">🤖 Download Android .APK</a>
+              </div>
+              <small class="muted" id="appInstallStatusHint" style="display:block;margin-top:0.45rem;">Works on Android, iPhone (Safari) &amp; PC — 100% Safe &amp; Free</small>
+            </div>
+          </div>
+          <div class="app-dl-qr-box">
+            <img id="sectionAppQrImg" alt="Scan to download Chatkaro Mobile App" width="118" height="118" />
+            <small>Scan QR on Phone</small>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -621,6 +657,7 @@
         <a href="#maps-gallery">Maps Photos</a>
         <a href="#reviews">Reviews</a>
         <a href="#location">Map</a>
+        <a href="#app-download">📲 Get App</a>
         <a id="footerInstaLink" href="https://www.instagram.com/chatkaro_the_food_hub/" target="_blank" rel="noopener noreferrer">📸 Instagram</a>
       </div>
     </div>
@@ -984,6 +1021,60 @@
       <button type="submit" class="btn btn-primary btn-sm">Send →</button>
     </form>
   </aside>
+
+  <!-- Mobile App Download Modal -->
+  <div class="modal-backdrop hidden" id="downloadAppModal">
+    <div class="modal-card app-dl-modal">
+      <button type="button" class="close-drawer-btn modal-close" id="closeDownloadAppModalBtn" aria-label="Close">✕</button>
+      <div class="app-dl-modal-head">
+        <img src="assets/app-icon-192.png" alt="Chatkaro App" width="64" height="64" style="border-radius:16px;box-shadow:0 8px 20px rgba(220,38,38,0.35);" />
+        <div>
+          <span class="badge badge-veg">100% PURE VEG PHONE APP</span>
+          <h2 style="margin:0.25rem 0 0;">Chatkaro Mobile App</h2>
+          <small class="muted" id="modalAppStatusText">Ready to install directly on your phone</small>
+        </div>
+      </div>
+
+      <div class="app-dl-feature-pills">
+        <span>⚡ 0% Lag Fast</span>
+        <span>📴 Offline Menu</span>
+        <span>🔔 Live Kitchen ETA</span>
+        <span>🧾 Royal Mohar Bills</span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:0.9rem;">
+        <button type="button" class="btn btn-primary btn-lg glow-btn" id="modalInstallNowBtn" style="width:100%;">📲 Install App on Phone Now</button>
+        <a href="#" class="btn btn-secondary btn-lg hidden" id="modalDirectApkBtn" style="width:100%;" download="Chatkaro-Food-Hub.apk">🤖 Direct Download Android .APK</a>
+      </div>
+
+      <div class="app-dl-steps" id="modalAppStepsBox">
+        <strong>📱 Quick Phone Install Steps:</strong>
+        <ul>
+          <li><strong>Android (Chrome / Samsung):</strong> Upar <b>Install App</b> dabayein ya browser menu (<b>⋮</b>) → <b>"Install app" / "Add to Home screen"</b> select karein — phone me full Chatkaro App icon aa jayega!</li>
+          <li><strong>iPhone / iPad (Safari):</strong> Niche <b>Share (⬆️)</b> button dabayein → <b>"Add to Home Screen"</b> par tap karein.</li>
+        </ul>
+      </div>
+
+      <div class="app-dl-modal-qr">
+        <img id="modalAppQrImg" alt="QR Code for Mobile App" width="110" height="110" />
+        <div class="small muted">Dusre phone par install karne ke liye is QR ko scan karein ya link copy karein:</div>
+        <button type="button" class="btn btn-outline btn-xs" id="copyAppLinkBtn">🔗 Copy App Download Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Native Mobile App Bottom Navigation Bar (Phones <= 760px) -->
+  <nav class="mobile-app-nav" id="mobileAppNav" aria-label="Mobile App Navigation">
+    <a href="#home" class="mobile-nav-item"><span>🏠</span><small>Home</small></a>
+    <a href="#menu" class="mobile-nav-item"><span>🍽️</span><small>Menu</small></a>
+    <a href="#live-hub" class="mobile-nav-item"><span>🪑</span><small>Tables</small></a>
+    <button type="button" class="mobile-nav-item" id="mobileNavCartBtn">
+      <span>🛒</span>
+      <small>Cart</small>
+      <em class="mobile-nav-badge" id="mobileNavCartCount">0</em>
+    </button>
+    <button type="button" class="mobile-nav-item highlight" id="mobileNavAppBtn"><span>📲</span><small>Get App</small></button>
+  </nav>
 
   <!-- Confetti Overlay Canvas -->
   <canvas id="confettiCanvas" class="confetti-canvas" aria-hidden="true"></canvas>

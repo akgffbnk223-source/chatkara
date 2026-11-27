@@ -2855,3 +2855,174 @@ body.has-bg-video .menu-card {
 body.has-bg-video .hero-bg-pattern {
   opacity: 0.15;
 }
+
+/* ==================== MOBILE APP EXPERIENCE + APP DOWNLOAD UI ==================== */
+.app-dl-pill {
+  background: linear-gradient(135deg, #16a34a, #15803d) !important;
+  color: #fff !important;
+  border-color: rgba(34, 197, 94, 0.5) !important;
+}
+.app-download-section {
+  padding-top: 1.2rem;
+  padding-bottom: 2.8rem;
+}
+.app-download-band {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.16) 0%, var(--surface) 60%, rgba(251, 191, 36, 0.14) 100%);
+  border: 1.5px solid rgba(220, 38, 38, 0.38);
+  border-radius: 24px;
+  padding: 1.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.4rem;
+  flex-wrap: wrap;
+}
+.app-dl-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  flex: 1;
+  min-width: 260px;
+}
+.app-dl-icon {
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(220, 38, 38, 0.35);
+  flex-shrink: 0;
+}
+.app-dl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+.app-dl-qr-box {
+  background: #fff;
+  color: #111;
+  padding: 0.65rem;
+  border-radius: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 800;
+  font-size: 0.72rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+.app-dl-qr-box img { display: block; border-radius: 8px; }
+
+.app-dl-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+.app-dl-feature-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.app-dl-feature-pills span {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.24rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.app-dl-steps {
+  margin-top: 0.9rem;
+  background: var(--surface-alt);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8rem;
+}
+.app-dl-steps ul { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
+.app-dl-modal-qr {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+}
+.app-dl-modal-qr img { background: #fff; padding: 6px; border-radius: 10px; }
+
+/* Native Phone Bottom Tab Bar */
+.mobile-app-nav {
+  display: none;
+}
+@media (max-width: 760px) {
+  body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-app-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 68;
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+  }
+  .mobile-nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0.3rem 0.15rem;
+    text-decoration: none;
+    touch-action: manipulation;
+  }
+  .mobile-nav-item span { font-size: 1.1rem; line-height: 1; }
+  .mobile-nav-item small { font-size: 0.65rem; font-weight: 700; }
+  .mobile-nav-item.highlight { color: #22c55e; }
+  .mobile-nav-badge {
+    position: absolute;
+    top: 2px;
+    right: calc(50% - 19px);
+    min-width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-style: normal;
+    font-size: 0.62rem;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    padding: 0 4px;
+  }
+  .floating-cart-bar {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  }
+  .ai-fab {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+  .music-fab {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+  body.admin-open .mobile-app-nav,
+  body.ai-chat-open .mobile-app-nav {
+    display: none !important;
+  }
+  .app-dl-left { flex-direction: column; }
+  .app-dl-qr-box { display: none; }
+}
+@media (display-mode: standalone) {
+  .top-strip { display: none; }
+  #headerDownloadAppBtn, #mobileNavAppBtn, .app-download-section { display: none !important; }
+}

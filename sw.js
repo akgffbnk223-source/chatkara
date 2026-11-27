@@ -1,12 +1,15 @@
-const CACHE_NAME = 'chatkaro-shell-v5';
-const IMG_CACHE = 'chatkaro-media-v2';
+const CACHE_NAME = 'chatkaro-shell-v6';
+const IMG_CACHE = 'chatkaro-media-v3';
 const SHELL_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js',
   './app.js',
-  './game.js'
+  './game.js',
+  './manifest.webmanifest',
+  './assets/app-icon-192.png',
+  './assets/app-icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

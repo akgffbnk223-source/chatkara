@@ -1,0 +1,55 @@
+{
+  "name": "Chatkaro Food Hub — Talala",
+  "short_name": "Chatkaro",
+  "description": "100% Pure Veg Food Ordering, Live Tables, Lounge Chat, Royal Stamped Bills & Multiplayer Tawa Rush Game — Talala, Gujarat.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#141414",
+  "theme_color": "#dc2626",
+  "categories": ["food", "shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app-icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Order Pure Veg Menu",
+      "short_name": "Menu",
+      "description": "Browse 76 Pure Veg dishes & order now",
+      "url": "./#menu",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Tables & Chat",
+      "short_name": "Tables",
+      "description": "Check live tables & kitchen orders",
+      "url": "./#live-hub",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Play Tawa Rush Game",
+      "short_name": "Game",
+      "description": "Play & win CHATKARO10 / CHATKARO20 discount codes",
+      "url": "./#game",
+      "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

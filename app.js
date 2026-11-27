@@ -556,6 +556,7 @@
     renderAuthUI();
     syncBgMusicPlayer();
     syncBgVideoPlayer();
+    if (typeof syncDownloadAppUI === 'function') syncDownloadAppUI();
     if (!$('adminModal').classList.contains('hidden') && appState.adminToken) {
       refreshSalesAndRenderAdmin();
     }
@@ -1875,6 +1876,7 @@
     const totalCount = items.reduce((s, i) => s + i.qty, 0);
     const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
     $('headerCartCount').textContent = totalCount;
+    if ($('mobileNavCartCount')) $('mobileNavCartCount').textContent = totalCount;
 
     if (totalCount > 0) {
       $('floatingCartBar').classList.remove('hidden');
@@ -3919,6 +3921,16 @@
           ${s.bgVideoVideoId ? `<small class="muted">✅ Active Background Video ID: <code>${escapeHtml(s.bgVideoVideoId)}</code></small>` : ''}
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <strong>📲 Customer Mobile App (.APK Download Optional — WebApp Install Always Active)</strong>
+          <div class="admin-controls-inline" style="width:100%;">
+            <input type="text" id="admApkUrl" value="${escapeHtml(s.apkDownloadUrl || '')}" placeholder="Optional direct .apk URL or upload .apk below..." style="flex:1;min-width:180px;" />
+            <label class="btn btn-outline btn-xs" style="cursor:pointer;">
+              🤖 Upload .APK File <input type="file" id="admApkFile" accept=".apk,application/vnd.android.package-archive" style="display:none;" />
+            </label>
+          </div>
+          <span id="admApkStatusLabel" class="small muted">${s.apkDownloadUrl ? `✅ Direct APK Active: ${escapeHtml(s.apkDownloadUrl)}` : '1-Tap Phone WebApp Install is already live on website!'}</span>
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
           <label>✨ Gemini API Key (Enables Real AI Chat, Daily Ads &amp; Smart Dish Photos)</label>
           <div class="admin-controls-inline">
             <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AQ.Ab8... or AIza..." style="flex:1;" />
@@ -3998,6 +4010,7 @@
           bgMusicEnabled: $('admMusicEnabled').checked,
           bgVideoUrl: $('admBgVideoUrl').value,
           bgVideoEnabled: $('admBgVideoEnabled').checked,
+          apkDownloadUrl: $('admApkUrl')?.value || '',
           address: $('admAddress').value,
           merchantUpiId: $('admMerchantUpi').value,
           razorpayKeyId: $('admRzpKeyId').value,
@@ -4046,6 +4059,33 @@
           if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
           showToast(bgVideoUrl ? '🎬 Background Video saved & looping behind shop!' : '🛑 Background Video turned off!');
         } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('admApkFile')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const lbl = $('admApkStatusLabel');
+        if (lbl) lbl.textContent = `Uploading ${file.name}...`;
+        try {
+          const r = await fetch('/api/admin/upload-apk', {
+            method: 'POST',
+            headers: {
+              ...pinHeaders,
+              'Content-Type': 'application/octet-stream',
+              'x-file-name': encodeURIComponent(file.name)
+            },
+            body: file
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'APK upload failed');
+          if ($('admApkUrl')) $('admApkUrl').value = data.apkDownloadUrl;
+          if (lbl) lbl.textContent = `✅ Direct APK Uploaded: ${data.apkDownloadUrl}`;
+          if (data.state) { applySnapshot(data.state); persistSnapshotToCache(data.state); }
+          showToast('🤖 Android APK uploaded! Customers can download it from the website.');
+        } catch (err) {
+          if (lbl) lbl.textContent = `❌ ${err.message}`;
           showToast(err.message);
         }
       });
@@ -4482,7 +4522,116 @@
     });
   }
 
+  // ================= FULL PHONE APP (PWA INSTALLER + DIRECT APK DOWNLOAD) =================
+  let deferredInstallPrompt = null;
+
+  function isAppInstalledStandalone() {
+    return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone === true;
+  }
+
+  function syncDownloadAppUI() {
+    const apkUrl = String(appState.settings?.apkDownloadUrl || '').trim();
+    const isInstalled = isAppInstalledStandalone();
+    const appShareUrl = window.location.origin + window.location.pathname;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(appShareUrl)}`;
+
+    if ($('sectionAppQrImg') && !$('sectionAppQrImg').src) $('sectionAppQrImg').src = qrSrc;
+    if ($('modalAppQrImg') && !$('modalAppQrImg').src) $('modalAppQrImg').src = qrSrc;
+
+    ['sectionDirectApkBtn', 'modalDirectApkBtn'].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      if (apkUrl) {
+        el.href = apkUrl;
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+
+    if ($('modalAppStatusText')) {
+      $('modalAppStatusText').textContent = isInstalled
+        ? '✅ App already installed on this device!'
+        : deferredInstallPrompt
+        ? '⚡ Ready for instant 1-tap phone install!'
+        : '📱 Install straight from your phone browser (Free & Safe)';
+    }
+    if ($('appInstallStatusHint')) {
+      $('appInstallStatusHint').textContent = isInstalled
+        ? '✅ You are using the installed Chatkaro Phone App!'
+        : deferredInstallPrompt
+        ? '⚡ 1-Tap Android / PC App Install ready — click above!'
+        : 'Works on Android Chrome, Samsung Internet, iPhone Safari & Desktop';
+    }
+    if ($('modalInstallNowBtn')) {
+      $('modalInstallNowBtn').textContent = isInstalled
+        ? '✅ App Already Installed!'
+        : deferredInstallPrompt
+        ? '📲 Install Chatkaro App Now (1-Tap Free)'
+        : '📲 How to Add App to Phone Home Screen';
+    }
+  }
+
+  async function triggerAppInstall() {
+    if (deferredInstallPrompt) {
+      try {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          showToast('🎉 Installing Chatkaro Food Hub App on your phone!');
+          deferredInstallPrompt = null;
+          $('downloadAppModal')?.classList.add('hidden');
+        }
+        syncDownloadAppUI();
+        return;
+      } catch {}
+    }
+    openDownloadAppModal();
+  }
+
+  function openDownloadAppModal() {
+    syncDownloadAppUI();
+    $('downloadAppModal')?.classList.remove('hidden');
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    syncDownloadAppUI();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    syncDownloadAppUI();
+    $('downloadAppModal')?.classList.add('hidden');
+    showToast('🎉 Chatkaro Phone App installed successfully!');
+  });
+
+  $('headerDownloadAppBtn')?.addEventListener('click', openDownloadAppModal);
+  $('heroDownloadAppBtn')?.addEventListener('click', triggerAppInstall);
+  $('sectionDownloadAppBtn')?.addEventListener('click', triggerAppInstall);
+  $('mobileNavAppBtn')?.addEventListener('click', triggerAppInstall);
+  $('mobileNavCartBtn')?.addEventListener('click', openCart);
+  $('closeDownloadAppModalBtn')?.addEventListener('click', () => $('downloadAppModal')?.classList.add('hidden'));
+  $('downloadAppModal')?.addEventListener('click', (e) => {
+    if (e.target === $('downloadAppModal')) $('downloadAppModal')?.classList.add('hidden');
+  });
+  $('modalInstallNowBtn')?.addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      await triggerAppInstall();
+    } else if (appState.settings?.apkDownloadUrl) {
+      $('modalDirectApkBtn')?.click();
+    } else {
+      showToast('📱 Tap your browser menu (⋮ or Share ⬆️) → "Install app / Add to Home Screen"!');
+    }
+  });
+  $('copyAppLinkBtn')?.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(window.location.origin + window.location.pathname); } catch {}
+    showToast('🔗 App download link copied! Share it on WhatsApp.');
+  });
+
   initClientProtection();
+  syncDownloadAppUI();
   initScrollReveal();
   initHeroParticles();
   initHeroAdReel();

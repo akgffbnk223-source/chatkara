@@ -23,7 +23,9 @@ const MIME_TYPES = {
   '.webm': 'video/webm',
   '.mov': 'video/quicktime',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.apk': 'application/vnd.android.package-archive'
 };
 
 const DEFAULT_MENU = require('./menu-data.js');
@@ -51,6 +53,7 @@ function createDefaultDb() {
       bgVideoUrl: '',
       bgVideoVideoId: '',
       bgVideoPlaylistId: '',
+      apkDownloadUrl: '',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       googleClientId: '',
       googlePlacesApiKey: '',
@@ -210,7 +213,7 @@ function loadDb() {
       if (!parsed.settings) parsed.settings = def.settings;
       if (!parsed.settings.brandTheme) parsed.settings.brandTheme = def.settings.brandTheme;
       if (!parsed.settings.dailyDeal) parsed.settings.dailyDeal = def.settings.dailyDeal;
-      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'instagramHandle', 'instagramReels'].forEach((k) => {
+      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'apkDownloadUrl', 'instagramHandle', 'instagramReels'].forEach((k) => {
         if (parsed.settings[k] === undefined) parsed.settings[k] = def.settings[k];
       });
       // Preserve env fallbacks if runtime settings are unset
@@ -481,6 +484,7 @@ function getPublicSnapshot() {
       bgVideoUrl: db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || '',
       bgVideoVideoId: db.settings.bgVideoVideoId || extractYoutubeVideoId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
       bgVideoPlaylistId: db.settings.bgVideoPlaylistId || extractYoutubePlaylistId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
+      apkDownloadUrl: db.settings.apkDownloadUrl || '',
       googleClientId: db.settings.googleClientId || process.env.GOOGLE_CLIENT_ID || '',
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
@@ -1990,6 +1994,35 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       return sendJson(res, 200, { ok: true, ad: newAd, ads: db.ads });
     }
 
+    if (pathname === '/api/admin/upload-apk' && req.method === 'POST') {
+      if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const chunks = [];
+      let totalBytes = 0;
+      const maxBytes = 60 * 1024 * 1024;
+      await new Promise((resolve, reject) => {
+        req.on('data', (c) => {
+          totalBytes += c.length;
+          if (totalBytes > maxBytes) {
+            reject(new Error('APK file too large (max 60 MB)'));
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
+        req.on('end', resolve);
+        req.on('error', reject);
+      });
+      const buf = Buffer.concat(chunks);
+      if (!buf.length) return sendJson(res, 400, { error: 'Empty APK uploaded.' });
+      const appDir = path.join(ROOT_DIR, 'assets', 'app');
+      if (!fs.existsSync(appDir)) fs.mkdirSync(appDir, { recursive: true });
+      const apkPath = path.join(appDir, 'chatkaro-food-hub.apk');
+      fs.writeFileSync(apkPath, buf);
+      db.settings.apkDownloadUrl = 'assets/app/chatkaro-food-hub.apk';
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, apkDownloadUrl: db.settings.apkDownloadUrl, state: getPublicSnapshot() });
+    }
+
     if (pathname.startsWith('/api/admin/ads/') && req.method === 'DELETE') {
       if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
       const id = pathname.split('/').pop();
@@ -2011,7 +2044,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
       [
         'restaurantName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
-        'bgMusicUrl', 'bgMusicTitle', 'bgVideoUrl',
+        'bgMusicUrl', 'bgMusicTitle', 'bgVideoUrl', 'apkDownloadUrl',
         'address', 'plusCode', 'googleClientId', 'googlePlaceId',
         'merchantUpiId', 'razorpayKeyId',
         'phonepeMerchantId', 'phonepeSaltIndex', 'phonepeEnv'
@@ -2159,7 +2192,8 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
     'Content-Type': mime,
     'Content-Length': stat.size,
     'Accept-Ranges': 'bytes',
-    'Cache-Control': cacheControl
+    'Cache-Control': cacheControl,
+    ...(ext === '.apk' ? { 'Content-Disposition': 'attachment; filename="Chatkaro-Food-Hub.apk"' } : {})
   });
   fs.createReadStream(fullPath).pipe(res);
 });
