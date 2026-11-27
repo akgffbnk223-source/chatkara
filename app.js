@@ -1390,6 +1390,90 @@
     });
   }
 
+  function getDishPricing(item) {
+    const price = Math.max(1, Number(item?.price || 0));
+    const pct = Math.min(80, Math.max(0, Number(item?.discountPct ?? (item?.bestseller ? 15 : 10))));
+    const mrp = pct > 0 ? Math.max(price + 5, Math.round(price / (1 - pct / 100))) : price;
+    const save = Math.max(0, mrp - price);
+    return { price, pct, mrp, save };
+  }
+
+  let activeDetailDishId = null;
+  let detailModalQty = 1;
+
+  function openDishDetailModal(dishId) {
+    const dish = appState.menu.find((m) => m.id === dishId);
+    if (!dish) return;
+    activeDetailDishId = dish.id;
+    detailModalQty = 1;
+    const { price, pct, mrp, save } = getDishPricing(dish);
+    const dishImg = getDishImage(dish) || 'assets/veg-kadai.jpg';
+    const servedWith = dish.servedWith || DEFAULT_SERVED_WITH[dish.category] || 'Fresh Chutney & Salad';
+    const portion = dish.portion || (dish.category === 'beverages' ? '1 Glass / 2 Pcs' : 'Full Portion');
+
+    if ($('ddImg')) $('ddImg').src = dishImg;
+    if ($('ddImgDiscBadge')) {
+      if (pct > 0) {
+        $('ddImgDiscBadge').textContent = `${pct}% OFF`;
+        $('ddImgDiscBadge').classList.remove('hidden');
+      } else {
+        $('ddImgDiscBadge').classList.add('hidden');
+      }
+    }
+    if ($('ddBadges')) {
+      $('ddBadges').innerHTML = `
+        <span class="dish-tag veg">🥬 100% Pure Veg</span>
+        ${dish.bestseller ? '<span class="dish-tag">⭐ Bestseller</span>' : ''}
+        ${dish.spicy ? '<span class="dish-tag spicy">🌶️ Spicy</span>' : ''}
+        ${dish.available === false ? '<span class="dish-tag spicy">Sold Out</span>' : ''}`;
+    }
+    if ($('ddTitle')) $('ddTitle').textContent = `${dish.emoji || '🍲'} ${dish.name}`;
+    if ($('ddGuName')) $('ddGuName').textContent = dish.guName || '';
+    if ($('ddPortion')) $('ddPortion').textContent = `🍽️ ${portion}`;
+    if ($('ddDiscBadge')) $('ddDiscBadge').textContent = pct > 0 ? `-${pct}%` : 'FRESH';
+    if ($('ddPrice')) $('ddPrice').textContent = `₹${price}`;
+    if ($('ddMrp')) $('ddMrp').textContent = `₹${mrp}`;
+    if ($('ddSaveText')) $('ddSaveText').textContent = save > 0 ? `You Save ₹${save}` : 'Kitchen Direct Price';
+    if ($('ddServedBox')) $('ddServedBox').innerHTML = `<strong>🎁 Saath Mein Milega:</strong> ${escapeHtml(servedWith)}`;
+    if ($('ddDesc')) $('ddDesc').textContent = dish.desc || 'Freshly prepared to order in our 100% Pure Veg Talala Kitchen.';
+    if ($('ddQtyVal')) $('ddQtyVal').textContent = String(detailModalQty);
+
+    const addBtn = $('ddAddCartBtn');
+    const buyBtn = $('ddBuyNowBtn');
+    const soldOut = dish.available === false;
+    if (addBtn) addBtn.disabled = soldOut;
+    if (buyBtn) buyBtn.disabled = soldOut;
+
+    const sameCat = appState.menu.filter((m) => m.id !== dish.id && m.category === dish.category && m.available !== false);
+    const otherTop = appState.menu.filter((m) => m.id !== dish.id && m.category !== dish.category && m.available !== false && (m.bestseller || m.category === 'beverages' || m.category === 'tandoor'));
+    const similar = [...sameCat.slice(0, 5), ...otherTop.slice(0, 4)].slice(0, 8);
+    if ($('ddSimilarGrid')) {
+      $('ddSimilarGrid').innerHTML = similar
+        .map((s) => {
+          const sp = getDishPricing(s);
+          const simImg = getDishImage(s) || 'assets/veg-kadai.jpg';
+          return `
+            <div class="amazon-sim-card" data-sim-id="${escapeHtml(s.id)}">
+              <div class="amazon-sim-img-wrap">
+                <img src="${escapeHtml(simImg)}" alt="${escapeHtml(s.name)}" loading="lazy" />
+                ${sp.pct > 0 ? `<span class="amazon-sim-disc">${sp.pct}% OFF</span>` : ''}
+              </div>
+              <div class="amazon-sim-body">
+                <strong>${escapeHtml(s.name)}</strong>
+                <div class="amazon-sim-price-row">
+                  <span>₹${sp.price}</span>
+                  ${sp.pct > 0 ? `<s>₹${sp.mrp}</s>` : ''}
+                </div>
+                <button type="button" class="btn btn-primary btn-xs amazon-sim-add" data-sim-add="${escapeHtml(s.id)}">+ Add</button>
+              </div>
+            </div>`;
+        })
+        .join('');
+    }
+
+    $('dishDetailModal')?.classList.remove('hidden');
+  }
+
   function renderMenu() {
     const q = appState.search.trim().toLowerCase();
     const filtered = appState.menu.filter((item) => {
@@ -1411,6 +1495,7 @@
         const qty = appState.cart[item.id] || 0;
         const soldOut = item.available === false;
         const dishImg = getDishImage(item);
+        const { price, pct, mrp } = getDishPricing(item);
         const servedWith = item.servedWith || DEFAULT_SERVED_WITH[item.category] || 'Fresh Chutney & Salad';
         const portion = item.portion || (item.category === 'beverages' ? '1 Glass / 2 Pcs' : 'Full Portion');
         const actionHtml = soldOut
@@ -1428,19 +1513,20 @@
           : `<div class="dish-no-photo-placeholder" aria-label="No dish photo"><span>${escapeHtml(item.emoji)}</span><small>100% Pure Veg</small></div>`;
 
         return `
-          <article class="menu-card ${soldOut ? 'sold-out' : ''}">
+          <article class="menu-card ${soldOut ? 'sold-out' : ''}" data-dish-id="${escapeHtml(item.id)}">
             <div class="dish-photo-wrap">
               ${mediaHtml}
               <div class="dish-photo-overlay"></div>
               <div class="dish-photo-top-badges">
                 <div class="dish-photo-badges-left">
-                  ${item.bestseller ? '<span class="dish-tag">⭐ Bestseller</span>' : ''}
+                  ${pct > 0 ? `<span class="dish-disc-pill">${pct}% OFF</span>` : ''}
+                  ${item.bestseller ? '<span class="dish-tag">⭐ Best</span>' : ''}
                   ${item.spicy ? '<span class="dish-tag spicy">🌶️ Spicy</span>' : ''}
                 </div>
                 <span class="veg-square" title="100% Pure Veg"></span>
               </div>
               ${item.guName ? `<span class="dish-gu-badge">${escapeHtml(item.guName)}</span>` : ''}
-              <span class="dish-photo-price">₹${item.price}/-</span>
+              <span class="dish-photo-price">₹${price}/-</span>
             </div>
             <div class="menu-card-body">
               <div>
@@ -1459,7 +1545,10 @@
                 </div>
               </div>
               <div class="menu-card-bottom">
-                <span class="dish-price">₹${item.price} <small class="muted" style="font-size:0.74rem;font-weight:600;">Pure Veg</small></span>
+                <div class="dish-mrp-row">
+                  <span class="dish-price">₹${price}</span>
+                  ${pct > 0 ? `<s class="dish-mrp-cut">₹${mrp}</s>` : '<small class="muted" style="font-size:0.72rem;">Pure Veg</small>'}
+                </div>
                 ${actionHtml}
               </div>
             </div>
@@ -1505,6 +1594,7 @@
       .join('');
 
     const discountPct = getDiscountPercent(appState.promoCode);
+    const mrpSavings = items.reduce((s, i) => s + getDishPricing(i).save * i.qty, 0);
     const discountAmt = Math.round((subtotal * discountPct) / 100);
     const deliveryFee = appState.orderType === 'delivery' && subtotal < 250 ? 20 : 0;
     const grandTotal = Math.max(0, subtotal - discountAmt + deliveryFee);
@@ -1535,6 +1625,7 @@
       </div>
       <div class="bill-lines">
         <div class="bill-line"><span>Subtotal</span><span>₹${subtotal}</span></div>
+        ${mrpSavings > 0 ? `<div class="bill-line discount"><span>🏷️ Menu MRP Discount Saved</span><span>−₹${mrpSavings}</span></div>` : ''}
         ${discountAmt > 0 ? `<div class="bill-line discount"><span>Promo (${appState.promoCode} ${discountPct}%)</span><span>−₹${discountAmt}</span></div>` : ''}
         ${deliveryFee > 0 ? `<div class="bill-line"><span>Delivery Fee (Free ₹250+)</span><span>₹${deliveryFee}</span></div>` : ''}
         <div class="bill-line total"><span>Total Payable</span><span>₹${grandTotal}</span></div>
@@ -1673,26 +1764,102 @@
     const payLabel = order.paymentStatus === 'paid'
       ? `PAID via ${(order.paymentMethod || 'online').toUpperCase()}`
       : 'Pay at Counter / COD';
-    $('orderConfirmMeta').textContent = `Order #${order.id} • ${order.orderType.toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''} • ${payLabel}`;
-    $('modalLiveEta').dataset.endsAt = order.etaEndsAt;
+    const isPaid = order.paymentStatus === 'paid';
+    const dt = order.createdAt ? new Date(order.createdAt) : new Date();
+    const dateStr = dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const subtotalCalc = order.items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 1), 0);
+    const mrpSaved = order.items.reduce((s, i) => {
+      const m = appState.menu.find((x) => x.id === i.id || x.name === i.name);
+      return s + (m ? getDishPricing(m).save : Math.round(Number(i.price || 0) * 0.1)) * Number(i.qty || 1);
+    }, 0);
+
+    $('orderConfirmMeta').textContent = `Official Royal Bill #${order.id} • ${order.orderType.toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''} • ${payLabel}`;
+    $('modalLiveEta').dataset.endsAt = order.etaEndsAt || '';
     $('orderReceiptBox').innerHTML = `
-      <p style="margin-top:0;"><strong>${escapeHtml(order.customerName)}</strong> (${escapeHtml(order.customerPhone)})<br/>
-      <small class="muted">${escapeHtml(order.detail || 'Standard prep')} • ${escapeHtml(payLabel)}${order.paymentId ? ` (${escapeHtml(order.paymentId)})` : ''}</small></p>
-      ${order.items.map((i) => `<div class="bill-line"><span>${i.qty}× ${escapeHtml(i.name)}</span><span>₹${i.price * i.qty}</span></div>`).join('')}
-      <hr style="border:none;border-top:1px dashed var(--border);margin:0.5rem 0;"/>
-      <div class="bill-line total"><span>Total</span><span>₹${order.total}</span></div>`;
+      <div class="royal-bill-card">
+        <div class="royal-bill-header">
+          <div class="royal-bill-emblem">👑</div>
+          <h4>${escapeHtml(appState.settings.restaurantName || 'CHATKARO FOOD HUB')}</h4>
+          <p>100% PURE VEGETARIAN FAMILY RESTAURANT</p>
+          <small>${escapeHtml(appState.settings.address || 'Beside Swaminarayan Mandir, Sasan Road, Talala')} • +91 ${(appState.settings.phone || '919054633908').replace(/^91/, '')}</small>
+        </div>
+
+        <div class="royal-bill-meta">
+          <div><span>Bill No:</span> <strong>#${escapeHtml(order.id)}</strong></div>
+          <div><span>Date:</span> <strong>${dateStr}, ${timeStr}</strong></div>
+          <div><span>Guest:</span> <strong>${escapeHtml(order.customerName)}</strong> (${escapeHtml(order.customerPhone)})</div>
+          <div><span>Mode:</span> <strong>${escapeHtml(order.orderType.toUpperCase())}${order.tableId ? ' • Table ' + escapeHtml(order.tableId) : ''}</strong></div>
+          <div><span>Payment:</span> <strong style="color:${isPaid ? '#15803d' : '#b45309'};">${escapeHtml(payLabel)}${order.paymentId ? ' • ' + escapeHtml(order.paymentId) : ''}</strong></div>
+        </div>
+
+        <table class="royal-bill-table">
+          <thead>
+            <tr>
+              <th>Item Description</th>
+              <th style="text-align:center;">Qty</th>
+              <th style="text-align:right;">Rate</th>
+              <th style="text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.items.map((i) => `
+              <tr>
+                <td>${escapeHtml(i.name)}</td>
+                <td style="text-align:center;">${i.qty}</td>
+                <td style="text-align:right;">₹${i.price}</td>
+                <td style="text-align:right;"><strong>₹${i.price * i.qty}</strong></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div class="royal-bill-summary">
+          <div class="bill-line"><span>Items Subtotal</span><span>₹${subtotalCalc}</span></div>
+          ${mrpSaved > 0 ? `<div class="bill-line discount"><span>🏷️ Menu MRP Discount Saved</span><span>−₹${mrpSaved}</span></div>` : ''}
+          ${order.discount > 0 ? `<div class="bill-line discount"><span>🎟️ Promo Discount</span><span>−₹${order.discount}</span></div>` : ''}
+          ${order.deliveryFee > 0 ? `<div class="bill-line"><span>🛵 Delivery Charge</span><span>₹${order.deliveryFee}</span></div>` : ''}
+          <div class="bill-line royal-grand-total"><span>GRAND TOTAL</span><span>₹${order.total}/-</span></div>
+        </div>
+
+        <div class="royal-bill-footer">
+          <div class="royal-bill-thanks">
+            <strong>🙏 Thank You for Dining With Us!</strong>
+            <small>${escapeHtml(order.detail || 'Freshly cooked in pure veg kitchen')}</small>
+            <small>FSSAI Hygienic Standard • Authentic Talala Taste</small>
+          </div>
+          <div class="mohar-stamp ${isPaid ? 'paid-stamp' : 'verified-stamp'}" aria-label="Official Restaurant Seal">
+            <svg viewBox="0 0 120 120" width="96" height="96">
+              <defs>
+                <path id="moharTopArc" d="M 18,60 A 42,42 0 1,1 102,60" />
+                <path id="moharBotArc" d="M 102,60 A 42,42 0 1,1 18,60" />
+              </defs>
+              <circle cx="60" cy="60" r="55" fill="none" stroke="currentColor" stroke-width="3" />
+              <circle cx="60" cy="60" r="49" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 2" />
+              <circle cx="60" cy="60" r="30" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <text font-size="8.2" font-weight="800" fill="currentColor" letter-spacing="1.2">
+                <textPath href="#moharTopArc" startOffset="50%" text-anchor="middle">★ CHATKARO FOOD HUB ★</textPath>
+              </text>
+              <text font-size="7.5" font-weight="800" fill="currentColor" letter-spacing="1">
+                <textPath href="#moharBotArc" startOffset="50%" text-anchor="middle">TALALA • 100% PURE VEG</textPath>
+              </text>
+              <text x="60" y="56" text-anchor="middle" font-size="10.5" font-weight="900" fill="currentColor">${isPaid ? 'PAID ✓' : 'VERIFIED'}</text>
+              <text x="60" y="69" text-anchor="middle" font-size="7.2" font-weight="800" fill="currentColor">MOHAR SEAL</text>
+            </svg>
+          </div>
+        </div>
+      </div>`;
 
     const waPhone = appState.settings.phone || '919054633908';
     const waText = [
-      `*New Order — Chatkaro Food Hub (${order.id})*`,
-      `Customer: ${order.customerName} (${order.customerEmail})`,
+      `*Official Bill — Chatkaro Food Hub (#${order.id})*`,
+      `Customer: ${order.customerName} (${order.customerEmail || ''})`,
       `Phone: ${order.customerPhone}`,
       `Mode: ${order.orderType.toUpperCase()}${order.tableId ? ' | Table ' + order.tableId : ''}`,
       `Payment: ${payLabel}${order.paymentId ? ' | Ref: ' + order.paymentId : ''}`,
       order.detail ? `Notes: ${order.detail}` : '',
       `--- Items ---`,
       ...order.items.map((i) => `• ${i.qty}x ${i.name} = ₹${i.price * i.qty}`),
-      `*Total: ₹${order.total}*`
+      `*Grand Total: ₹${order.total}/-*`
     ].filter(Boolean).join('\n');
     $('whatsappOrderLink').href = `https://wa.me/${waPhone}?text=${encodeURIComponent(waText)}`;
     $('orderModal').classList.remove('hidden');
@@ -1842,14 +2009,15 @@
             <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
             <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
           </div>
-          ${
-            editable
-              ? `<div class="admin-controls-inline">
-                   <button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">✏️ Edit</button>
-                   <button type="button" class="btn btn-danger btn-xs cancel-my-order-btn" data-id="${escapeHtml(o.id)}">Cancel</button>
-                 </div>`
-              : ''
-          }
+          <div class="admin-controls-inline">
+            <button type="button" class="btn btn-outline btn-xs view-bill-btn" data-id="${escapeHtml(o.id)}">🧾 Official Bill</button>
+            ${
+              editable
+                ? `<button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">✏️ Edit</button>
+                   <button type="button" class="btn btn-danger btn-xs cancel-my-order-btn" data-id="${escapeHtml(o.id)}">Cancel</button>`
+                : ''
+            }
+          </div>
         </div>`;
       })
       .join('');
@@ -1927,6 +2095,12 @@
   }
 
   document.body.addEventListener('click', async (e) => {
+    const billBtn = e.target.closest('.view-bill-btn');
+    if (billBtn) {
+      const ord = appState.orders.find((o) => o.id === billBtn.dataset.id);
+      if (ord) showOrderConfirmationModal(ord);
+      return;
+    }
     const editBtn = e.target.closest('.edit-my-order-btn');
     if (editBtn) return openEditOrderModal(editBtn.dataset.id);
     const cancelBtn = e.target.closest('.cancel-my-order-btn');
@@ -2709,6 +2883,7 @@
                 </select>
                 <input type="number" class="adm-eta-input" data-id="${escapeHtml(o.id)}" value="${o.etaMinutes || 15}" min="0" max="120" style="width:65px;" title="ETA mins" />
                 <button type="button" class="btn btn-primary btn-xs adm-save-order-btn" data-id="${escapeHtml(o.id)}">Save</button>
+                <button type="button" class="btn btn-outline btn-xs view-bill-btn" data-id="${escapeHtml(o.id)}">🧾 Bill</button>
                 <button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">Edit</button>
                 <button type="button" class="btn btn-outline btn-xs adm-fake-order-btn" data-id="${escapeHtml(o.id)}" title="Hide fake/test order from Admin">Mark Fake</button>
                 <button type="button" class="btn btn-danger btn-xs adm-del-order-btn" data-id="${escapeHtml(o.id)}">Delete</button>
@@ -2758,6 +2933,7 @@
           <div class="admin-controls-inline" style="width:100%;">
             <input type="text" id="newDishName" placeholder="Dish Name *" required />
             <input type="number" id="newDishPrice" placeholder="Price ₹ *" required style="width:85px;" />
+            <input type="number" id="newDishDisc" placeholder="% OFF" value="10" min="0" max="80" style="width:72px;" title="Discount % OFF" />
             <select id="newDishCat">
               <option value="veg-prep">Veg Preparation</option>
               <option value="kaju-prep">Kaju Preparation</option>
@@ -2782,6 +2958,14 @@
             <button type="submit" class="btn btn-primary btn-sm" id="admAddDishSubmitBtn">Add Dish + Photo</button>
           </div>
         </form>
+        <div class="admin-row-card" style="margin-bottom:1rem;background:var(--surface-alt);justify-content:space-between;">
+          <strong>🏷️ All Dishes Discount (% OFF for MRP Strip)</strong>
+          <div class="admin-controls-inline">
+            <input type="number" id="admBulkDiscInput" value="15" min="0" max="80" style="width:78px;" />
+            <span class="small muted">% OFF on all</span>
+            <button type="button" class="btn btn-primary btn-xs" id="admBulkDiscBtn">Apply Discount to All Dishes</button>
+          </div>
+        </div>
         <div class="admin-grid-list">
           ${appState.menu
             .map(
@@ -2790,6 +2974,7 @@
                 const thumbHtml = thumbSrc
                   ? `<img src="${escapeHtml(thumbSrc)}" alt="" style="width:48px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #d1d5db;" />`
                   : `<div style="width:48px;height:40px;border-radius:8px;background:#f3f4f6;border:1px dashed #9ca3af;display:grid;place-items:center;font-size:1.1rem;flex-shrink:0;" title="Photo Deleted">${escapeHtml(m.emoji)}</div>`;
+                const curDisc = Number(m.discountPct ?? (m.bestseller ? 15 : 10));
                 return `
             <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.55rem;">
               <div class="admin-controls-inline" style="width:100%;">
@@ -2801,6 +2986,8 @@
                 </select>
                 <span>₹</span>
                 <input type="number" class="adm-price-input" data-id="${escapeHtml(m.id)}" value="${m.price}" style="width:72px;" />
+                <input type="number" class="adm-ddisc" data-id="${escapeHtml(m.id)}" value="${curDisc}" min="0" max="80" style="width:60px;" title="Discount %" />
+                <span class="small muted">%</span>
               </div>
               <div class="admin-controls-inline" style="width:100%;justify-content:space-between;">
                 <div class="admin-controls-inline" style="flex:1;">
@@ -2829,6 +3016,17 @@
         if ($('newDishFileLabel')) $('newDishFileLabel').textContent = pendingNewDishFile ? `📎 ${pendingNewDishFile.name}` : '';
       });
 
+      $('admBulkDiscBtn')?.addEventListener('click', async () => {
+        const discountPct = Number($('admBulkDiscInput')?.value || 0);
+        try {
+          const res = await api('/api/admin/menu/bulk-discount', 'POST', { discountPct }, pinHeaders);
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast(`Updated discount to ${discountPct}% OFF on all dishes! 🏷️`);
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
       $('admAddDishForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = $('admAddDishSubmitBtn');
@@ -2838,6 +3036,7 @@
             item: {
               name: $('newDishName').value.trim(),
               price: Number($('newDishPrice').value),
+              discountPct: Number($('newDishDisc')?.value || 10),
               category: $('newDishCat').value,
               emoji: $('newDishEmoji').value || '🍲',
               servedWith: $('newDishServed').value.trim(),
@@ -2852,6 +3051,7 @@
             const dataUrl = await compressImageFile(pendingNewDishFile);
             await api('/api/admin/upload-dish-photo', 'POST', { dishId: createdDish.id, dataUrl, filename: pendingNewDishFile.name }, pinHeaders);
           }
+          pendingNewDishFile = null;
           showToast('New dish added with photo! 📸');
         } catch (err) {
           showToast(err.message);
@@ -2868,10 +3068,12 @@
           const emoji = $('adminTabMenu').querySelector(`.adm-demoji[data-id="${id}"]`).value.trim();
           const category = $('adminTabMenu').querySelector(`.adm-dcat[data-id="${id}"]`).value;
           const price = Number($('adminTabMenu').querySelector(`.adm-price-input[data-id="${id}"]`).value);
+          const discountPct = Number($('adminTabMenu').querySelector(`.adm-ddisc[data-id="${id}"]`)?.value || 0);
           const imgVal = $('adminTabMenu').querySelector(`.adm-dimg[data-id="${id}"]`).value.trim();
           const image = imgVal === '' ? '__NONE__' : imgVal;
-          await api('/api/admin/menu', 'POST', { item: { ...dish, name, emoji, category, price, image } }, pinHeaders);
-          showToast(`Saved ${name} (₹${price})`);
+          const res = await api('/api/admin/menu', 'POST', { item: { ...dish, name, emoji, category, price, discountPct, image } }, pinHeaders);
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast(`Saved ${name} (₹${price}, ${discountPct}% OFF)`);
         });
       });
 
@@ -3398,6 +3600,16 @@
         </form>
 
         <hr style="border:none;border-top:1px dashed var(--border);margin:1.3rem 0;" />
+        <h3>💾 Permanent Settings Backup &amp; Sync</h3>
+        <p class="muted small" style="margin-top:0;">Settings (Gateways, YouTube Song, Gemini AI, Menu &amp; Ads) sync to all phones &amp; PCs automatically. For permanent survival across Render server restarts, set Render Env Vars (<code>BG_MUSIC_URL</code>, <code>GEMINI_API_KEY</code>, <code>RAZORPAY_KEY_ID</code>, <code>STATE_GIST_ID</code>) OR export a backup JSON here:</p>
+        <div class="admin-controls-inline" style="margin-bottom:0.8rem;">
+          <button type="button" class="btn btn-outline btn-sm" id="admExportBackupBtn">⬇️ Download Full Backup JSON</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+            ⬆️ Restore Backup JSON <input type="file" id="admImportBackupFile" accept=".json,application/json" style="display:none;" />
+          </label>
+        </div>
+
+        <hr style="border:none;border-top:1px dashed var(--border);margin:1.3rem 0;" />
         <h3>🔐 Change Owner Admin PIN</h3>
         <form id="admChangePinForm" class="stack-form">
           <div class="two-col">
@@ -3487,6 +3699,36 @@
         }
       });
 
+      $('admExportBackupBtn')?.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/admin/backup', { headers: pinHeaders });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Backup download failed');
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `chatkaro-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          showToast('Full Settings, Menu & Ads backup downloaded! 💾');
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('admImportBackupFile')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const res = await api('/api/admin/backup', 'POST', { db: parsed.db || parsed }, pinHeaders);
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast('Backup restored across all devices! ✅');
+        } catch (err) {
+          showToast(err.message || 'Invalid backup file');
+        }
+      });
+
       $('admChangePinForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         try {
@@ -3515,11 +3757,42 @@
     return html;
   }
 
+  function setAiWidgetOpen(open) {
+    $('aiWidget').classList.toggle('hidden', !open);
+    document.body.classList.toggle('ai-chat-open', Boolean(open));
+    if (open) $('aiChatInput')?.focus();
+  }
+
   $('openAiFab').addEventListener('click', () => {
-    $('aiWidget').classList.toggle('hidden');
-    if (!$('aiWidget').classList.contains('hidden')) $('aiChatInput').focus();
+    const isHidden = $('aiWidget').classList.contains('hidden');
+    setAiWidgetOpen(isHidden);
   });
-  $('closeAiBtn').addEventListener('click', () => $('aiWidget').classList.add('hidden'));
+  $('closeAiBtn').addEventListener('click', () => setAiWidgetOpen(false));
+
+  // Prevent AI chat scroll from ever scrolling the shop behind it
+  (function trapAiChatScroll() {
+    const box = $('aiMessages');
+    if (!box) return;
+    box.addEventListener('wheel', (e) => {
+      const atTop = box.scrollTop <= 0 && e.deltaY < 0;
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1 && e.deltaY > 0;
+      if (atTop || atBottom) e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    let touchStartY = 0;
+    box.addEventListener('touchstart', (e) => {
+      if (e.touches && e.touches[0]) touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    box.addEventListener('touchmove', (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const dy = e.touches[0].clientY - touchStartY;
+      const atTop = box.scrollTop <= 0 && dy > 0;
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1 && dy < 0;
+      if (atTop || atBottom) e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+  })();
+
   $('clearAiBtn')?.addEventListener('click', () => {
     appState.aiHistory = [];
     const box = $('aiMessages');
@@ -3558,6 +3831,57 @@
         res = await api('/api/ai-chat', 'POST', { message: q, history: appState.aiHistory });
       }
       typingBubble.innerHTML = formatAiMessageHtml(res.reply);
+
+      // Direct AI Order Action -> Add dishes to Cart & show interactive checkout buttons
+      const act = res.aiOrderAction;
+      if (act && Array.isArray(act.items) && act.items.length > 0) {
+        let addedSummary = [];
+        for (const it of act.items) {
+          const dish = appState.menu.find((m) => m.id === it.id);
+          if (dish && dish.available !== false) {
+            const count = Math.max(1, Math.min(20, Number(it.qty || 1)));
+            updateQty(dish.id, count);
+            addedSummary.push(`${count}× ${dish.name}`);
+          }
+        }
+        if (act.orderType && ['dine-in', 'parcel', 'delivery'].includes(act.orderType)) {
+          appState.orderType = act.orderType;
+          renderCart();
+        }
+        if (addedSummary.length > 0) {
+          showToast(`🤖 AI added: ${addedSummary.join(', ')}`);
+          const bar = document.createElement('div');
+          bar.className = 'ai-order-actions';
+          const viewBtn = document.createElement('button');
+          viewBtn.type = 'button';
+          viewBtn.className = 'btn btn-outline btn-xs';
+          viewBtn.textContent = '🛒 View Cart';
+          viewBtn.addEventListener('click', () => { setAiWidgetOpen(false); openCart(); });
+
+          const orderBtn = document.createElement('button');
+          orderBtn.type = 'button';
+          orderBtn.className = 'btn btn-primary btn-xs';
+          orderBtn.textContent = '⚡ Checkout & Bill';
+          orderBtn.addEventListener('click', () => {
+            setAiWidgetOpen(false);
+            openCart();
+            if (appState.user && appState.user.phone) {
+              placeOrder();
+            }
+          });
+          bar.appendChild(viewBtn);
+          bar.appendChild(orderBtn);
+          typingBubble.appendChild(bar);
+
+          if (act.placeNow) {
+            setTimeout(() => {
+              setAiWidgetOpen(false);
+              openCart();
+            }, 600);
+          }
+        }
+      }
+
       appState.aiHistory.push({ role: 'user', text: q }, { role: 'model', text: res.reply });
       if (res.engine && !res.engine.includes('fallback') && !res.engine.includes('smart-menu')) {
         $('aiEngineBadge').textContent = `● Gemini Live (${res.engine})`;
@@ -3581,7 +3905,48 @@
   // ================= EVENT BINDINGS =================
   $('menuGrid').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
-    if (btn) updateQty(btn.dataset.id, btn.dataset.action === 'inc' ? 1 : -1);
+    if (btn) {
+      e.stopPropagation();
+      updateQty(btn.dataset.id, btn.dataset.action === 'inc' ? 1 : -1);
+      return;
+    }
+    const card = e.target.closest('.menu-card[data-dish-id]');
+    if (card) openDishDetailModal(card.dataset.dishId);
+  });
+
+  $('closeDishDetailBtn')?.addEventListener('click', () => $('dishDetailModal')?.classList.add('hidden'));
+  $('dishDetailModal')?.addEventListener('click', (e) => {
+    if (e.target === $('dishDetailModal')) $('dishDetailModal').classList.add('hidden');
+  });
+  $('ddQtyDec')?.addEventListener('click', () => {
+    detailModalQty = Math.max(1, detailModalQty - 1);
+    if ($('ddQtyVal')) $('ddQtyVal').textContent = String(detailModalQty);
+  });
+  $('ddQtyInc')?.addEventListener('click', () => {
+    detailModalQty = Math.min(20, detailModalQty + 1);
+    if ($('ddQtyVal')) $('ddQtyVal').textContent = String(detailModalQty);
+  });
+  $('ddAddCartBtn')?.addEventListener('click', () => {
+    if (!activeDetailDishId) return;
+    updateQty(activeDetailDishId, detailModalQty);
+    showToast(`Added ${detailModalQty}× to Cart! 🛒`);
+  });
+  $('ddBuyNowBtn')?.addEventListener('click', () => {
+    if (!activeDetailDishId) return;
+    updateQty(activeDetailDishId, detailModalQty);
+    $('dishDetailModal')?.classList.add('hidden');
+    openCart();
+  });
+  $('ddSimilarGrid')?.addEventListener('click', (e) => {
+    const addBtn = e.target.closest('[data-sim-add]');
+    if (addBtn) {
+      e.stopPropagation();
+      updateQty(addBtn.dataset.simAdd, 1);
+      showToast('Added similar dish to Cart! 🍽️');
+      return;
+    }
+    const simCard = e.target.closest('[data-sim-id]');
+    if (simCard) openDishDetailModal(simCard.dataset.simId);
   });
   $('menuTabs').addEventListener('click', (e) => {
     const tab = e.target.closest('.tab-btn');

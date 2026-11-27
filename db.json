@@ -26,7 +26,7 @@
     "phonepeSaltKey": "",
     "phonepeSaltIndex": "1",
     "phonepeEnv": "sandbox",
-    "lastMapsSyncAt": 1795779065786,
+    "lastMapsSyncAt": 1795807520934,
     "announcement": "🌿 100% Pure Vegetarian • 🕒 12:00 PM–3:00 PM & 6:00 PM–11:50 PM (Break 3–6 PM)",
     "dailyDeal": "🔥 Today’s Combo Deal: Classic Masala Dosa + Cold Coffee = ₹149! Use WELCOME5 for extra 5% OFF.",
     "brandTheme": {
@@ -37,8 +37,7 @@
       "surface": "#1d1d20",
       "text": "#f9fafb",
       "fxEnabled": true
-    },
-    "bgMusicPlaylistId": ""
+    }
   },
   "menu": [
     {
@@ -54,7 +53,8 @@
       "desc": "Garden-fresh carrots, peas, beans, cauliflower & paneer simmered in rich aromatic royal masala gravy.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "veg-kadai",
@@ -69,7 +69,8 @@
       "desc": "Crunchy bell peppers, paneer & mixed veggies wok-tossed in freshly pounded kadai spices & sizzling gravy.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "veg-handi",
@@ -84,7 +85,8 @@
       "desc": "Slow-cooked creamy clay-pot handi curry packed with tender vegetables, cashews, butter & whole spices.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "veg-kolhapuri",
@@ -99,7 +101,8 @@
       "desc": "Bold & fiery Kolhapuri-style masala bursting with roasted coconut, sesame, red chillies & smoky spices.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "veg-maharaja",
@@ -114,7 +117,8 @@
       "desc": "A royal double-layered feast of exotic veggies, soft paneer & velvety saffron-cashew cream gravy.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "veg-tawa-masala",
@@ -129,7 +133,8 @@
       "desc": "Char-seared veggies & paneer roasted on a hot iron tawa with tangy onion-tomato bhuna masala & butter.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "veg-diwani-handi",
@@ -144,7 +149,8 @@
       "desc": "Silky spinach-cashew & vegetable delicacy slow-simmered in an earthen handi with roasted garlic & herbs.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "veg-angara",
@@ -159,7 +165,8 @@
       "desc": "Signature charcoal-smoked sizzling curry with bold spices, roasted peppers & unforgettable dhungar aroma.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "veg-tufani",
@@ -174,7 +181,8 @@
       "desc": "Stormy, high-flavor spicy gravy loaded with crisp veggies, ginger-garlic tadka & fiery red masala.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "veg-hyderabadi",
@@ -189,7 +197,8 @@
       "desc": "Nizami-style green herb, mint, coriander & royal spice gravy with rich cashew paste and soft paneer.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "kaju-curry",
@@ -204,7 +213,8 @@
       "desc": "Generous whole golden-roasted cashews simmered in a luscious, mildly spiced royal onion-tomato curry.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "kaju-butter-masala",
@@ -219,7 +229,8 @@
       "desc": "Melt-in-mouth roasted cashews bathed in rich Amul butter, velvety tomato makhani gravy & kasuri methi.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "kaju-paneer-masala",
@@ -234,7 +245,8 @@
       "desc": "Best of both worlds — crunchy roasted cashews & pillowy fresh paneer cubes in a decadent saffron masala.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "kaju-cheese-butter",
@@ -249,7 +261,8 @@
       "desc": "Indulgent triple-rich gravy blending golden cashews, melted cheese & creamy butter for pure comfort.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "kaju-koya",
@@ -264,7 +277,8 @@
       "desc": "Royal Shahi white-gold gravy crafted with rich mawa (khoya), whole cashews, cardamom & mild sweetness.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "cheese-butter-masala",
@@ -279,7 +293,8 @@
       "desc": "Creamy, bubbling tomato-butter makhani loaded with soft melting cheese cubes & grated cheese topping!",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "cheese-paneer-masala",
@@ -294,7 +309,8 @@
       "desc": "Fresh malai paneer & gooey cheese cubes tossed in a luscious spiced butter gravy that cheese lovers crave.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "cheese-anguri",
@@ -309,7 +325,8 @@
       "desc": "Chef’s showstopper! Bite-sized golden cheese-kofta pearls floating in ultra-creamy, buttery royal gravy.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "tan-paneer-tikka",
@@ -324,7 +341,8 @@
       "desc": "Marinated malai paneer, capsicum & onion cubes char-grilled over glowing tandoor coals.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "tan-paneer-malai",
@@ -339,7 +357,8 @@
       "desc": "Melt-in-mouth paneer marinated in fresh cream, cashew paste, cardamom & mild white pepper.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "tan-hara-bhara",
@@ -354,7 +373,8 @@
       "desc": "Healthy & crisp spinach, green peas & potato patties topped with roasted cashew halves.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "tan-seekh-kabab",
@@ -369,7 +389,8 @@
       "desc": "Minced garden veggies, paneer & aromatic tandoori spices grilled golden on iron skewers.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "tan-stuffed-aloo",
@@ -384,7 +405,8 @@
       "desc": "Scooped golden potatoes stuffed with spiced paneer, cashews & raisins, roasted in tandoor.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "tan-crispy-corn",
@@ -399,7 +421,8 @@
       "desc": "Golden crunchy sweet corn kernels tossed in smoky tandoori chaat spices & peppers.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "tan-plain-roti",
@@ -414,7 +437,8 @@
       "desc": "Hot whole-wheat flatbread slapped fresh onto glowing clay tandoor walls.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "tan-butter-roti",
@@ -429,7 +453,8 @@
       "desc": "Crisp clay-oven roti generously brushed with melting Amul butter.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "pun-butter-naan",
@@ -444,7 +469,8 @@
       "desc": "Soft fluffy tandoori flatbread baked crisp outside and brushed generously with butter.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "pun-garlic-naan",
@@ -459,7 +485,8 @@
       "desc": "Freshly baked naan topped with roasted garlic, coriander & melted cheese.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "tan-chilli-garlic-naan",
@@ -474,7 +501,8 @@
       "desc": "Gooey cheese-stuffed tandoori naan topped with green chillies & roasted garlic.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "tan-butter-kulcha",
@@ -489,7 +517,8 @@
       "desc": "Flaky tandoori kulcha stuffed with spiced potato-onion masala and crushed coriander.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "tan-laccha-paratha",
@@ -504,7 +533,8 @@
       "desc": "Flaky, golden multi-layered tandoori whole-wheat paratha with crisp edges.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "tan-aloo-paratha",
@@ -519,7 +549,8 @@
       "desc": "Hearty whole-wheat parathas stuffed with spiced mashed potatoes, served hot with curd.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "tan-missi-roti",
@@ -534,7 +565,8 @@
       "desc": "Rustic tandoori flatbread of besan, wheat, ajwain, onion & fresh kasuri methi.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "dosa-masala",
@@ -548,7 +580,8 @@
       "desc": "Golden crispy crepe stuffed with spiced potato masala, roasted in ghee to perfection.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-mysore",
@@ -562,7 +595,8 @@
       "desc": "Fiery red garlic-chilli spread inside a crunchy butter dosa with classic potato masala filling.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-cheese-butter",
@@ -576,7 +610,8 @@
       "desc": "Generous Amul butter & melted mozzarella cheese grated generously over crispy golden masala dosa.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-paper",
@@ -590,7 +625,8 @@
       "desc": "Extra-thin, extra-crisp golden paper dosa roasted light and crunchy.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "dosa-jinni",
@@ -604,7 +640,8 @@
       "desc": "Signature fusion roll dosa loaded with veggies, schezwan tang, paneer & melted cheese.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "idli-sambar",
@@ -618,7 +655,8 @@
       "desc": "Fluffy, cloud-soft steamed rice cakes dipped in aromatic lentil sambar.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "medu-vada",
@@ -632,7 +670,8 @@
       "desc": "Crunchy golden lentil fritters tempered with curry leaves & black pepper.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "uttapam-onion",
@@ -646,7 +685,8 @@
       "desc": "Thick savory rice pancake topped with caramelized onions, tomatoes & fresh coriander.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "dosa-ghee-roast",
@@ -661,7 +701,8 @@
       "desc": "Extra-crispy cone dosa slow-roasted in pure desi ghee with spiced potato masala.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-rava-masala",
@@ -676,7 +717,8 @@
       "desc": "Lacy semolina crepe tempered with jeera, curry leaves & pepper, stuffed with masala.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "dosa-paneer-masala",
@@ -691,7 +733,8 @@
       "desc": "Crispy butter dosa generously stuffed with spiced grated paneer bhurji & potato masala.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-schezwan",
@@ -706,7 +749,8 @@
       "desc": "Crunchy dosa smeared with zesty Indo-Chinese schezwan sauce, crunchy veggies & masala.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "dosa-spring-roll",
@@ -721,7 +765,8 @@
       "desc": "Crispy dosa rolled around stir-fried noodles, cabbage, capsicum & soy spices, sliced into bites.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "dosa-cheese-corn",
@@ -736,7 +781,8 @@
       "desc": "Melted mozzarella cheese, juicy sweet corn & butter herbs folded inside a crispy dosa.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "dosa-chocolate",
@@ -751,7 +797,8 @@
       "desc": "Kids favorite! Thin crispy butter dosa filled with warm melted chocolate & choco chips.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-manchurian",
@@ -765,7 +812,8 @@
       "desc": "Crispy mixed-veg balls tossed in smoky garlic, soy & spring onion Manchurian sauce.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-hakka",
@@ -779,7 +827,8 @@
       "desc": "Street-style wok-tossed noodles with crunchy cabbage, bell peppers & julienne carrots.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-schezwan-rice",
@@ -793,7 +842,8 @@
       "desc": "Bold spicy schezwan tossed rice with sweet corn, beans, spring onion & crispy garnish.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-paneer-chilli",
@@ -807,7 +857,8 @@
       "desc": "Tender paneer cubes wok-seared with capsicum, green chillies & tangy soy-garlic glaze.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-bhel",
@@ -821,7 +872,8 @@
       "desc": "Crunchy fried noodles tossed in spicy schezwan, sweet-sour sauces & fresh veggies.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-soup",
@@ -835,7 +887,8 @@
       "desc": "Steaming dark vegetable broth loaded with minced veggies & roasted garlic.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-triple-schezwan",
@@ -850,7 +903,8 @@
       "desc": "Ultimate Indo-Chinese feast: fried rice & noodles tossed in schezwan with separate gravy!",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-veg-crispy",
@@ -865,7 +919,8 @@
       "desc": "Crispy batter-fried cauliflower, baby corn & peppers tossed in tangy chilli-garlic glaze.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-spring-rolls",
@@ -880,7 +935,8 @@
       "desc": "Paper-thin golden fried rolls packed with crunchy seasoned noodles & vegetables.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-paneer-65",
@@ -895,7 +951,8 @@
       "desc": "Crispy spiced paneer cubes tossed with curry leaves, green chillies & tangy 65 masala.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-honey-chilli-potato",
@@ -910,7 +967,8 @@
       "desc": "Super crispy potato fingers glazed in sweet-spicy honey chilli sauce & sesame.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "chi-chilli-garlic-noodles",
@@ -925,7 +983,8 @@
       "desc": "Fiery wok-tossed noodles infused with loads of roasted garlic, red chilli flakes & veggies.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "chi-sweet-corn-soup",
@@ -940,7 +999,8 @@
       "desc": "Mild, velvety golden sweet corn broth with finely diced carrots & beans.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "chi-manchurian-rice",
@@ -955,7 +1015,8 @@
       "desc": "Aromatic veg fried rice served together with rich, piping-hot Manchurian gravy.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "pun-paneer-butter",
@@ -969,7 +1030,8 @@
       "desc": "Soft paneer cubes simmered in rich, velvety tomato-cashew Amul butter gravy.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "pun-paneer-tikka",
@@ -983,7 +1045,8 @@
       "desc": "Char-grilled spiced paneer cubes in a robust onion-tomato smoky masala gravy.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "pun-dal-tadka",
@@ -997,7 +1060,8 @@
       "desc": "Comforting yellow lentils tempered with cumin & garlic, paired with fragrant jeera rice.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "pun-thali",
@@ -1011,7 +1075,8 @@
       "desc": "Our all-in-one signature wholesome Punjabi platter freshly packed with 9 delicious items!",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "ff-pav-bhaji",
@@ -1025,7 +1090,8 @@
       "desc": "Spiced mashed veggie bhaji topped with melting butter cube and Mumbai-style masala.",
       "bestseller": true,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "ff-bombay-sandwich",
@@ -1039,7 +1105,8 @@
       "desc": "Triple-layer grilled sandwich with mint chutney, veggies, chaat masala & melted cheese.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "ff-pizza",
@@ -1053,7 +1120,8 @@
       "desc": "Freshly baked crust loaded with bell peppers, sweet corn, onions, olives & mozzarella.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "ff-burger",
@@ -1067,7 +1135,8 @@
       "desc": "Crunchy herb-spiced patty, creamy mayo, fresh lettuce & cheese slice in a toasted bun.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "ff-fries",
@@ -1081,7 +1150,8 @@
       "desc": "Golden crisp potato fries dusted with zesty peri-peri spice mix.",
       "bestseller": false,
       "spicy": true,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "bev-chaas",
@@ -1095,7 +1165,8 @@
       "desc": "Chilled traditional Kathiyawadi spiced buttermilk—perfect cooling partner for meals.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "bev-cold-coffee",
@@ -1109,7 +1180,8 @@
       "desc": "Creamy blended iced coffee—thick, frothy and café-style.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     },
     {
       "id": "bev-mango-lassi",
@@ -1123,7 +1195,8 @@
       "desc": "Rich sweet yogurt lassi infused with authentic Talala-famous Gir Kesar mango flavor.",
       "bestseller": true,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 15
     },
     {
       "id": "bev-lime-soda",
@@ -1137,7 +1210,8 @@
       "desc": "Refreshing fizzy lemon cooler made fresh on order.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 5
     },
     {
       "id": "bev-gulab-jamun",
@@ -1151,7 +1225,8 @@
       "desc": "Melt-in-mouth warm khoya dumplings soaked in aromatic rose-cardamom syrup.",
       "bestseller": false,
       "spicy": false,
-      "available": true
+      "available": true,
+      "discountPct": 10
     }
   ],
   "ads": [
@@ -1162,7 +1237,7 @@
       "url": "assets/ads/reel-1.mp4",
       "linkedDishId": "veg-angara",
       "active": true,
-      "createdAt": 1795779065786
+      "createdAt": 1795807520934
     },
     {
       "id": "ad-insta-2",
@@ -1171,7 +1246,7 @@
       "url": "assets/ads/reel-2.mp4",
       "linkedDishId": "cheese-anguri",
       "active": true,
-      "createdAt": 1795779064786
+      "createdAt": 1795807519934
     }
   ],
   "tables": [
@@ -1183,7 +1258,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 2,
@@ -1193,7 +1268,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 3,
@@ -1203,7 +1278,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 4,
@@ -1213,7 +1288,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 5,
@@ -1223,7 +1298,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 6,
@@ -1233,7 +1308,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 7,
@@ -1243,7 +1318,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     },
     {
       "id": 8,
@@ -1253,7 +1328,7 @@
       "occupantName": "",
       "occupantEmail": "",
       "dishSummary": "",
-      "updatedAt": 1795779065786
+      "updatedAt": 1795807520934
     }
   ],
   "customers": {},
@@ -1266,7 +1341,7 @@
       "text": "Chatkaro Food Hub is an amazing place! The food is delicious, the service is excellent, and the atmosphere is wonderful. A perfect place to enjoy with family and friends.",
       "source": "Google Maps",
       "meta": "Dine-in • Dinner • ₹1–200",
-      "createdAt": 1795777625786
+      "createdAt": 1795806080934
     },
     {
       "id": "rev-2",
@@ -1275,7 +1350,7 @@
       "text": "Had just a beautiful experience from service to food. Everything was just top notch and Dosa was toh just amazing! It feels like I have to come here everyday ❤️",
       "source": "Google Maps",
       "meta": "5 reviews • Local Foodie",
-      "createdAt": 1793187065786
+      "createdAt": 1793215520934
     },
     {
       "id": "rev-3",
@@ -1284,7 +1359,7 @@
       "text": "The taste of food is just too good and I love the food of this restaurant 😄 Please everyone come here and try the food 🥰",
       "source": "Google Maps",
       "meta": "Chinese • Punjabi • South Indian",
-      "createdAt": 1793964665786
+      "createdAt": 1793993120934
     },
     {
       "id": "rev-4",
@@ -1293,7 +1368,7 @@
       "text": "Super food and satisfied! Peaceful atmosphere, great quality and quick service for families.",
       "source": "Google Maps",
       "meta": "Free Parking • Pure Vegetarian",
-      "createdAt": 1794569465786
+      "createdAt": 1794597920934
     }
   ],
   "mapPhotos": [
@@ -1303,7 +1378,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-kadai.jpg",
-      "createdAt": 1795606265786
+      "createdAt": 1795634720934
     },
     {
       "id": "mp-2",
@@ -1311,7 +1386,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/veg-angara.jpg",
-      "createdAt": 1795519865786
+      "createdAt": 1795548320934
     },
     {
       "id": "mp-3",
@@ -1319,7 +1394,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/kaju-curry.jpg",
-      "createdAt": 1795433465786
+      "createdAt": 1795461920934
     },
     {
       "id": "mp-4",
@@ -1327,7 +1402,7 @@
       "category": "food",
       "uploader": "By Owner • Signature Menu Photo",
       "url": "assets/cheese-masala.jpg",
-      "createdAt": 1795347065786
+      "createdAt": 1795375520934
     },
     {
       "id": "mp-5",
@@ -1335,7 +1410,7 @@
       "category": "food",
       "uploader": "Google Maps Photo",
       "url": "assets/dosa-platter.jpg",
-      "createdAt": 1795260665786
+      "createdAt": 1795289120934
     },
     {
       "id": "mp-6",
@@ -1343,22 +1418,22 @@
       "category": "vibe",
       "uploader": "Google Maps Photo",
       "url": "assets/dining-vibe.jpg",
-      "createdAt": 1795777625786
+      "createdAt": 1795806080934
     }
   ],
   "chatMessages": [],
   "dailyAiAd": {
-    "date": "2026-11-27",
-    "tag": "🥡 INDO-CHINESE FRIDAY",
-    "accent": "#ec4899",
-    "headline": "🥡 INDO-CHINESE FRIDAY: Chilli Garlic Noodles + Fresh Sides!",
-    "subline": "Wok-tossed Hakka Noodles, Dry Manchurian & fiery Schezwan Rice!",
+    "date": "2026-11-28",
+    "tag": "🥜 ROYAL SATURDAY",
+    "accent": "#a855f7",
+    "headline": "🥜 ROYAL SATURDAY: Sweet Corn Veg Soup + Fresh Sides!",
+    "subline": "Weekend family feast: Rich Kaju Curry, Kaju Paneer & Punjabi Thali!",
     "featuredIds": [
-      "chi-chilli-garlic-noodles",
-      "veg-mix",
-      "cheese-anguri",
-      "dosa-mysore"
+      "chi-sweet-corn-soup",
+      "veg-kadai",
+      "tan-paneer-tikka",
+      "dosa-cheese-butter"
     ],
-    "updatedAt": 1795779065831
+    "updatedAt": 1795807520971
   }
 }

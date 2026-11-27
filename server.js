@@ -205,18 +205,36 @@ function loadDb() {
       if (!parsed.settings) parsed.settings = def.settings;
       if (!parsed.settings.brandTheme) parsed.settings.brandTheme = def.settings.brandTheme;
       if (!parsed.settings.dailyDeal) parsed.settings.dailyDeal = def.settings.dailyDeal;
-      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv'].forEach((k) => {
+      ['merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'instagramHandle', 'instagramReels'].forEach((k) => {
         if (parsed.settings[k] === undefined) parsed.settings[k] = def.settings[k];
       });
+      // Preserve env fallbacks if runtime settings are unset
+      if (!parsed.settings.bgMusicUrl && process.env.BG_MUSIC_URL) {
+        parsed.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
+        parsed.settings.bgMusicVideoId = extractYoutubeVideoId(parsed.settings.bgMusicUrl);
+        parsed.settings.bgMusicPlaylistId = extractYoutubePlaylistId(parsed.settings.bgMusicUrl);
+      }
+      if (!parsed.settings.bgMusicTitle && process.env.BG_MUSIC_TITLE) parsed.settings.bgMusicTitle = process.env.BG_MUSIC_TITLE.trim();
+      if (!parsed.settings.razorpayKeyId && process.env.RAZORPAY_KEY_ID) parsed.settings.razorpayKeyId = process.env.RAZORPAY_KEY_ID.trim();
+      if (!parsed.settings.razorpayKeySecret && process.env.RAZORPAY_KEY_SECRET) parsed.settings.razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET.trim();
+      if (!parsed.settings.phonepeMerchantId && process.env.PHONEPE_MERCHANT_ID) parsed.settings.phonepeMerchantId = process.env.PHONEPE_MERCHANT_ID.trim();
+      if (!parsed.settings.phonepeSaltKey && process.env.PHONEPE_SALT_KEY) parsed.settings.phonepeSaltKey = process.env.PHONEPE_SALT_KEY.trim();
+      if (!parsed.settings.merchantUpiId && process.env.MERCHANT_UPI_ID) parsed.settings.merchantUpiId = process.env.MERCHANT_UPI_ID.trim();
+      if (process.env.ADMIN_PIN) parsed.settings.adminPin = process.env.ADMIN_PIN.trim();
+
       if (!Array.isArray(parsed.menu)) parsed.menu = [];
       const existingById = new Map(parsed.menu.map((m) => [m.id, m]));
-      const mergedMenu = DEFAULT_MENU.map((dm) => {
+      const mergedMenu = DEFAULT_MENU.map((dm, idx) => {
         const existing = existingById.get(dm.id);
-        return existing ? { ...dm, ...existing, category: dm.category || existing.category, image: dm.image || existing.image, guName: dm.guName || existing.guName, portion: existing.portion || dm.portion, servedWith: existing.servedWith || dm.servedWith } : { ...dm };
+        const defaultDisc = dm.discountPct !== undefined ? dm.discountPct : (dm.bestseller ? 15 : (idx % 3 === 0 ? 10 : 5));
+        const base = existing ? { ...dm, ...existing, category: dm.category || existing.category, image: dm.image || existing.image, guName: dm.guName || existing.guName, portion: existing.portion || dm.portion, servedWith: existing.servedWith || dm.servedWith } : { ...dm };
+        if (base.discountPct === undefined) base.discountPct = defaultDisc;
+        return base;
       });
       const defaultIds = new Set(DEFAULT_MENU.map((m) => m.id));
       parsed.menu.forEach((m) => {
         if (!defaultIds.has(m.id) && m.id !== 'pun-kaju-curry') {
+          if (m.discountPct === undefined) m.discountPct = 10;
           mergedMenu.push(m);
         }
       });
@@ -227,6 +245,22 @@ function loadDb() {
     console.error('Failed reading db.json, recreating default:', err.message);
   }
   const initial = createDefaultDb();
+  initial.menu = initial.menu.map((m, idx) => ({
+    ...m,
+    discountPct: m.discountPct !== undefined ? m.discountPct : (m.bestseller ? 15 : (idx % 3 === 0 ? 10 : 5))
+  }));
+  if (process.env.BG_MUSIC_URL) {
+    initial.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
+    initial.settings.bgMusicVideoId = extractYoutubeVideoId(initial.settings.bgMusicUrl);
+    initial.settings.bgMusicPlaylistId = extractYoutubePlaylistId(initial.settings.bgMusicUrl);
+  }
+  if (process.env.BG_MUSIC_TITLE) initial.settings.bgMusicTitle = process.env.BG_MUSIC_TITLE.trim();
+  if (process.env.RAZORPAY_KEY_ID) initial.settings.razorpayKeyId = process.env.RAZORPAY_KEY_ID.trim();
+  if (process.env.RAZORPAY_KEY_SECRET) initial.settings.razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET.trim();
+  if (process.env.PHONEPE_MERCHANT_ID) initial.settings.phonepeMerchantId = process.env.PHONEPE_MERCHANT_ID.trim();
+  if (process.env.PHONEPE_SALT_KEY) initial.settings.phonepeSaltKey = process.env.PHONEPE_SALT_KEY.trim();
+  if (process.env.MERCHANT_UPI_ID) initial.settings.merchantUpiId = process.env.MERCHANT_UPI_ID.trim();
+  if (process.env.ADMIN_PIN) initial.settings.adminPin = process.env.ADMIN_PIN.trim();
   fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2));
   return initial;
 }
@@ -238,8 +272,52 @@ const adminTokens = new Set();
 const pinAttempts = new Map(); // ip -> { count, lockedUntil }
 const pendingPayments = new Map(); // txnId -> checkout snapshot
 
+let cloudSyncTimer = null;
+function syncDbToCloudGist() {
+  const gistId = String(process.env.STATE_GIST_ID || '').trim();
+  const token = String(process.env.GITHUB_TOKEN || '').trim();
+  if (!gistId || !token) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    fetch(`https://api.github.com/gists/${encodeURIComponent(gistId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'ChatkaroFoodHub/1.0',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: { 'chatkaro-db-backup.json': { content: JSON.stringify(db) } }
+      })
+    }).catch(() => {});
+  }, 1500);
+}
+
+async function hydrateFromCloudGistOnBoot() {
+  const gistId = String(process.env.STATE_GIST_ID || '').trim();
+  const token = String(process.env.GITHUB_TOKEN || '').trim();
+  if (!gistId || !token) return;
+  try {
+    const r = await fetch(`https://api.github.com/gists/${encodeURIComponent(gistId)}`, {
+      headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'ChatkaroFoodHub/1.0' }
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    const raw = j.files?.['chatkaro-db-backup.json']?.content;
+    if (!raw) return;
+    const remoteDb = JSON.parse(raw);
+    if (remoteDb && Array.isArray(remoteDb.menu) && remoteDb.settings) {
+      db = { ...db, ...remoteDb, settings: { ...db.settings, ...remoteDb.settings } };
+      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+      broadcast('state', getPublicSnapshot());
+      console.log('Hydrated live database from Cloud Gist backup!');
+    }
+  } catch {}
+}
+
 function saveDb() {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  syncDbToCloudGist();
 }
 
 const sseClients = new Set();
@@ -640,10 +718,86 @@ function buildAiSystemContext() {
     `- Live Tables Available: ${freeTables.length ? freeTables.join(', ') : 'All tables currently busy'}`,
     `- Currently Occupied Tables: ${busyTables.length ? busyTables.join(', ') : 'None'}`,
     `- Ordering & Payment: Customer signs in with Gmail, adds dishes to Cart, picks Dine-In / Drive-Thru / No-Contact Delivery, pays via Razorpay, PhonePe/UPI, or Counter Cash, and gets a live countdown timer + WhatsApp confirmation. Game Tawa Rush unlocks CHATKARO10 (10% OFF) & CHATKARO20 (20% OFF).`,
+    `- AI ORDER PLACEMENT CAPABILITY: If the customer says they want to add items or place an order (e.g. "2 masala dosa order karo", "add veg angara", "1 paneer chilli aur butter naan dal do"), ALWAYS match the exact dish IDs from the menu below and include ONE hidden action tag at the VERY END of your reply in this exact format:`,
+    `  [[ORDER_ACTION:{"items":[{"id":"EXACT_ID","qty":2}],"orderType":"dine-in","openCart":true}]]`,
+    `  Use "orderType": "parcel" if they ask for parcel/takeaway, "delivery" if delivery, else "dine-in". Set "placeNow": true ONLY if the user explicitly says "confirm order now" / "seedha order place kardo".`,
     `- AVAILABLE MENU (${availableItems.length} items):`,
-    ...availableItems.map((m) => `  * ${m.name} [${m.category}] — ₹${m.price}${m.bestseller ? ' (Bestseller)' : ''}${m.spicy ? ' (Spicy)' : ''}${m.servedWith ? ' | Comes with: ' + m.servedWith : ''}`),
+    ...availableItems.map((m) => `  * [id:${m.id}] ${m.name} [${m.category}] — ₹${m.price}${m.discountPct ? ` (${m.discountPct}% OFF)` : ''}${m.bestseller ? ' (Bestseller)' : ''}${m.spicy ? ' (Spicy)' : ''}${m.servedWith ? ' | Comes with: ' + m.servedWith : ''}`),
     `- SOLD OUT ITEMS: ${soldOutItems.length ? soldOutItems.map((m) => m.name).join(', ') : 'None — all dishes available!'}`
   ].join('\n');
+}
+
+function parseAiOrderAction(rawText, userMessage) {
+  let cleanReply = String(rawText || '').trim();
+  let action = null;
+  const tagMatch = cleanReply.match(/\[\[ORDER_ACTION:([\s\S]*?)\]\]/i);
+  if (tagMatch) {
+    cleanReply = cleanReply.replace(tagMatch[0], '').trim();
+    try {
+      const parsed = JSON.parse(tagMatch[1]);
+      if (parsed && Array.isArray(parsed.items)) {
+        const menuMap = new Map(db.menu.filter((m) => m.available !== false).map((m) => [m.id, m]));
+        const validItems = parsed.items
+          .map((it) => {
+            const dish = menuMap.get(String(it.id || '').trim());
+            if (!dish) return null;
+            return { id: dish.id, name: dish.name, price: dish.price, qty: Math.max(1, Math.min(20, Number(it.qty || 1))) };
+          })
+          .filter(Boolean);
+        if (validItems.length) {
+          action = {
+            items: validItems,
+            orderType: ['dine-in', 'parcel', 'delivery'].includes(parsed.orderType) ? parsed.orderType : 'dine-in',
+            openCart: parsed.openCart !== false,
+            placeNow: Boolean(parsed.placeNow)
+          };
+        }
+      }
+    } catch {}
+  }
+  // Fallback intent matcher when user clearly asks to order/add specific dish names
+  if (!action && /(order|owder|add|cart|pack|parcel|bhej|chahiye|mangwa|dal\s*do|de\s*do)/i.test(userMessage)) {
+    const msgLow = String(userMessage || '').toLowerCase();
+    const matched = [];
+    for (const m of db.menu) {
+      if (m.available === false) continue;
+      const cleanName = m.name.replace(/\(.*?\)/g, '').trim().toLowerCase();
+      const variants = cleanName.split(/\s*\/\s*/).map((s) => s.trim()).filter((s) => s.length >= 4);
+      const exactHit = variants.find((v) => msgLow.includes(v));
+      const tokens = cleanName.split(/[\s/&,+()-]+/).filter((w) => w.length >= 3);
+      const tokenHits = tokens.filter((w) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(msgLow));
+      const allDishTokensHit = tokens.length >= 2 && tokenHits.length === tokens.length;
+      const phraseHit = tokenHits.length >= 2 && msgLow.includes(tokenHits.join(' '));
+      if (exactHit || allDishTokensHit || phraseHit) {
+        const anchor = exactHit || tokenHits[0];
+        const qtyMatch = msgLow.match(new RegExp(`(\\d+)\\s*(?:x|pc|pcs|plate|plates)?\\s*(?:[a-z\\s]{0,16})?${anchor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
+        const score = (exactHit ? 100 + exactHit.length : tokenHits.length * 20) - (tokens.length - tokenHits.length) * 5;
+        matched.push({
+          id: m.id,
+          name: m.name,
+          price: m.price,
+          qty: qtyMatch ? Math.max(1, Math.min(20, Number(qtyMatch[1]))) : 1,
+          score
+        });
+      }
+    }
+    matched.sort((a, b) => b.score - a.score);
+    const dedup = [];
+    for (const item of matched) {
+      if (!dedup.some((d) => d.id === item.id)) dedup.push({ id: item.id, name: item.name, price: item.price, qty: item.qty });
+    }
+    if (dedup.length) {
+      // Keep only top matched dish if no conjunction ('and', 'aur', ',', '+') separates distinct dishes
+      const multiDishIntent = /(?:,|&|\+|\band\b|\baur\b)/i.test(msgLow);
+      action = {
+        items: multiDishIntent ? dedup.slice(0, 6) : dedup.slice(0, 1),
+        orderType: /parcel|pack|takeaway/i.test(msgLow) ? 'parcel' : /delivery|ghar/i.test(msgLow) ? 'delivery' : 'dine-in',
+        openCart: true,
+        placeNow: /confirm|final|place\s*order\s*now/i.test(msgLow)
+      };
+    }
+  }
+  return { cleanReply, action };
 }
 
 const GEMINI_CHAT_MODELS = [
@@ -840,13 +994,17 @@ const server = http.createServer(async (req, res) => {
       if (activeKey) {
         try {
           const { text, model } = await callGeminiApi(activeKey, message, history);
-          return sendJson(res, 200, { reply: text, engine: model });
+          const { cleanReply, action } = parseAiOrderAction(text, message);
+          return sendJson(res, 200, { reply: cleanReply, engine: model, aiOrderAction: action });
         } catch (err) {
           const fallback = smartMenuFallbackReply(message);
-          return sendJson(res, 200, { reply: fallback, engine: 'smart-fallback', note: err.message });
+          const { cleanReply, action } = parseAiOrderAction(fallback, message);
+          return sendJson(res, 200, { reply: cleanReply, engine: 'smart-fallback', aiOrderAction: action, note: err.message });
         }
       }
-      return sendJson(res, 200, { reply: smartMenuFallbackReply(message), engine: 'smart-menu-ai' });
+      const fb = smartMenuFallbackReply(message);
+      const { cleanReply, action } = parseAiOrderAction(fb, message);
+      return sendJson(res, 200, { reply: cleanReply, engine: 'smart-menu-ai', aiOrderAction: action });
     }
 
     // Customer Auth & Profile (Real Google OAuth ID Token or Verified Gmail)
@@ -1549,11 +1707,38 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
           desc: String(item.desc || 'Freshly prepared pure vegetarian dish at Chatkaro Food Hub.'),
           bestseller: Boolean(item.bestseller),
           spicy: Boolean(item.spicy),
+          discountPct: Math.max(0, Math.min(80, Number(item.discountPct || 0))),
           available: item.available !== false
         });
       }
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { menu: db.menu });
+      return sendJson(res, 200, { menu: db.menu, state: getPublicSnapshot() });
+    }
+
+    if (pathname === '/api/admin/menu/bulk-discount' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const pct = Math.max(0, Math.min(75, Number(body.discountPct || 0)));
+      db.menu = db.menu.map((m) => ({ ...m, discountPct: pct }));
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, discountPct: pct, menu: db.menu, state: getPublicSnapshot() });
+    }
+
+    if (pathname === '/api/admin/backup' && req.method === 'GET') {
+      if (!requireAdmin(req, {})) return sendJson(res, 401, { error: 'Unauthorized.' });
+      return sendJson(res, 200, { exportedAt: Date.now(), db });
+    }
+
+    if (pathname === '/api/admin/backup' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const incoming = body.db || body.backup?.db || body.backup;
+      if (!incoming || !Array.isArray(incoming.menu) || !incoming.settings) {
+        return sendJson(res, 400, { error: 'Invalid backup JSON file.' });
+      }
+      db = { ...db, ...incoming, settings: { ...db.settings, ...incoming.settings } };
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, state: getPublicSnapshot() });
     }
 
     if (pathname === '/api/admin/upload-dish-photo' && req.method === 'POST') {
@@ -1951,6 +2136,7 @@ async function autoFetchDishPhoto(dishName, category, dishId) {
 
 server.listen(PORT, () => {
   console.log(`Chatkaro Food Hub live server running at http://localhost:${PORT}`);
+  hydrateFromCloudGistOnBoot();
   refreshDailyAiCampaign(false).catch(() => {});
   setInterval(() => {
     refreshDailyAiCampaign(false).then(() => broadcast('state', getPublicSnapshot())).catch(() => {});

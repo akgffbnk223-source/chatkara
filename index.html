@@ -654,6 +654,64 @@
     </div>
   </div>
 
+  <!-- Amazon-Style Dish Detail Modal -->
+  <div class="modal-backdrop hidden" id="dishDetailModal">
+    <div class="modal-card modal-wide amazon-detail-modal">
+      <button type="button" class="close-drawer-btn modal-close" id="closeDishDetailBtn">✕</button>
+      <div class="amazon-detail-hero">
+        <div class="amazon-detail-media">
+          <img id="ddImg" src="" alt="Dish Photo" />
+          <span class="amazon-detail-disc hidden" id="ddImgDiscBadge"></span>
+        </div>
+        <div class="amazon-detail-info">
+          <div class="amazon-detail-badges" id="ddBadges"></div>
+          <h2 id="ddTitle" class="amazon-detail-title"></h2>
+          <p id="ddGuName" class="amazon-detail-gu"></p>
+          <p id="ddPortion" class="amazon-detail-portion"></p>
+
+          <div class="amazon-price-box">
+            <div class="amazon-price-top">
+              <span class="amazon-disc-tag" id="ddDiscBadge"></span>
+              <span class="amazon-selling-price" id="ddPrice"></span>
+            </div>
+            <div class="amazon-mrp-line">
+              <span>M.R.P.: <s id="ddMrp"></s></span>
+              <span class="amazon-save-pill" id="ddSaveText"></span>
+            </div>
+            <p class="amazon-tax-note">100% Pure Veg • Inclusive of Kitchen Packaging</p>
+          </div>
+
+          <div class="amazon-served-box" id="ddServedBox"></div>
+          <p class="amazon-desc-full" id="ddDesc"></p>
+
+          <ul class="amazon-highlights">
+            <li>🥬 Freshly prepared to order in our 100% Pure Veg Talala Kitchen</li>
+            <li>🔥 Hygienic sealed packing &amp; authentic Kathiyawadi/Punjabi spices</li>
+            <li>⚡ Fast takeaway pickup &amp; Talala local delivery available</li>
+          </ul>
+
+          <div class="amazon-buy-bar">
+            <div class="qty-pill amazon-qty-pill">
+              <button type="button" id="ddQtyDec">−</button>
+              <span id="ddQtyVal">1</span>
+              <button type="button" id="ddQtyInc">+</button>
+            </div>
+            <button type="button" class="btn-outline amazon-cart-btn" id="ddAddCartBtn">🛒 Add to Cart</button>
+            <button type="button" class="btn-primary amazon-buy-btn" id="ddBuyNowBtn">⚡ Order Now</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="amazon-similar-section">
+        <div class="amazon-similar-head">
+          <h3>🍽️ Customers Also Ordered (Similar Dishes)</h3>
+          <span class="muted small">Tap any dish to view details or + Add</span>
+        </div>
+        <div class="amazon-similar-grid" id="ddSimilarGrid"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Order Confirmation + Live Countdown Modal -->
   <div class="modal-backdrop hidden" id="orderModal">
     <div class="modal-card">
