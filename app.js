@@ -637,8 +637,9 @@
   function persistSnapshotToCache(snap) {
     try {
       if (!snap || !Array.isArray(snap.menu) || !snap.menu.length) return;
+      localStorage.removeItem('chatkaro_cached_snap_v2');
       localStorage.setItem(
-        'chatkaro_cached_snap_v2',
+        'chatkaro_cached_snap_v3',
         JSON.stringify({
           settings: snap.settings,
           menu: snap.menu,
@@ -654,7 +655,8 @@
 
   function bootInstantFromCacheOrMenu() {
     try {
-      const raw = localStorage.getItem('chatkaro_cached_snap_v2');
+      localStorage.removeItem('chatkaro_cached_snap_v2');
+      const raw = localStorage.getItem('chatkaro_cached_snap_v3');
       if (raw) {
         const cached = JSON.parse(raw);
         if (cached && Array.isArray(cached.menu) && cached.menu.length) {
