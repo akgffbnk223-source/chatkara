@@ -506,6 +506,25 @@
         if (!Array.isArray(appState.deliveryChats)) appState.deliveryChats = [];
         appState.deliveryChats.push(m);
         if (!$('profileModal').classList.contains('hidden')) renderMyOrdersList();
+        if (!$('orderModal').classList.contains('hidden') && appState.activeTrackOrderId === m.orderId) {
+          const ord = appState.orders.find((o) => o.id === m.orderId);
+          if (ord) refreshOrderModalTracking(ord);
+        }
+      } catch {}
+    });
+    es.addEventListener('delivery-location', (ev) => {
+      try {
+        const d = JSON.parse(ev.data);
+        const ord = appState.orders.find((o) => o.id === d.orderId);
+        if (ord) {
+          ord.driverLocation = d.driverLocation;
+          if (d.driverName) ord.driverName = d.driverName;
+          if (d.driverPhone) ord.driverPhone = d.driverPhone;
+        }
+        if (!$('profileModal').classList.contains('hidden')) renderMyOrdersList();
+        if (!$('orderModal').classList.contains('hidden') && appState.activeTrackOrderId === d.orderId && ord) {
+          refreshOrderModalTracking(ord);
+        }
       } catch {}
     });
     es.onerror = () => {
@@ -607,6 +626,10 @@
     }
     if (!$('profileModal').classList.contains('hidden')) {
       renderMyOrdersList();
+    }
+    if (!$('orderModal').classList.contains('hidden') && appState.activeTrackOrderId) {
+      const tracked = appState.orders.find((o) => o.id === appState.activeTrackOrderId);
+      if (tracked) refreshOrderModalTracking(tracked);
     }
     initGoogleIdentityIfConfigured();
   }
@@ -2184,7 +2207,114 @@
     }
   }
 
+  function calcDistKm(lat1, lng1, lat2, lng2) {
+    const toRad = (v) => (v * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function buildLiveDeliveryTrackerHtml(order, opts = {}) {
+    const st = order.deliveryStage || 'placed';
+    const s2 = ['picked_up', 'on_the_way', 'delivered'].includes(st);
+    const s3 = ['on_the_way', 'delivered'].includes(st);
+    const s4 = st === 'delivered' || order.status === 'served';
+    const loc = order.driverLocation && Number.isFinite(Number(order.driverLocation.lat)) && Number.isFinite(Number(order.driverLocation.lng))
+      ? {
+          lat: Number(order.driverLocation.lat),
+          lng: Number(order.driverLocation.lng),
+          updatedAt: order.driverLocation.updatedAt
+        }
+      : null;
+    const distKm = loc ? calcDistKm(21.057, 70.531, loc.lat, loc.lng).toFixed(2) : null;
+    const updatedStr = loc?.updatedAt
+      ? new Date(loc.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : '';
+    const mapHtml = loc
+      ? `
+        <div class="live-gps-wrap">
+          <div class="live-gps-bar">
+            <span>📡 <strong>Live Rider GPS</strong> • ${distKm} km from Talala Hub${updatedStr ? ` • ${updatedStr}` : ''}</span>
+            <a href="https://maps.google.com/?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener" class="btn btn-outline btn-xs">🗺️ Open Google Maps</a>
+          </div>
+          ${
+            opts.compact
+              ? ''
+              : `<iframe class="live-gps-iframe" title="Live Rider Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.openstreetmap.org/export/embed.html?bbox=${(loc.lng - 0.008).toFixed(5)}%2C${(loc.lat - 0.008).toFixed(5)}%2C${(loc.lng + 0.008).toFixed(5)}%2C${(loc.lat + 0.008).toFixed(5)}&layer=mapnik&marker=${loc.lat.toFixed(5)}%2C${loc.lng.toFixed(5)}"></iframe>`
+          }
+        </div>`
+      : `<div class="small muted" style="margin-top:0.35rem;">📡 Waiting for Delivery Boy to start live GPS tracking...</div>`;
+
+    const proofHtml = order.paymentProofImg
+      ? `
+        <div class="delivery-proof-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+            <strong>📸 Doorstep Payment / Delivery Proof (SS)</strong>
+            <a href="${escapeHtml(order.paymentProofImg)}" target="_blank" rel="noopener" class="btn btn-outline btn-xs">🔍 View Full SS</a>
+          </div>
+          <img src="${escapeHtml(order.paymentProofImg)}" alt="Payment Proof Screenshot" class="delivery-proof-thumb" />
+        </div>`
+      : '';
+
+    const chats = (appState.deliveryChats || []).filter((c) => c.orderId === order.id).slice(-4);
+    const chatHtml = opts.compact
+      ? ''
+      : `
+        <div class="driver-chat-mini">
+          <div class="small" style="font-weight:700;margin-bottom:0.25rem;">💬 Live Chat with Delivery Boy</div>
+          <div class="driver-chat-msgs">
+            ${
+              chats.length
+                ? chats.map((c) => `<div class="small"><strong>${escapeHtml(c.senderName || c.sender)}:</strong> ${escapeHtml(c.text)}</div>`).join('')
+                : `<div class="small muted">Message rider about gate/landmark directions.</div>`
+            }
+          </div>
+          <form class="cust-driver-chat-form" data-order-id="${escapeHtml(order.id)}" style="display:flex;gap:0.35rem;margin-top:0.35rem;">
+            <input type="text" class="cust-driver-chat-inp" placeholder="Message rider..." required style="flex:1;min-width:0;padding:0.35rem 0.55rem;border-radius:8px;" />
+            <button type="submit" class="btn btn-primary btn-xs">Send</button>
+          </form>
+        </div>`;
+
+    return `
+      <div class="amazon-track-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+          <strong>🛵 Amazon-Style Live Delivery Tracking</strong>
+          <span class="badge badge-veg">Delivery PIN: ${escapeHtml(order.deliveryOtp || '----')}</span>
+        </div>
+        <div class="amazon-track-steps">
+          <div class="amazon-t-step done">1. Confirmed</div>
+          <div class="amazon-t-step ${s2 ? 'done' : ''}">2. Picked Up</div>
+          <div class="amazon-t-step ${s3 ? 'done' : ''}">3. On the Way</div>
+          <div class="amazon-t-step ${s4 ? 'done' : ''}">4. Delivered</div>
+        </div>
+        <div class="small muted" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+          <span>${order.driverName ? `Delivery Partner: <strong>${escapeHtml(order.driverName)}</strong> ${order.driverPhone ? `(${escapeHtml(order.driverPhone)})` : ''}` : 'Kitchen packing — delivery partner assigning soon!'}</span>
+          ${order.driverPhone ? `<a href="tel:${escapeHtml(order.driverPhone)}" class="btn btn-outline btn-xs">📞 Call Rider</a>` : ''}
+        </div>
+        ${mapHtml}
+        ${proofHtml}
+        ${chatHtml}
+      </div>`;
+  }
+
+  function refreshOrderModalTracking(order) {
+    const trackBox = $('orderAmazonTrackingBox');
+    if (!trackBox || !order) return;
+    if (order.orderType === 'delivery') {
+      trackBox.classList.remove('hidden');
+      trackBox.innerHTML = buildLiveDeliveryTrackerHtml(order);
+    } else {
+      trackBox.classList.add('hidden');
+      trackBox.innerHTML = '';
+    }
+  }
+
   function showOrderConfirmationModal(order) {
+    appState.activeTrackOrderId = order.id;
     const payLabel = order.paymentStatus === 'paid'
       ? `PAID via ${(order.paymentMethod || 'online').toUpperCase()}`
       : 'Pay at Counter / COD';
@@ -2305,37 +2435,31 @@
       $('resendEmailBillBtn').textContent = order.billEmailSent ? '📧 Bill Emailed to Gmail ✓ (Resend)' : '📧 Send Royal Bill to My Gmail';
     }
 
-    const trackBox = $('orderAmazonTrackingBox');
-    if (trackBox) {
-      if (order.orderType === 'delivery') {
-        const st = order.deliveryStage || 'placed';
-        const s2 = ['picked_up', 'on_the_way', 'delivered'].includes(st);
-        const s3 = ['on_the_way', 'delivered'].includes(st);
-        const s4 = st === 'delivered' || order.status === 'served';
-        trackBox.classList.remove('hidden');
-        trackBox.innerHTML = `
-          <div class="amazon-track-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
-              <strong>🛵 Amazon-Style Live Delivery Tracking</strong>
-              <span class="badge badge-veg">Delivery PIN: ${escapeHtml(order.deliveryOtp || '----')}</span>
-            </div>
-            <div class="amazon-track-steps">
-              <div class="amazon-t-step done">1. Confirmed</div>
-              <div class="amazon-t-step ${s2 ? 'done' : ''}">2. Picked Up</div>
-              <div class="amazon-t-step ${s3 ? 'done' : ''}">3. On the Way</div>
-              <div class="amazon-t-step ${s4 ? 'done' : ''}">4. Delivered</div>
-            </div>
-            <div class="small muted">
-              ${order.driverName ? `Delivery Partner: <strong>${escapeHtml(order.driverName)}</strong> ${order.driverPhone ? `(${escapeHtml(order.driverPhone)})` : ''}` : 'Kitchen packing — delivery partner assigning soon!'}
-            </div>
-          </div>`;
-      } else {
-        trackBox.classList.add('hidden');
-        trackBox.innerHTML = '';
-      }
-    }
+    refreshOrderModalTracking(order);
     $('orderModal').classList.remove('hidden');
   }
+
+  document.addEventListener('submit', async (e) => {
+    const form = e.target.closest('.cust-driver-chat-form');
+    if (!form) return;
+    e.preventDefault();
+    const orderId = form.dataset.orderId;
+    const inp = form.querySelector('.cust-driver-chat-inp');
+    const text = (inp?.value || '').trim();
+    if (!orderId || !text) return;
+    const ord = appState.orders.find((o) => o.id === orderId);
+    try {
+      await api('/api/delivery/chat', 'POST', {
+        orderId,
+        sender: 'customer',
+        senderName: appState.user?.name || ord?.customerName || 'Customer',
+        text
+      });
+      if (inp) inp.value = '';
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
 
   $('resendEmailBillBtn')?.addEventListener('click', async () => {
     const id = $('resendEmailBillBtn')?.dataset?.orderId;
@@ -2630,10 +2754,6 @@
         const editable = o.status !== 'cancelled' && o.status !== 'served';
         const dtStr = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
         const isDel = o.orderType === 'delivery';
-        const st = o.deliveryStage || 'placed';
-        const s2 = ['picked_up', 'on_the_way', 'delivered'].includes(st);
-        const s3 = ['on_the_way', 'delivered'].includes(st);
-        const s4 = st === 'delivered' || o.status === 'served';
         return `
         <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.45rem;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
@@ -2655,15 +2775,7 @@
           </div>
           <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
           <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
-          ${isDel ? `
-            <div class="amazon-track-steps">
-              <div class="amazon-t-step done">1. Confirmed</div>
-              <div class="amazon-t-step ${s2 ? 'done' : ''}">2. Picked Up</div>
-              <div class="amazon-t-step ${s3 ? 'done' : ''}">3. On the Way</div>
-              <div class="amazon-t-step ${s4 ? 'done' : ''}">4. Delivered</div>
-            </div>
-            <small class="muted">🔐 Delivery PIN: <strong>${escapeHtml(o.deliveryOtp || '----')}</strong>${o.driverName ? ` • Rider: <strong>${escapeHtml(o.driverName)}</strong> (${escapeHtml(o.driverPhone || '')})` : ''}</small>
-          ` : ''}
+          ${isDel ? buildLiveDeliveryTrackerHtml(o, { compact: true }) : ''}
         </div>`;
       })
       .join('');
@@ -3152,7 +3264,7 @@
         <small>Served: ${sales.servedOrdersCount} • Menu: ${appState.menu.length}</small>
       </div>`;
 
-    ['Sales', 'Orders', 'Menu', 'Ads', 'Tables', 'Photos', 'Reviews', 'Chat', 'Colors'].forEach((name) => {
+    ['Sales', 'Orders', 'Menu', 'Ads', 'Tables', 'Photos', 'Reviews', 'Chat', 'Apps', 'Colors'].forEach((name) => {
       $('adminTab' + name)?.classList.toggle('hidden', activeAdminTab !== name.toLowerCase());
     });
 
@@ -3534,6 +3646,8 @@
                 <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin:0.3rem 0;">
                   ${typeBadge} ${payBadge} <strong style="color:var(--primary);">₹${o.total}</strong>
                   ${o.paymentId ? `<small class="muted">Ref: ${escapeHtml(o.paymentId)}</small>` : ''}
+                  ${o.paymentProofImg ? `<a href="${escapeHtml(o.paymentProofImg)}" target="_blank" rel="noopener" class="mini-pill paid">📸 Payment SS</a>` : ''}
+                  ${o.driverLocation?.lat ? `<a href="https://maps.google.com/?q=${Number(o.driverLocation.lat)},${Number(o.driverLocation.lng)}" target="_blank" rel="noopener" class="mini-pill dine">📍 Live Rider GPS</a>` : ''}
                 </div>
                 <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
               </div>
@@ -4243,7 +4357,144 @@
       });
     }
 
-    // 7. LIVE WEBSITE COLORS & SETTINGS TAB
+    // 7. OWNER APPS, BUILT APKs & STAFF SHARE HUB
+    if (activeAdminTab === 'apps') {
+      const s = appState.adminFullSettings || appState.settings || {};
+      const origin = window.location.origin;
+      const staffPin = s.staffPin || '1234';
+      const toAbs = (rel) => (String(rel || '').startsWith('http') ? rel : `${origin}/${String(rel || '').replace(/^\/+/, '')}`);
+      const appsList = [
+        {
+          id: 'delivery',
+          icon: '🛵',
+          title: 'Delivery Boy App (Amazon-Style)',
+          desc: 'Live GPS sharing, Razorpay QR, PhonePe/UPI QR, Cash COD + Screenshot Proof upload & Customer Chat.',
+          apkUrl: toAbs(s.deliveryApkUrl || 'assets/app/Chatkaro-Delivery.apk'),
+          webUrl: `${origin}/delivery.html`,
+          apkFileName: 'Chatkaro-Delivery.apk',
+          pinNote: `Staff PIN: ${staffPin}`
+        },
+        {
+          id: 'waiter',
+          icon: '🛎️',
+          title: 'Waiter Bell & Table Service App',
+          desc: 'Instant ringtone bell alerts for water, tissue, spoon, bill, table QR orders & live customer chat.',
+          apkUrl: toAbs(s.waiterApkUrl || 'assets/app/Chatkaro-Waiter.apk'),
+          webUrl: `${origin}/waiter.html`,
+          apkFileName: 'Chatkaro-Waiter.apk',
+          pinNote: `Staff PIN: ${staffPin}`
+        },
+        {
+          id: 'customer',
+          icon: '🍲',
+          title: 'Customer Food Ordering App',
+          desc: 'Menu, Cart, Table QR menu, Live Amazon-Style GPS Tracking, Gmail OTP, Royal Het Bill & Games.',
+          apkUrl: toAbs(s.apkDownloadUrl || 'assets/app/Chatkaro-Customer.apk'),
+          webUrl: `${origin}/`,
+          apkFileName: 'Chatkaro-Customer.apk',
+          pinNote: 'No PIN needed for customers'
+        }
+      ];
+
+      $('adminTabApps').innerHTML = `
+        <h3>📱 Owner App Distribution Hub (.APK + QR + WhatsApp Share)</h3>
+        <div class="admin-row-card" style="flex-wrap:wrap;gap:0.75rem;align-items:flex-end;">
+          <div style="flex:1;min-width:210px;">
+            <label class="small" style="display:block;font-weight:700;margin-bottom:0.25rem;">📲 Staff WhatsApp Number (optional — leave blank to pick contact)</label>
+            <input type="tel" id="admAppSharePhone" placeholder="10-digit WhatsApp e.g. 9876543210" style="width:100%;" />
+          </div>
+          <div style="width:180px;">
+            <label class="small" style="display:block;font-weight:700;margin-bottom:0.25rem;">🔑 Delivery & Waiter Staff PIN</label>
+            <input type="text" id="admHubStaffPin" value="${escapeHtml(staffPin)}" style="width:100%;" />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="admSaveHubPinBtn">Save Staff PIN</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">
+            📤 Upload Custom Customer .APK
+            <input type="file" id="admHubApkUpload" accept=".apk,application/vnd.android.package-archive" hidden />
+          </label>
+        </div>
+
+        <div class="apps-hub-grid">
+          ${appsList
+            .map(
+              (a) => `
+            <div class="app-dist-card">
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span style="font-size:1.5rem;">${a.icon}</span>
+                <div>
+                  <strong>${escapeHtml(a.title)}</strong>
+                  <div class="small muted">${escapeHtml(a.pinNote)}</div>
+                </div>
+              </div>
+              <p class="small muted" style="margin:0.45rem 0;">${escapeHtml(a.desc)}</p>
+              <div style="display:flex;justify-content:center;padding:0.5rem;background:#fff;border-radius:12px;margin:0.4rem 0;">
+                <img class="app-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=165x165&data=${encodeURIComponent(a.apkUrl)}" alt="${escapeHtml(a.title)} APK QR" />
+              </div>
+              <small class="muted" style="word-break:break-all;text-align:center;display:block;">Scan QR to install ${escapeHtml(a.apkFileName)}</small>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.65rem;">
+                <a href="${escapeHtml(a.apkUrl)}" download="${escapeHtml(a.apkFileName)}" class="btn btn-primary btn-xs" style="text-align:center;">⬇️ Download .APK</a>
+                <a href="${escapeHtml(a.webUrl)}" target="_blank" rel="noopener" class="btn btn-outline btn-xs" style="text-align:center;">🚀 Open Web App</a>
+                <button type="button" class="btn btn-outline btn-xs adm-wa-share-app-btn" data-app-id="${a.id}" style="grid-column:span 2;background:#16a34a;color:#fff;border-color:#16a34a;">💬 Share APK + PIN on WhatsApp</button>
+              </div>
+            </div>`
+            )
+            .join('')}
+        </div>`;
+
+      $('admSaveHubPinBtn')?.addEventListener('click', async () => {
+        const nextPin = $('admHubStaffPin').value.trim();
+        if (!nextPin) return showToast('Enter Staff PIN');
+        try {
+          const res = await api('/api/admin/settings', 'POST', { settings: { staffPin: nextPin } }, pinHeaders);
+          appState.adminFullSettings = { ...(appState.adminFullSettings || {}), staffPin: nextPin };
+          if (res?.state) { applySnapshot(res.state); persistSnapshotToCache(res.state); }
+          showToast(`✅ Staff PIN updated to ${nextPin}`);
+          renderAdminDashboard();
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('admHubApkUpload')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const r = await fetch('/api/admin/upload-apk', {
+            method: 'POST',
+            headers: {
+              ...pinHeaders,
+              'Content-Type': 'application/octet-stream',
+              'x-file-name': encodeURIComponent(file.name)
+            },
+            body: file
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'APK upload failed');
+          if (data.state) { applySnapshot(data.state); persistSnapshotToCache(data.state); }
+          showToast('✅ Customer .APK uploaded & updated!');
+          renderAdminDashboard();
+        } catch (err) {
+          showToast(err.message);
+        }
+      });
+
+      $('adminTabApps').querySelectorAll('.adm-wa-share-app-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const appObj = appsList.find((x) => x.id === btn.dataset.appId);
+          if (!appObj) return;
+          const livePin = $('admHubStaffPin')?.value.trim() || staffPin;
+          const rawPhone = ($('admAppSharePhone')?.value || '').replace(/\D/g, '');
+          const waTarget = rawPhone.length >= 10 ? (rawPhone.length === 10 ? '91' + rawPhone : rawPhone) : '';
+          const msg =
+            appObj.id === 'customer'
+              ? `👑 *${appState.settings.restaurantName || 'CHATKARO FOOD HUB'} — Customer App*\n📲 Download Android APK: ${appObj.apkUrl}\n🌐 Web App: ${appObj.webUrl}\nOrder fresh veg food, track live delivery & get official Het bill!`
+              : `${appObj.icon} *${appState.settings.restaurantName || 'CHATKARO FOOD HUB'} — ${appObj.title}*\n📲 Download Android APK: ${appObj.apkUrl}\n🌐 Open directly in Chrome: ${appObj.webUrl}\n🔑 Staff Login PIN: *${livePin}*`;
+          window.open(`https://wa.me/${waTarget}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+        });
+      });
+    }
+
+    // 8. LIVE WEBSITE COLORS & SETTINGS TAB
     if (activeAdminTab === 'colors') {
       const bt = appState.settings.brandTheme || COLOR_PRESETS['greenrush-3d'];
       const s = appState.adminFullSettings || appState.settings;

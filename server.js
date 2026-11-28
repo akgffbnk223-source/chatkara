@@ -55,7 +55,9 @@ function createDefaultDb() {
       bgVideoUrl: '',
       bgVideoVideoId: '',
       bgVideoPlaylistId: '',
-      apkDownloadUrl: '',
+      apkDownloadUrl: 'assets/app/Chatkaro-Customer.apk',
+      deliveryApkUrl: 'assets/app/Chatkaro-Delivery.apk',
+      waiterApkUrl: 'assets/app/Chatkaro-Waiter.apk',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
       staffPin: '1234', // Waiter & Delivery Boy App PIN (changeable in Admin)
       smtpUser: '',
@@ -668,7 +670,9 @@ function getPublicSnapshot() {
       bgVideoUrl: db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || '',
       bgVideoVideoId: db.settings.bgVideoVideoId || extractYoutubeVideoId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
       bgVideoPlaylistId: db.settings.bgVideoPlaylistId || extractYoutubePlaylistId(db.settings.bgVideoUrl || process.env.BG_VIDEO_URL || ''),
-      apkDownloadUrl: db.settings.apkDownloadUrl || '',
+      apkDownloadUrl: db.settings.apkDownloadUrl || 'assets/app/Chatkaro-Customer.apk',
+      deliveryApkUrl: db.settings.deliveryApkUrl || 'assets/app/Chatkaro-Delivery.apk',
+      waiterApkUrl: db.settings.waiterApkUrl || 'assets/app/Chatkaro-Waiter.apk',
       googleClientId: db.settings.googleClientId || process.env.GOOGLE_CLIENT_ID || '',
       lastMapsSyncAt: db.settings.lastMapsSyncAt,
       announcement: db.settings.announcement,
@@ -1508,6 +1512,163 @@ const server = http.createServer(async (req, res) => {
       broadcast('delivery-chat', msg);
       recalculateTopAndBroadcast();
       return sendJson(res, 201, { ok: true, message: msg });
+    }
+
+    // Delivery Boy Live GPS Location Broadcast (Amazon-Style Live Tracking)
+    if (pathname === '/api/delivery/location' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      const lat = Number(body.lat);
+      const lng = Number(body.lng);
+      if (!isFinite(lat) || !isFinite(lng)) return sendJson(res, 400, { error: 'Valid GPS coordinates required.' });
+      const loc = {
+        lat,
+        lng,
+        accuracy: Number(body.accuracy || 0),
+        speed: Number(body.speed || 0),
+        updatedAt: Date.now()
+      };
+      ord.driverLocation = loc;
+      if (!Array.isArray(ord.driverTrail)) ord.driverTrail = [];
+      ord.driverTrail.push({ lat, lng, at: loc.updatedAt });
+      ord.driverTrail = ord.driverTrail.slice(-25);
+      if (body.driverName) ord.driverName = String(body.driverName).trim();
+      if (body.driverPhone) ord.driverPhone = String(body.driverPhone).trim();
+      saveDb();
+      broadcast('delivery-location', {
+        orderId: ord.id,
+        driverLocation: loc,
+        driverName: ord.driverName,
+        driverPhone: ord.driverPhone
+      });
+      return sendJson(res, 200, { ok: true, driverLocation: loc });
+    }
+
+    // Delivery Boy Doorstep Razorpay Payment Link / QR Generator
+    if (pathname === '/api/delivery/payment/razorpay-qr' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      if (!db.settings.razorpayKeyId || !db.settings.razorpayKeySecret) {
+        return sendJson(res, 400, { error: 'Razorpay Key ID & Secret Admin Settings me set karein pehle.' });
+      }
+      const authHeader = 'Basic ' + Buffer.from(`${db.settings.razorpayKeyId}:${db.settings.razorpayKeySecret}`).toString('base64');
+      const payload = JSON.stringify({
+        amount: Math.max(100, Math.round(Number(ord.total || 1) * 100)),
+        currency: 'INR',
+        description: `Chatkaro Food Hub Delivery #${ord.id}`,
+        customer: {
+          name: ord.customerName || 'Customer',
+          contact: ord.customerPhone ? `+91${String(ord.customerPhone).replace(/\D/g, '').slice(-10)}` : undefined,
+          email: ord.customerEmail || undefined
+        },
+        notify: { sms: false, email: false }
+      });
+      const rzpRes = await httpsRequestJson({
+        hostname: 'api.razorpay.com',
+        path: '/v1/payment_links',
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, payload);
+      if (rzpRes.statusCode >= 400 || !rzpRes.data?.short_url) {
+        return sendJson(res, 400, { error: rzpRes.data?.error?.description || 'Razorpay QR link create failed.' });
+      }
+      ord.razorpayLinkId = rzpRes.data.id;
+      saveDb();
+      return sendJson(res, 200, {
+        ok: true,
+        paymentUrl: rzpRes.data.short_url,
+        razorpayLinkId: rzpRes.data.id,
+        amount: ord.total
+      });
+    }
+
+    if (pathname === '/api/delivery/payment/check-razorpay' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord || !ord.razorpayLinkId) return sendJson(res, 404, { error: 'No Razorpay link created for this order.' });
+      const authHeader = 'Basic ' + Buffer.from(`${db.settings.razorpayKeyId}:${db.settings.razorpayKeySecret}`).toString('base64');
+      const rzpRes = await httpsRequestJson({
+        hostname: 'api.razorpay.com',
+        path: `/v1/payment_links/${encodeURIComponent(ord.razorpayLinkId)}`,
+        method: 'GET',
+        headers: { Authorization: authHeader }
+      });
+      const isPaid = rzpRes.data?.status === 'paid';
+      if (isPaid) {
+        ord.paymentStatus = 'paid';
+        ord.paymentMethod = 'razorpay-qr';
+        ord.paymentId = rzpRes.data?.payments?.[0]?.payment_id || ord.razorpayLinkId;
+        recalculateTopAndBroadcast();
+        sendOrderBillEmail(ord).catch(() => {});
+      }
+      return sendJson(res, 200, { ok: true, paid: isPaid, status: rzpRes.data?.status || 'created', order: ord });
+    }
+
+    // Delivery Boy Doorstep PhonePe / UPI QR Generator
+    if (pathname === '/api/delivery/payment/upi-qr' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      const upiId = String(db.settings.merchantUpiId || process.env.MERCHANT_UPI_ID || '').trim();
+      if (!upiId) {
+        return sendJson(res, 400, { error: 'Merchant UPI ID Admin Settings -> Gateways me set karein pehle.' });
+      }
+      const total = Math.max(1, Number(ord.total || 0));
+      const pa = encodeURIComponent(upiId);
+      const pn = encodeURIComponent(db.settings.restaurantName || 'Chatkaro Food Hub');
+      const tn = encodeURIComponent(`Delivery #${ord.id}`);
+      const upiUri = `upi://pay?pa=${pa}&pn=${pn}&am=${total}&cu=INR&tn=${tn}`;
+      const phonepeUri = `phonepe://pay?pa=${pa}&pn=${pn}&am=${total}&cu=INR&tn=${tn}`;
+      return sendJson(res, 200, { ok: true, amount: total, merchantUpiId: upiId, upiUri, phonepeUri });
+    }
+
+    // Delivery Boy Payment Screenshot (SS) + Proof Photo + Complete Delivery
+    if (pathname === '/api/delivery/proof' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+
+      if (body.dataUrl) {
+        const match = String(body.dataUrl).match(/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+        if (!match) return sendJson(res, 400, { error: 'Invalid screenshot image.' });
+        const buf = Buffer.from(match[2], 'base64');
+        if (buf.length > 5e6) return sendJson(res, 400, { error: 'Screenshot under 5 MB required.' });
+        const ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+        const proofsDir = path.join(ROOT_DIR, 'assets', 'proofs');
+        if (!fs.existsSync(proofsDir)) fs.mkdirSync(proofsDir, { recursive: true });
+        const fileName = `proof-${ord.id}-${Date.now()}.${ext}`;
+        fs.writeFileSync(path.join(proofsDir, fileName), buf);
+        ord.paymentProofImg = `assets/proofs/${fileName}`;
+      }
+      if (body.paymentMethod) ord.paymentMethod = String(body.paymentMethod).trim();
+      if (body.paymentRef) ord.paymentId = String(body.paymentRef).trim();
+      if (body.markPaid !== false) ord.paymentStatus = 'paid';
+      if (body.markDelivered !== false) {
+        ord.deliveryStage = 'delivered';
+        ord.status = 'served';
+        ord.etaMinutes = 0;
+        ord.etaEndsAt = Date.now();
+        if (!Array.isArray(ord.deliveryTimeline)) ord.deliveryTimeline = [];
+        if (!ord.deliveryTimeline.some((x) => x.stage === 'delivered')) {
+          ord.deliveryTimeline.push({ stage: 'delivered', label: 'Delivered & Payment Confirmed ✓', at: Date.now() });
+        }
+      }
+      if (body.driverName) ord.driverName = String(body.driverName).trim();
+      if (body.driverPhone) ord.driverPhone = String(body.driverPhone).trim();
+      recalculateTopAndBroadcast();
+      sendOrderBillEmail(ord).catch(() => {});
+      return sendJson(res, 200, { ok: true, order: ord });
     }
 
     if (pathname.startsWith('/api/orders/') && pathname.endsWith('/resend-bill') && req.method === 'POST') {
