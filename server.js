@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const tls = require('tls');
 const crypto = require('crypto');
 const { URL } = require('url');
 
@@ -56,6 +57,10 @@ function createDefaultDb() {
       bgVideoPlaylistId: '',
       apkDownloadUrl: '',
       adminPin: '9054', // Secure Owner PIN (last 4 digits of restaurant phone by default; changeable in Admin)
+      staffPin: '1234', // Waiter & Delivery Boy App PIN (changeable in Admin)
+      smtpUser: '',
+      smtpPass: '',
+      resendApiKey: '',
       googleClientId: '',
       googlePlacesApiKey: '',
       googlePlaceId: '',
@@ -102,17 +107,21 @@ function createDefaultDb() {
       }
     ],
     tables: [
-      { id: 1, label: 'Table 1', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 2, label: 'Table 2', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 3, label: 'Table 3', seats: 6, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 4, label: 'Table 4', seats: 2, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 5, label: 'Table 5', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 6, label: 'Table 6', seats: 6, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 7, label: 'Table 7', seats: 4, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
-      { id: 8, label: 'Table 8 (Family)', seats: 8, status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now }
+      { id: 1, label: 'Table 1', seats: 4, status: 'available', photo: 'assets/tables/table-4seat.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 2, label: 'Table 2', seats: 4, status: 'available', photo: 'assets/tables/table-4seat.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 3, label: 'Table 3', seats: 6, status: 'available', photo: 'assets/tables/table-family.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 4, label: 'Table 4', seats: 2, status: 'available', photo: 'assets/tables/table-2seat.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 5, label: 'Table 5', seats: 4, status: 'available', photo: 'assets/tables/table-4seat.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 6, label: 'Table 6', seats: 6, status: 'available', photo: 'assets/tables/table-family.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 7, label: 'Table 7', seats: 4, status: 'available', photo: 'assets/tables/table-4seat.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now },
+      { id: 8, label: 'Table 8 (Family)', seats: 8, status: 'available', photo: 'assets/tables/table-family.jpg', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: now }
     ],
     customers: {},
     orders: [],
+    notifications: [],
+    waiterCalls: [],
+    waiterChats: [],
+    deliveryChats: [],
     reviews: [
       {
         id: 'rev-1',
@@ -214,10 +223,24 @@ function loadDb() {
       if (!parsed.settings) parsed.settings = def.settings;
       if (!parsed.settings.brandTheme) parsed.settings.brandTheme = def.settings.brandTheme;
       if (!parsed.settings.dailyDeal) parsed.settings.dailyDeal = def.settings.dailyDeal;
-      ['ownerName', 'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'apkDownloadUrl', 'instagramHandle', 'instagramReels'].forEach((k) => {
+      ['ownerName', 'staffPin', 'smtpUser', 'smtpPass', 'resendApiKey', 'merchantUpiId', 'razorpayKeyId', 'razorpayKeySecret', 'phonepeMerchantId', 'phonepeSaltKey', 'phonepeSaltIndex', 'phonepeEnv', 'bgMusicEnabled', 'bgMusicUrl', 'bgMusicVideoId', 'bgMusicPlaylistId', 'bgMusicTitle', 'bgVideoEnabled', 'bgVideoUrl', 'bgVideoVideoId', 'bgVideoPlaylistId', 'apkDownloadUrl', 'instagramHandle', 'instagramReels'].forEach((k) => {
         if (parsed.settings[k] === undefined) parsed.settings[k] = def.settings[k];
       });
       if (!Array.isArray(parsed.notifications)) parsed.notifications = [];
+      if (!Array.isArray(parsed.waiterCalls)) parsed.waiterCalls = [];
+      if (!Array.isArray(parsed.waiterChats)) parsed.waiterChats = [];
+      if (!Array.isArray(parsed.deliveryChats)) parsed.deliveryChats = [];
+      if (Array.isArray(parsed.tables)) {
+        const defTMap = new Map(def.tables.map((t) => [t.id, t]));
+        parsed.tables = parsed.tables.map((t) => ({
+          ...t,
+          photo: t.photo || defTMap.get(t.id)?.photo || 'assets/dining-vibe.jpg'
+        }));
+      }
+      if (!parsed.settings.smtpUser && process.env.SMTP_USER) parsed.settings.smtpUser = process.env.SMTP_USER.trim();
+      if (!parsed.settings.smtpPass && process.env.SMTP_PASS) parsed.settings.smtpPass = process.env.SMTP_PASS.trim();
+      if (!parsed.settings.resendApiKey && process.env.RESEND_API_KEY) parsed.settings.resendApiKey = process.env.RESEND_API_KEY.trim();
+      if (process.env.STAFF_PIN) parsed.settings.staffPin = process.env.STAFF_PIN.trim();
       // Preserve env fallbacks if runtime settings are unset
       if (!parsed.settings.bgMusicUrl && process.env.BG_MUSIC_URL) {
         parsed.settings.bgMusicUrl = process.env.BG_MUSIC_URL.trim();
@@ -281,6 +304,10 @@ function loadDb() {
   if (process.env.PHONEPE_SALT_KEY) initial.settings.phonepeSaltKey = process.env.PHONEPE_SALT_KEY.trim();
   if (process.env.MERCHANT_UPI_ID) initial.settings.merchantUpiId = process.env.MERCHANT_UPI_ID.trim();
   if (process.env.ADMIN_PIN) initial.settings.adminPin = process.env.ADMIN_PIN.trim();
+  if (process.env.STAFF_PIN) initial.settings.staffPin = process.env.STAFF_PIN.trim();
+  if (process.env.SMTP_USER) initial.settings.smtpUser = process.env.SMTP_USER.trim();
+  if (process.env.SMTP_PASS) initial.settings.smtpPass = process.env.SMTP_PASS.trim();
+  if (process.env.RESEND_API_KEY) initial.settings.resendApiKey = process.env.RESEND_API_KEY.trim();
   fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2));
   return initial;
 }
@@ -289,8 +316,162 @@ let db = loadDb();
 saveDb();
 const gameRooms = new Map();
 const adminTokens = new Set();
+const staffTokens = new Set();
+const pendingOtps = new Map(); // email -> { otp, name, phone, expiresAt, attempts }
 const pinAttempts = new Map(); // ip -> { count, lockedUntil }
 const pendingPayments = new Map(); // txnId -> checkout snapshot
+
+function requireStaffOrAdmin(req, body) {
+  if (requireAdmin(req, body)) return true;
+  const st = req.headers['x-staff-token'] || body?.staffToken;
+  if (st && staffTokens.has(st)) return true;
+  const sp = req.headers['x-staff-pin'] || body?.staffPin;
+  if (sp && String(sp) === String(db.settings.staffPin || '1234')) return true;
+  return false;
+}
+
+function sendSmtpEmailTls({ user, pass, to, subject, html, text }) {
+  return new Promise((resolve, reject) => {
+    const socket = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' });
+    let step = 0;
+    let buf = '';
+    const cleanup = (err) => {
+      try { socket.destroy(); } catch {}
+      if (err) reject(err);
+    };
+    socket.setTimeout(12000, () => cleanup(new Error('SMTP timeout')));
+    socket.on('error', (err) => cleanup(err));
+    socket.on('data', (chunk) => {
+      buf += chunk.toString('utf8');
+      if (!buf.includes('\r\n')) return;
+      const lines = buf.split('\r\n');
+      const last = lines[lines.length - 2] || '';
+      if (/^\d{3}-/.test(last)) return; // multiline response still coming
+      buf = '';
+      const code = parseInt(last.slice(0, 3), 10);
+      if (code >= 400) return cleanup(new Error(`SMTP ${last}`));
+      if (step === 0) { step = 1; socket.write(`EHLO chatkaro.local\r\n`); }
+      else if (step === 1) { step = 2; socket.write(`AUTH LOGIN\r\n`); }
+      else if (step === 2) { step = 3; socket.write(Buffer.from(user).toString('base64') + '\r\n'); }
+      else if (step === 3) { step = 4; socket.write(Buffer.from(pass).toString('base64') + '\r\n'); }
+      else if (step === 4) { step = 5; socket.write(`MAIL FROM:<${user}>\r\n`); }
+      else if (step === 5) { step = 6; socket.write(`RCPT TO:<${to}>\r\n`); }
+      else if (step === 6) { step = 7; socket.write(`DATA\r\n`); }
+      else if (step === 7) {
+        step = 8;
+        const boundary = 'cb_' + Date.now();
+        const msg = [
+          `From: "${db.settings.restaurantName || 'Chatkaro Food Hub'}" <${user}>`,
+          `To: <${to}>`,
+          `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+          `MIME-Version: 1.0`,
+          `Content-Type: multipart/alternative; boundary="${boundary}"`,
+          ``,
+          `--${boundary}`,
+          `Content-Type: text/plain; charset="utf-8"`,
+          ``,
+          text || subject,
+          `--${boundary}`,
+          `Content-Type: text/html; charset="utf-8"`,
+          ``,
+          html || `<p>${text || subject}</p>`,
+          `--${boundary}--`,
+          `.`
+        ].join('\r\n');
+        socket.write(msg + '\r\n');
+      } else if (step === 8) {
+        step = 9;
+        socket.write(`QUIT\r\n`);
+        socket.end();
+        resolve({ sent: true, method: 'gmail-smtp' });
+      }
+    });
+  });
+}
+
+async function sendEmailViaGmailOrResend({ to, subject, html, text }) {
+  const resendKey = String(db.settings.resendApiKey || process.env.RESEND_API_KEY || '').trim();
+  const smtpUser = String(db.settings.smtpUser || process.env.SMTP_USER || '').trim();
+  const smtpPass = String(db.settings.smtpPass || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  if (resendKey) {
+    const body = JSON.stringify({
+      from: smtpUser ? `Chatkaro Food Hub <${smtpUser}>` : 'Chatkaro Food Hub <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      html,
+      text
+    });
+    const res = await httpsRequestJson({
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, body);
+    if (res.statusCode < 300) return { sent: true, method: 'resend' };
+    throw new Error(res.data?.message || 'Resend email failed');
+  }
+  if (smtpUser && smtpPass) {
+    return sendSmtpEmailTls({ user: smtpUser, pass: smtpPass, to, subject, html, text });
+  }
+  return { sent: false, method: 'none' };
+}
+
+function buildOrderBillEmailHtml(order) {
+  const owner = db.settings.ownerName || 'Het';
+  const rows = (order.items || []).map((i, idx) => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${idx + 1}. ${i.name}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${i.qty}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">₹${i.price}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;"><strong>₹${i.price * i.qty}</strong></td>
+    </tr>`).join('');
+  return `
+  <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fffdf7;border:2px solid #991b1b;border-radius:14px;padding:22px;color:#1c1917;">
+    <div style="text-align:center;border-bottom:2px double #b45309;padding-bottom:12px;">
+      <h2 style="margin:0;color:#7f1d1d;">👑 ${db.settings.restaurantName || 'CHATKARO FOOD HUB'}</h2>
+      <div style="color:#15803d;font-weight:bold;font-size:12px;">100% PURE VEGETARIAN FAMILY RESTAURANT</div>
+      <div style="display:inline-block;margin-top:6px;background:#991b1b;color:#fef3c7;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:bold;">Proprietor / Owner: ${owner}</div>
+      <div style="font-size:12px;color:#57534e;margin-top:6px;">${db.settings.address || 'Talala, Gujarat'} • +${db.settings.phone || '919054633908'}</div>
+    </div>
+    <p style="font-size:13px;"><strong>Invoice #${order.id}</strong> • ${new Date(order.createdAt).toLocaleString('en-IN')}<br/>
+    Customer: <strong>${order.customerName}</strong> (${order.customerPhone || ''})<br/>
+    Mode: <strong>${String(order.orderType || 'dine-in').toUpperCase()}${order.tableId ? ' • Table ' + order.tableId : ''}</strong> • Payment: <strong>${order.paymentStatus === 'paid' ? 'PAID ✓' : 'Counter / COD'}</strong></p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin:12px 0;">
+      <thead><tr style="background:#fef2f2;color:#7f1d1d;"><th style="padding:8px;text-align:left;">Dish</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Rate</th><th style="padding:8px;text-align:right;">Amount</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="background:#fef2f2;border-top:2px solid #991b1b;border-bottom:2px solid #991b1b;padding:10px;font-size:16px;font-weight:bold;color:#7f1d1d;display:flex;justify-content:space-between;">
+      <span>GRAND TOTAL PAYABLE: ₹${order.total}/-</span>
+    </div>
+    <p style="font-size:12px;color:#57534e;margin-top:14px;">Authorized Signatory: <strong>${owner}</strong> • MOHAR SEAL VERIFIED ✓ (${order.paymentStatus === 'paid' ? 'PAID' : 'VERIFIED'})</p>
+  </div>`;
+}
+
+async function sendOrderBillEmail(order) {
+  try {
+    if (!order || !order.customerEmail) return { sent: false };
+    const html = buildOrderBillEmailHtml(order);
+    const text = `Chatkaro Food Hub Official Bill #${order.id} (Owner: ${db.settings.ownerName || 'Het'}) | Total: ₹${order.total}/- | Items: ${(order.items || []).map(i => `${i.qty}x ${i.name}`).join(', ')}`;
+    const r = await sendEmailViaGmailOrResend({
+      to: order.customerEmail,
+      subject: `🧾 Official Royal Bill #${order.id} — ${db.settings.restaurantName || 'Chatkaro Food Hub'}`,
+      html,
+      text
+    });
+    if (r.sent) {
+      order.billEmailSent = true;
+      saveDb();
+    }
+    return r;
+  } catch (err) {
+    console.error('Bill email failed:', err.message);
+    return { sent: false, error: err.message };
+  }
+}
 
 let cloudSyncTimer = null;
 function syncDbToCloudGist() {
@@ -495,6 +676,7 @@ function getPublicSnapshot() {
       brandTheme: db.settings.brandTheme,
       hasPlacesKey: Boolean(db.settings.googlePlacesApiKey && db.settings.googlePlaceId),
       hasGeminiKey: Boolean(getActiveGeminiKey()),
+      hasEmailOtp: Boolean((db.settings.smtpUser || process.env.SMTP_USER) && (db.settings.smtpPass || process.env.SMTP_PASS) || (db.settings.resendApiKey || process.env.RESEND_API_KEY)),
       merchantUpiId: db.settings.merchantUpiId || process.env.MERCHANT_UPI_ID || '',
       razorpayKeyId: db.settings.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '',
       hasRazorpay: Boolean((db.settings.razorpayKeyId || process.env.RAZORPAY_KEY_ID) && (db.settings.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET)),
@@ -504,9 +686,12 @@ function getPublicSnapshot() {
     menu: db.menu,
     ads: Array.isArray(db.ads) ? db.ads : [],
     notifications: Array.isArray(db.notifications) ? db.notifications.slice(0, 12) : [],
+    waiterCalls: Array.isArray(db.waiterCalls) ? db.waiterCalls.slice(0, 40) : [],
+    waiterChats: Array.isArray(db.waiterChats) ? db.waiterChats.slice(-80) : [],
+    deliveryChats: Array.isArray(db.deliveryChats) ? db.deliveryChats.slice(-80) : [],
     dailyAiAd: db.dailyAiAd || null,
     tables: db.tables,
-    orders: realOrders.slice(0, 60),
+    orders: realOrders.slice(0, 200),
     reviews: db.reviews.slice(0, 50),
     mapPhotos: db.mapPhotos.slice(0, 40),
     chatMessages: db.chatMessages.slice(-60),
@@ -569,6 +754,12 @@ function createOrderFromPayload(body, paymentOverride = {}) {
     paymentId: paymentOverride.paymentId || body.paymentId || '',
     isFake: false,
     status: 'confirmed',
+    deliveryStage: 'placed',
+    deliveryOtp: String(Math.floor(1000 + Math.random() * 9000)),
+    driverName: '',
+    driverPhone: '',
+    deliveryTimeline: [{ stage: 'placed', label: 'Order Placed', at: now }],
+    billEmailSent: false,
     etaMinutes,
     etaEndsAt: now + etaMinutes * 60000,
     createdAt: now
@@ -604,6 +795,7 @@ function createOrderFromPayload(body, paymentOverride = {}) {
     }
   }
   recalculateTopAndBroadcast();
+  sendOrderBillEmail(order).catch(() => {});
   return order;
 }
 
@@ -1038,6 +1230,82 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { reply: cleanReply, engine: 'smart-menu-ai', aiOrderAction: action });
     }
 
+    // Gmail OTP Auth (Send 6-Digit Verification Code to @gmail.com)
+    if (pathname === '/api/auth/send-otp' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const name = String(body.name || email.split('@')[0] || 'Guest').trim();
+      const phone = String(body.phone || '').trim();
+      if (!email || !/^[^\s@]+@(gmail\.com|googlemail\.com)$/i.test(email)) {
+        return sendJson(res, 400, { error: 'Please enter a valid @gmail.com address.' });
+      }
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:460px;margin:0 auto;border:2px solid #dc2626;border-radius:14px;padding:20px;background:#fffdf7;color:#111;">
+          <h2 style="margin:0 0 8px;color:#991b1b;">🍲 Chatkaro Food Hub</h2>
+          <p>Namaste <strong>${name}</strong>, aapka Gmail Login OTP code neeche hai:</p>
+          <div style="font-size:32px;font-weight:900;letter-spacing:8px;color:#dc2626;background:#fef2f2;padding:12px;text-align:center;border-radius:10px;margin:14px 0;">${otp}</div>
+          <p style="font-size:12px;color:#555;">Yeh OTP 10 minute ke liye valid hai. Owner: ${db.settings.ownerName || 'Het'}</p>
+        </div>`;
+      try {
+        const resMail = await sendEmailViaGmailOrResend({
+          to: email,
+          subject: `${otp} is your Chatkaro Food Hub Login OTP`,
+          html,
+          text: `Your Chatkaro Food Hub Login OTP is: ${otp} (Valid 10 minutes).`
+        });
+        if (!resMail.sent) {
+          return sendJson(res, 503, {
+            error: 'Gmail OTP email sender (SMTP App Password / Resend API Key) abhi Admin Settings me set nahi hai. Admin Settings me SMTP_USER + SMTP_PASS dalwayein ya Google 1-Tap se sign in karein.',
+            needsSetup: true
+          });
+        }
+        pendingOtps.set(email, { otp, name, phone, expiresAt: Date.now() + 600000, attempts: 0 });
+        return sendJson(res, 200, { ok: true, message: `6-digit OTP sent to ${email}` });
+      } catch (err) {
+        return sendJson(res, 500, { error: 'Could not send Gmail OTP: ' + err.message });
+      }
+    }
+
+    if (pathname === '/api/auth/verify-otp' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const otp = String(body.otp || '').trim();
+      const rec = pendingOtps.get(email);
+      if (!rec || Date.now() > rec.expiresAt) {
+        pendingOtps.delete(email);
+        return sendJson(res, 400, { error: 'OTP expired or not requested. Request a new OTP.' });
+      }
+      rec.attempts += 1;
+      if (rec.attempts > 5) {
+        pendingOtps.delete(email);
+        return sendJson(res, 429, { error: 'Too many wrong OTP attempts. Request a new OTP.' });
+      }
+      if (rec.otp !== otp) {
+        return sendJson(res, 401, { error: 'Incorrect 6-digit OTP code!' });
+      }
+      pendingOtps.delete(email);
+      const existing = db.customers[email] || {
+        email,
+        name: rec.name || email.split('@')[0],
+        phone: rec.phone || '',
+        bio: 'Foodie at Chatkaro Food Hub',
+        favoriteDish: 'Mix Veg',
+        avatarColor: '#ea580c',
+        ordersCount: 0,
+        totalSpent: 0,
+        bestGameScore: 0,
+        tableId: null
+      };
+      if (rec.name) existing.name = rec.name;
+      if (rec.phone) existing.phone = rec.phone;
+      existing.authProvider = 'gmail-otp';
+      existing.emailVerified = true;
+      db.customers[email] = existing;
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { customer: existing });
+    }
+
     // Customer Auth & Profile (Real Google OAuth ID Token or Verified Gmail)
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const body = await readJsonBody(req);
@@ -1104,8 +1372,154 @@ const server = http.createServer(async (req, res) => {
       if (body.bio !== undefined) c.bio = String(body.bio).trim();
       if (body.favoriteDish !== undefined) c.favoriteDish = String(body.favoriteDish).trim();
       if (body.avatarColor) c.avatarColor = String(body.avatarColor);
+      if (body.picture) c.picture = String(body.picture).slice(0, 50000);
       recalculateTopAndBroadcast();
       return sendJson(res, 200, { customer: c });
+    }
+
+    // Staff Auth (Waiter Bell App & Delivery Boy App)
+    if (pathname === '/api/staff/verify' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const pin = String(body.pin || '').trim();
+      if (!pin || (pin !== String(db.settings.staffPin || '1234') && pin !== String(db.settings.adminPin))) {
+        return sendJson(res, 401, { error: 'Wrong Staff / Owner PIN!' });
+      }
+      const staffToken = crypto.randomBytes(20).toString('hex');
+      staffTokens.add(staffToken);
+      return sendJson(res, 200, { ok: true, staffToken, state: getPublicSnapshot() });
+    }
+
+    // Waiter Bell Calls & Table Service Chat
+    if (pathname === '/api/waiter/call' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const tableId = Number(body.tableId || 0);
+      const tbl = db.tables.find((t) => t.id === tableId);
+      const requestType = String(body.requestType || 'Call Waiter').trim().slice(0, 60);
+      const note = String(body.note || '').trim().slice(0, 180);
+      const call = {
+        id: 'wc-' + Date.now() + '-' + Math.floor(Math.random() * 99),
+        tableId: tableId || 0,
+        tableLabel: tbl ? tbl.label : (tableId ? `Table ${tableId}` : 'Counter / Table'),
+        tablePhoto: tbl?.photo || 'assets/tables/table-4seat.jpg',
+        customerName: String(body.customerName || tbl?.occupantName || 'Guest').trim(),
+        requestType,
+        note,
+        status: 'ringing',
+        waiterName: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      if (!Array.isArray(db.waiterCalls)) db.waiterCalls = [];
+      db.waiterCalls.unshift(call);
+      db.waiterCalls = db.waiterCalls.slice(0, 50);
+      broadcast('waiter-call', call);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 201, { ok: true, call });
+    }
+
+    if (pathname === '/api/waiter/action' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const call = (db.waiterCalls || []).find((c) => c.id === body.callId);
+      if (!call) return sendJson(res, 404, { error: 'Request not found.' });
+      call.status = ['ringing', 'accepted', 'served'].includes(body.status) ? body.status : 'accepted';
+      if (body.waiterName) call.waiterName = String(body.waiterName).trim();
+      call.updatedAt = Date.now();
+      broadcast('waiter-call', call);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, call });
+    }
+
+    if (pathname === '/api/waiter/chat' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const tableId = Number(body.tableId || 0);
+      const text = String(body.text || '').trim().slice(0, 240);
+      if (!text) return sendJson(res, 400, { error: 'Message empty.' });
+      const role = body.senderRole === 'waiter' && requireStaffOrAdmin(req, body) ? 'waiter' : 'customer';
+      const msg = {
+        id: 'wmsg-' + Date.now() + '-' + Math.floor(Math.random() * 99),
+        tableId,
+        senderRole: role,
+        senderName: String(body.senderName || (role === 'waiter' ? 'Waiter' : `Table ${tableId}`)).trim(),
+        text,
+        createdAt: Date.now()
+      };
+      if (!Array.isArray(db.waiterChats)) db.waiterChats = [];
+      db.waiterChats.push(msg);
+      db.waiterChats = db.waiterChats.slice(-100);
+      broadcast('waiter-chat', msg);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 201, { ok: true, message: msg });
+    }
+
+    // Amazon-Style Delivery Boy App Endpoints
+    if (pathname === '/api/delivery/action' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      const stage = String(body.deliveryStage || '').trim();
+      const stageLabels = {
+        placed: 'Order Placed',
+        preparing: 'Kitchen Preparing',
+        ready: 'Packed & Ready for Pickup',
+        picked_up: 'Picked Up by Delivery Boy',
+        on_the_way: 'Out for Delivery (On the Way)',
+        delivered: 'Delivered Successfully ✓'
+      };
+      if (stage && stageLabels[stage]) {
+        ord.deliveryStage = stage;
+        if (!Array.isArray(ord.deliveryTimeline)) ord.deliveryTimeline = [];
+        if (!ord.deliveryTimeline.some((x) => x.stage === stage)) {
+          ord.deliveryTimeline.push({ stage, label: stageLabels[stage], at: Date.now() });
+        }
+        if (stage === 'preparing') ord.status = 'cooking';
+        if (stage === 'ready' || stage === 'picked_up' || stage === 'on_the_way') ord.status = 'ready';
+        if (stage === 'delivered') {
+          ord.status = 'served';
+          if (body.markPaid) ord.paymentStatus = 'paid';
+          ord.etaMinutes = 0;
+          ord.etaEndsAt = Date.now();
+        }
+      }
+      if (body.driverName) ord.driverName = String(body.driverName).trim();
+      if (body.driverPhone) ord.driverPhone = String(body.driverPhone).trim();
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, order: ord });
+    }
+
+    if (pathname === '/api/delivery/chat' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const orderId = String(body.orderId || '').trim();
+      const text = String(body.text || '').trim().slice(0, 240);
+      if (!orderId || !text) return sendJson(res, 400, { error: 'Order ID & message required.' });
+      const role = body.senderRole === 'driver' && requireStaffOrAdmin(req, body) ? 'driver' : 'customer';
+      const msg = {
+        id: 'dmsg-' + Date.now() + '-' + Math.floor(Math.random() * 99),
+        orderId,
+        senderRole: role,
+        senderName: String(body.senderName || (role === 'driver' ? 'Delivery Partner' : 'Customer')).trim(),
+        text,
+        createdAt: Date.now()
+      };
+      if (!Array.isArray(db.deliveryChats)) db.deliveryChats = [];
+      db.deliveryChats.push(msg);
+      db.deliveryChats = db.deliveryChats.slice(-100);
+      broadcast('delivery-chat', msg);
+      recalculateTopAndBroadcast();
+      return sendJson(res, 201, { ok: true, message: msg });
+    }
+
+    if (pathname.startsWith('/api/orders/') && pathname.endsWith('/resend-bill') && req.method === 'POST') {
+      const parts = pathname.split('/').filter(Boolean);
+      const ordId = parts[parts.length - 2];
+      const ord = db.orders.find((o) => o.id === ordId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      const resMail = await sendOrderBillEmail(ord);
+      if (!resMail.sent) {
+        return sendJson(res, 503, { error: resMail.error || 'Email service not configured in Admin Settings (SMTP or Resend Key).' });
+      }
+      return sendJson(res, 200, { ok: true, method: resMail.method });
     }
 
     // Table Check-in
@@ -1904,13 +2318,49 @@ function pushShopNotification({ type = 'offer', title, body, dishId = '', image 
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const t = body.table || {};
       if (t.id && db.tables.some((x) => x.id === Number(t.id))) {
-        db.tables = db.tables.map((x) => x.id === Number(t.id) ? { ...x, label: t.label || x.label, seats: Number(t.seats || x.seats), status: t.status || x.status } : x);
+        db.tables = db.tables.map((x) => x.id === Number(t.id) ? {
+          ...x,
+          label: t.label || x.label,
+          seats: Number(t.seats || x.seats),
+          status: t.status || x.status,
+          photo: t.photo !== undefined ? String(t.photo).trim() : x.photo
+        } : x);
       } else {
         const nextId = db.tables.reduce((max, x) => Math.max(max, x.id), 0) + 1;
-        db.tables.push({ id: nextId, label: String(t.label || `Table ${nextId}`).trim(), seats: Number(t.seats || 4), status: 'available', occupantName: '', occupantEmail: '', dishSummary: '', updatedAt: Date.now() });
+        db.tables.push({
+          id: nextId,
+          label: String(t.label || `Table ${nextId}`).trim(),
+          seats: Number(t.seats || 4),
+          status: 'available',
+          photo: String(t.photo || 'assets/tables/table-4seat.jpg').trim(),
+          occupantName: '',
+          occupantEmail: '',
+          dishSummary: '',
+          updatedAt: Date.now()
+        });
       }
       recalculateTopAndBroadcast();
       return sendJson(res, 200, { tables: db.tables });
+    }
+
+    if (pathname === '/api/admin/upload-table-photo' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const tableId = Number(body.tableId);
+      const dataUrl = String(body.dataUrl || '').trim();
+      const match = dataUrl.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!match) return sendJson(res, 400, { error: 'Invalid image format.' });
+      const buf = Buffer.from(match[2], 'base64');
+      if (buf.length > 5e6) return sendJson(res, 400, { error: 'Image must be under 5 MB.' });
+      const ext = match[1].toLowerCase() === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+      const tblDir = path.join(ROOT_DIR, 'assets', 'tables');
+      if (!fs.existsSync(tblDir)) fs.mkdirSync(tblDir, { recursive: true });
+      const fileName = `upload-table-${tableId}-${Date.now()}.${ext}`;
+      fs.writeFileSync(path.join(tblDir, fileName), buf);
+      const photoPath = `assets/tables/${fileName}`;
+      db.tables = db.tables.map((t) => (t.id === tableId ? { ...t, photo: photoPath } : t));
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, photo: photoPath, tables: db.tables });
     }
 
     if (pathname.startsWith('/api/admin/tables/') && req.method === 'DELETE') {
@@ -2110,7 +2560,7 @@ function pushShopNotification({ type = 'offer', title, body, dishId = '', image 
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
       const s = body.settings || {};
       [
-        'restaurantName', 'ownerName', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
+        'restaurantName', 'ownerName', 'staffPin', 'smtpUser', 'openHoursText', 'announcement', 'dailyDeal', 'phone', 'priceRange',
         'instagramHandle', 'instagramReels',
         'bgMusicUrl', 'bgMusicTitle', 'bgVideoUrl', 'apkDownloadUrl',
         'address', 'plusCode', 'googleClientId', 'googlePlaceId',
@@ -2120,7 +2570,7 @@ function pushShopNotification({ type = 'offer', title, body, dishId = '', image 
         if (s[k] !== undefined) db.settings[k] = String(s[k]).trim();
       });
       // Preserve secrets unless non-empty replacement value is sent
-      ['geminiApiKey', 'razorpayKeySecret', 'phonepeSaltKey', 'googlePlacesApiKey'].forEach((k) => {
+      ['geminiApiKey', 'razorpayKeySecret', 'phonepeSaltKey', 'googlePlacesApiKey', 'smtpPass', 'resendApiKey'].forEach((k) => {
         if (s[k] !== undefined && String(s[k]).trim() !== '') {
           db.settings[k] = String(s[k]).trim();
         }

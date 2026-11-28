@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>🛵 Chatkaro Delivery Rider App</title>
+  <meta name="theme-color" content="#ea580c" />
+  <link rel="manifest" href="manifest-delivery.webmanifest" />
+  <link rel="icon" href="assets/app-icon-192.png" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #09090b; color: #f8fafc; min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, #c2410c, #ea580c); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
+    .topbar h1 { margin: 0; font-size: 1.05rem; }
+    .topbar small { display: block; font-size: 0.74rem; opacity: 0.92; }
+    .btn { border: none; border-radius: 999px; padding: 9px 14px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.84rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-gold { background: #fbbf24; color: #111; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-blue { background: #2563eb; color: #fff; }
+    .btn-dark { background: #1e293b; color: #fff; border: 1px solid #334155; }
+    .btn-orange { background: #ea580c; color: #fff; }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 14px; }
+    .lock-card { max-width: 380px; margin: 48px auto; background: #18181b; border: 1px solid #27272a; border-radius: 20px; padding: 24px; text-align: center; }
+    input { width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid #27272a; background: #09090b; color: #fff; font-size: 0.95rem; margin: 6px 0; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .order-card { background: #18181b; border: 1.5px solid #27272a; border-radius: 18px; padding: 14px; margin-bottom: 14px; }
+    .order-card.active-del { border-color: #ea580c; }
+    .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+    .step-pill { text-align: center; padding: 5px 4px; border-radius: 8px; font-size: 0.68rem; font-weight: 800; background: #27272a; color: #a1a1aa; }
+    .step-pill.done { background: #15803d; color: #fff; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chat-mini { background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 10px; margin-top: 10px; }
+    .chat-msgs { max-height: 120px; overflow-y: auto; display: grid; gap: 4px; margin-bottom: 6px; font-size: 0.8rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>🛵 Chatkaro Delivery Boy App</h1>
+      <small id="statusTxt">Amazon-Style Order Dispatch</small>
+    </div>
+    <a href="/" class="btn btn-dark">🏠 Shop</a>
+  </header>
+
+  <main class="wrap">
+    <div class="lock-card" id="lockCard">
+      <div style="font-size:2.4rem;">🛵</div>
+      <h2 style="margin:6px 0;">Delivery Partner Sign In</h2>
+      <p style="color:#a1a1aa;font-size:0.86rem;">Enter Rider Name, Phone &amp; Staff PIN (Default: 1234).</p>
+      <form id="loginForm">
+        <input type="text" id="driverNameInput" placeholder="Rider Name (e.g. Mahesh)" required />
+        <input type="tel" id="driverPhoneInput" placeholder="Rider Mobile Number" required />
+        <input type="password" id="pinInput" placeholder="Staff / Owner PIN" required />
+        <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;margin-top:8px;">Open Delivery App →</button>
+      </form>
+      <p id="errMsg" style="color:#f87171;font-size:0.82rem;"></p>
+    </div>
+
+    <div id="appBody" class="hidden">
+      <div class="tabs">
+        <button type="button" class="btn btn-orange" id="tabActiveBtn">🛵 Active Deliveries</button>
+        <button type="button" class="btn btn-dark" id="tabDoneBtn">✅ Delivered History</button>
+      </div>
+      <div id="ordersList"></div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      let staffToken = sessionStorage.getItem('chatkaro_staff_token') || '';
+      let driverName = localStorage.getItem('chatkaro_driver_name') || 'Rider';
+      let driverPhone = localStorage.getItem('chatkaro_driver_phone') || '';
+      let viewTab = 'active';
+      let state = { orders: [], deliveryChats: [] };
+
+      function esc(s) { return String(s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+      function render() {
+        if (!staffToken) return;
+        const delOrders = (state.orders || []).filter((o) => o.orderType === 'delivery' || viewTab === 'done');
+        const list = viewTab === 'active'
+          ? delOrders.filter((o) => o.orderType === 'delivery' && o.status !== 'served' && o.status !== 'cancelled')
+          : (state.orders || []).filter((o) => o.orderType === 'delivery' && o.status === 'served');
+
+        $('ordersList').innerHTML = list.length ? list.map((o) => {
+          const st = o.deliveryStage || 'placed';
+          const s1 = true;
+          const s2 = ['picked_up','on_the_way','delivered'].includes(st);
+          const s3 = ['on_the_way','delivered'].includes(st);
+          const s4 = st === 'delivered' || o.status === 'served';
+          const payBadge = o.paymentStatus === 'paid'
+            ? `<span style="color:#4ade80;font-weight:800;">✅ ONLINE PAID (₹${o.total})</span>`
+            : `<span style="color:#fbbf24;font-weight:900;">💵 COLLECT CASH: ₹${o.total}/-</span>`;
+          const msgs = (state.deliveryChats || []).filter((m) => m.orderId === o.id);
+          const cleanPhone = String(o.customerPhone || '').replace(/\D/g, '').slice(-10);
+          return `
+            <div class="order-card ${s4 ? '' : 'active-del'}">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <strong style="font-size:1rem;">#${esc(o.id)} • ${esc(o.customerName)}</strong>
+                ${payBadge}
+              </div>
+              <div style="margin:6px 0;font-size:0.86rem;color:#e4e4e7;">
+                📍 <strong>Address:</strong> ${esc(o.detail || 'Talala Local Delivery')}<br/>
+                🍲 <strong>Items:</strong> ${(o.items || []).map((i) => `${i.qty}× ${esc(i.name)}`).join(', ')}<br/>
+                🔐 <strong>Customer Delivery PIN:</strong> <code style="color:#fbbf24;">${esc(o.deliveryOtp || '----')}</code>
+              </div>
+
+              <div class="stepper">
+                <div class="step-pill ${s1 ? 'done' : ''}">1. Confirmed</div>
+                <div class="step-pill ${s2 ? 'done' : ''}">2. Picked Up</div>
+                <div class="step-pill ${s3 ? 'done' : ''}">3. On the Way</div>
+                <div class="step-pill ${s4 ? 'done' : ''}">4. Delivered</div>
+              </div>
+
+              <div class="actions">
+                ${cleanPhone ? `<a href="tel:+91${cleanPhone}" class="btn btn-dark">📞 Call</a>` : ''}
+                ${cleanPhone ? `<a href="https://wa.me/91${cleanPhone}" target="_blank" class="btn btn-dark">💬 WhatsApp</a>` : ''}
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.detail || 'Talala, Gujarat')}" target="_blank" class="btn btn-blue">🗺️ Map Route</a>
+                ${!s4 ? `
+                  <button type="button" class="btn btn-gold del-stage-btn" data-id="${esc(o.id)}" data-stage="picked_up">📦 Picked Up</button>
+                  <button type="button" class="btn btn-orange del-stage-btn" data-id="${esc(o.id)}" data-stage="on_the_way">🛵 Out for Delivery</button>
+                  <button type="button" class="btn btn-green del-stage-btn" data-id="${esc(o.id)}" data-stage="delivered" data-paid="1">✅ Mark Delivered</button>
+                ` : '<span style="color:#4ade80;font-weight:800;">🎉 Completed</span>'}
+              </div>
+
+              <div class="chat-mini">
+                <div class="chat-msgs">${msgs.length ? msgs.map((m) => `<div><strong>${esc(m.senderName)}:</strong> ${esc(m.text)}</div>`).join('') : '<span style="color:#71717a;">Chat with customer for directions...</span>'}</div>
+                <form class="del-chat-form" data-id="${esc(o.id)}" style="display:flex;gap:6px;">
+                  <input type="text" placeholder="Message customer..." style="margin:0;padding:7px 10px;font-size:0.82rem;" required />
+                  <button type="submit" class="btn btn-orange" style="padding:6px 12px;">Send</button>
+                </form>
+              </div>
+            </div>`;
+        }).join('') : '<p style="color:#a1a1aa;">No delivery orders in this tab right now.</p>';
+      }
+
+      $('tabActiveBtn').addEventListener('click', () => { viewTab = 'active'; $('tabActiveBtn').className = 'btn btn-orange'; $('tabDoneBtn').className = 'btn btn-dark'; render(); });
+      $('tabDoneBtn').addEventListener('click', () => { viewTab = 'done'; $('tabDoneBtn').className = 'btn btn-orange'; $('tabActiveBtn').className = 'btn btn-dark'; render(); });
+
+      $('ordersList').addEventListener('click', async (e) => {
+        const b = e.target.closest('.del-stage-btn');
+        if (!b) return;
+        await fetch('/api/delivery/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
+          body: JSON.stringify({ orderId: b.dataset.id, deliveryStage: b.dataset.stage, driverName, driverPhone, markPaid: b.dataset.paid === '1' })
+        });
+      });
+
+      $('ordersList').addEventListener('submit', async (e) => {
+        const form = e.target.closest('.del-chat-form');
+        if (!form) return;
+        e.preventDefault();
+        const inp = form.querySelector('input');
+        const text = inp.value.trim();
+        if (!text) return;
+        inp.value = '';
+        await fetch('/api/delivery/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
+          body: JSON.stringify({ orderId: form.dataset.id, senderRole: 'driver', senderName: driverName + ' (Rider)', text })
+        });
+      });
+
+      async function bootApp() {
+        $('lockCard').classList.add('hidden');
+        $('appBody').classList.remove('hidden');
+        const r = await fetch('/api/state');
+        state = await r.json();
+        $('statusTxt').textContent = `● Live Sync • Rider: ${driverName}`;
+        render();
+        const es = new EventSource('/api/events');
+        es.addEventListener('state', (ev) => { state = JSON.parse(ev.data); render(); });
+        es.addEventListener('delivery-chat', (ev) => {
+          const m = JSON.parse(ev.data);
+          if (!state.deliveryChats) state.deliveryChats = [];
+          state.deliveryChats.push(m);
+          render();
+        });
+      }
+
+      $('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        driverName = $('driverNameInput').value.trim() || 'Rider';
+        driverPhone = $('driverPhoneInput').value.trim();
+        localStorage.setItem('chatkaro_driver_name', driverName);
+        localStorage.setItem('chatkaro_driver_phone', driverPhone);
+        const r = await fetch('/api/staff/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: $('pinInput').value.trim() })
+        });
+        const d = await r.json();
+        if (!r.ok) { $('errMsg').textContent = d.error || 'Wrong PIN'; return; }
+        staffToken = d.staffToken;
+        sessionStorage.setItem('chatkaro_staff_token', staffToken);
+        bootApp();
+      });
+
+      if (staffToken) bootApp();
+    })();
+  </script>
+</body>
+</html>

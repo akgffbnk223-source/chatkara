@@ -1,5 +1,5 @@
-const CACHE_NAME = 'chatkaro-shell-v8';
-const IMG_CACHE = 'chatkaro-media-v3';
+const CACHE_NAME = 'chatkaro-shell-v9';
+const IMG_CACHE = 'chatkaro-media-v4';
 const SHELL_ASSETS = [
   './',
   './index.html',

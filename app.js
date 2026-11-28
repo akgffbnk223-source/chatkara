@@ -49,6 +49,11 @@
     },
     menu: [],
     ads: [],
+    notifications: [],
+    waiterCalls: [],
+    waiterChats: [],
+    deliveryChats: [],
+    activeTableId: Number(new URLSearchParams(window.location.search).get('table') || sessionStorage.getItem('chatkaro_qr_table') || 0) || null,
     dailyAiAd: null,
     tables: [],
     orders: [],
@@ -478,6 +483,31 @@
         if (typeof handleIncomingNotice === 'function') handleIncomingNotice(note, true);
       } catch {}
     });
+    es.addEventListener('waiter-call', (ev) => {
+      try {
+        const c = JSON.parse(ev.data);
+        if (!Array.isArray(appState.waiterCalls)) appState.waiterCalls = [];
+        const idx = appState.waiterCalls.findIndex((x) => x.id === c.id);
+        if (idx >= 0) appState.waiterCalls[idx] = c; else appState.waiterCalls.unshift(c);
+        if (typeof renderWaiterServicePanel === 'function') renderWaiterServicePanel();
+      } catch {}
+    });
+    es.addEventListener('waiter-chat', (ev) => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (!Array.isArray(appState.waiterChats)) appState.waiterChats = [];
+        appState.waiterChats.push(m);
+        if (typeof renderWaiterServicePanel === 'function') renderWaiterServicePanel();
+      } catch {}
+    });
+    es.addEventListener('delivery-chat', (ev) => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (!Array.isArray(appState.deliveryChats)) appState.deliveryChats = [];
+        appState.deliveryChats.push(m);
+        if (!$('profileModal').classList.contains('hidden')) renderMyOrdersList();
+      } catch {}
+    });
     es.onerror = () => {
       $('syncStatusBadge').textContent = '● Reconnecting...';
     };
@@ -535,6 +565,9 @@
       appState.notifications = snap.notifications;
       if (typeof syncNotificationsUI === 'function') syncNotificationsUI(snap.notifications);
     }
+    if (snap.waiterCalls) appState.waiterCalls = snap.waiterCalls;
+    if (snap.waiterChats) appState.waiterChats = snap.waiterChats;
+    if (snap.deliveryChats) appState.deliveryChats = snap.deliveryChats;
     if (snap.dailyAiAd) appState.dailyAiAd = snap.dailyAiAd;
     if (snap.tables) appState.tables = snap.tables;
     if (snap.orders) appState.orders = snap.orders;
@@ -564,6 +597,8 @@
     renderReviews();
     renderMyOrderBanner();
     renderAuthUI();
+    if (typeof renderTableQrBanner === 'function') renderTableQrBanner();
+    if (typeof renderWaiterServicePanel === 'function') renderWaiterServicePanel();
     syncBgMusicPlayer();
     syncBgVideoPlayer();
     if (typeof syncDownloadAppUI === 'function') syncDownloadAppUI();
@@ -1251,15 +1286,31 @@
     }
   }
 
+  function buildGmailInitialAvatar(name, color = '#dc2626') {
+    const ch = String(name || 'G').trim().charAt(0).toUpperCase() || 'G';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="${color}"/><text x="32" y="42" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#ffffff">${ch}</text></svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+
   function renderAuthUI() {
     const u = appState.user;
+    const avImg = $('authHeaderAvatar');
+    const avBadge = $('authHeaderBadge');
     if (u) {
-      const tBadge = u.tableId ? ` • T${u.tableId}` : '';
+      const tId = appState.activeTableId || u.tableId;
+      const tBadge = tId ? ` • T${tId}` : '';
       $('authHeaderLabel').textContent = `${u.name.split(' ')[0]}${tBadge}`;
+      if (avImg) {
+        avImg.src = u.picture || buildGmailInitialAvatar(u.name, u.avatarColor || '#ea580c');
+        avImg.classList.remove('hidden');
+      }
+      if (avBadge) avBadge.classList.add('hidden');
       $('cartAuthStatusLabel').textContent = `Signed in as ${u.name} (${u.email})`;
-      $('chatIdentityBadge').textContent = `${u.name}${u.tableId ? ' • Table ' + u.tableId : ''}`;
+      $('chatIdentityBadge').textContent = `${u.name}${tId ? ' • Table ' + tId : ''}`;
     } else {
       $('authHeaderLabel').textContent = 'Sign in';
+      if (avImg) avImg.classList.add('hidden');
+      if (avBadge) avBadge.classList.remove('hidden');
       $('cartAuthStatusLabel').textContent = 'Gmail Sign-In required to order';
       $('chatIdentityBadge').textContent = 'Sign in to chat';
     }
@@ -1270,6 +1321,53 @@
     else openProfileModal('profile');
   });
   $('closeGoogleLoginBtn').addEventListener('click', () => $('googleLoginModal').classList.add('hidden'));
+
+  $('sendGmailOtpBtn')?.addEventListener('click', async () => {
+    const name = $('gNameInput').value.trim();
+    const email = $('gEmailInput').value.trim().toLowerCase();
+    const phone = $('gPhoneInput').value.trim();
+    if (!email || !/^[^\s@]+@(gmail|googlemail)\.com$/i.test(email)) {
+      return showToast('Please enter a valid @gmail.com email first!');
+    }
+    const btn = $('sendGmailOtpBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending OTP...';
+    try {
+      const res = await api('/api/auth/send-otp', 'POST', { name, email, phone });
+      $('otpVerifyBox')?.classList.remove('hidden');
+      $('gOtpInput')?.focus();
+      showToast(res.message || '📩 6-Digit OTP sent to your Gmail!');
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📩 Resend OTP';
+    }
+  });
+
+  $('verifyGmailOtpBtn')?.addEventListener('click', async () => {
+    const email = $('gEmailInput').value.trim().toLowerCase();
+    const otp = $('gOtpInput').value.trim();
+    if (!otp) return showToast('Enter the 6-digit OTP code from your Gmail!');
+    try {
+      const res = await api('/api/auth/verify-otp', 'POST', { email, otp });
+      appState.user = res.customer;
+      localStorage.setItem('chatkaro_user', JSON.stringify(appState.user));
+      $('googleLoginModal').classList.add('hidden');
+      $('otpVerifyBox')?.classList.add('hidden');
+      renderAuthUI();
+      renderCart();
+      renderMyOrderBanner();
+      showToast(`✅ Gmail Verified! Welcome ${appState.user.name}`);
+      if (appState.pendingOrderAfterLogin) {
+        appState.pendingOrderAfterLogin = false;
+        openCart();
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
   $('googleQuickForm').addEventListener('submit', (e) => {
     e.preventDefault();
     performLogin({ name: $('gNameInput').value.trim(), email: $('gEmailInput').value.trim(), phone: $('gPhoneInput').value.trim() });
@@ -1921,8 +2019,9 @@
     const deliveryFee = appState.orderType === 'delivery' && subtotal < 250 ? 20 : 0;
     const grandTotal = Math.max(0, subtotal - discountAmt + deliveryFee);
 
+    const activeTid = appState.activeTableId || appState.user?.tableId || null;
     const tableOptions = appState.tables
-      .map((t) => `<option value="${t.id}" ${appState.user?.tableId === t.id ? 'selected' : ''}>${escapeHtml(t.label)} (${t.status})</option>`)
+      .map((t) => `<option value="${t.id}" ${activeTid === t.id ? 'selected' : ''}>${escapeHtml(t.label)} (${t.status})</option>`)
       .join('');
 
     $('cartDrawerFooter').innerHTML = `
@@ -1943,6 +2042,7 @@
       <div class="payment-method-pills" aria-label="Payment Gateway">
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'razorpay' ? 'active' : ''}" data-pay="razorpay">💳 Razorpay</button>
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'phonepe' ? 'active' : ''}" data-pay="phonepe">📱 PhonePe</button>
+        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'upi-qr' ? 'active' : ''}" data-pay="upi-qr">📷 UPI QR</button>
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'cod' ? 'active' : ''}" data-pay="cod">💵 Counter/COD</button>
       </div>
       <div class="bill-lines">
@@ -1959,6 +2059,8 @@
           ? `Pay via Razorpay • ₹${grandTotal} →`
           : appState.paymentMethod === 'phonepe'
           ? `Pay via PhonePe • ₹${grandTotal} →`
+          : appState.paymentMethod === 'upi-qr'
+          ? `Show UPI QR & Pay • ₹${grandTotal} →`
           : `Order & Send to WhatsApp • ₹${grandTotal} →`}
       </button>`;
   }
@@ -2051,14 +2153,14 @@
         return;
       }
 
-      // 2. PhonePe Gateway / UPI QR Flow
-      if (appState.paymentMethod === 'phonepe') {
+      // 2. PhonePe Gateway / Direct UPI QR Flow
+      if (appState.paymentMethod === 'phonepe' || appState.paymentMethod === 'upi-qr') {
         const pp = await api('/api/payments/phonepe/initiate', 'POST', { orderPayload });
-        if (pp.mode === 'gateway' && pp.redirectUrl) {
+        if (appState.paymentMethod === 'phonepe' && pp.mode === 'gateway' && pp.redirectUrl) {
           window.location.href = pp.redirectUrl;
           return;
         }
-        if (pp.mode === 'upi-qr') {
+        if (pp.upiUri || pp.mode === 'upi-qr') {
           appState.pendingPhonepeTxn = pp.merchantTransactionId;
           $('phonepeAmountLabel').textContent = `Total Payable: ₹${pp.amount}`;
           $('phonepeUpiText').textContent = pp.merchantUpiId;
@@ -2194,17 +2296,120 @@
       `*Grand Total: ₹${order.total}/-*`
     ].filter(Boolean).join('\n');
     $('whatsappOrderLink').href = `https://wa.me/${waPhone}?text=${encodeURIComponent(waText)}`;
+    const custDigits = String(order.customerPhone || '').replace(/\D/g, '').slice(-10);
+    if ($('whatsappCustomerBillLink')) {
+      $('whatsappCustomerBillLink').href = `https://wa.me/${custDigits ? '91' + custDigits : waPhone}?text=${encodeURIComponent(waText)}`;
+    }
+    if ($('resendEmailBillBtn')) {
+      $('resendEmailBillBtn').dataset.orderId = order.id;
+      $('resendEmailBillBtn').textContent = order.billEmailSent ? '📧 Bill Emailed to Gmail ✓ (Resend)' : '📧 Send Royal Bill to My Gmail';
+    }
+
+    const trackBox = $('orderAmazonTrackingBox');
+    if (trackBox) {
+      if (order.orderType === 'delivery') {
+        const st = order.deliveryStage || 'placed';
+        const s2 = ['picked_up', 'on_the_way', 'delivered'].includes(st);
+        const s3 = ['on_the_way', 'delivered'].includes(st);
+        const s4 = st === 'delivered' || order.status === 'served';
+        trackBox.classList.remove('hidden');
+        trackBox.innerHTML = `
+          <div class="amazon-track-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+              <strong>🛵 Amazon-Style Live Delivery Tracking</strong>
+              <span class="badge badge-veg">Delivery PIN: ${escapeHtml(order.deliveryOtp || '----')}</span>
+            </div>
+            <div class="amazon-track-steps">
+              <div class="amazon-t-step done">1. Confirmed</div>
+              <div class="amazon-t-step ${s2 ? 'done' : ''}">2. Picked Up</div>
+              <div class="amazon-t-step ${s3 ? 'done' : ''}">3. On the Way</div>
+              <div class="amazon-t-step ${s4 ? 'done' : ''}">4. Delivered</div>
+            </div>
+            <div class="small muted">
+              ${order.driverName ? `Delivery Partner: <strong>${escapeHtml(order.driverName)}</strong> ${order.driverPhone ? `(${escapeHtml(order.driverPhone)})` : ''}` : 'Kitchen packing — delivery partner assigning soon!'}
+            </div>
+          </div>`;
+      } else {
+        trackBox.classList.add('hidden');
+        trackBox.innerHTML = '';
+      }
+    }
     $('orderModal').classList.remove('hidden');
   }
 
-  // ================= TABLES, ORDERS, TOP CUSTOMERS, CHAT, PHOTOS & REVIEWS =================
+  $('resendEmailBillBtn')?.addEventListener('click', async () => {
+    const id = $('resendEmailBillBtn')?.dataset?.orderId;
+    if (!id) return;
+    try {
+      await api(`/api/orders/${id}/resend-bill`, 'POST', {});
+      showToast('📧 Official Royal Bill sent to your Gmail!');
+      $('resendEmailBillBtn').textContent = '📧 Bill Emailed to Gmail ✓ (Resend)';
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  // ================= TABLES WITH PHOTOS, QR ORDERING & WAITER BELL =================
+  function renderTableQrBanner() {
+    const banner = $('menuTableQrBanner');
+    if (!banner) return;
+    const tid = appState.activeTableId;
+    if (!tid) {
+      banner.classList.add('hidden');
+      return;
+    }
+    const tbl = appState.tables.find((t) => t.id === Number(tid));
+    banner.classList.remove('hidden');
+    if ($('menuTableQrText')) {
+      $('menuTableQrText').textContent = `🪑 Ordering from ${tbl ? tbl.label : 'Table ' + tid}${tbl ? ` (${tbl.seats} Seats)` : ''}`;
+    }
+  }
+  $('clearQrTableBtn')?.addEventListener('click', () => {
+    appState.activeTableId = null;
+    sessionStorage.removeItem('chatkaro_qr_table');
+    renderTableQrBanner();
+    renderAuthUI();
+    renderCart();
+  });
+
+  function openTableQrModal(tableId) {
+    const tbl = appState.tables.find((t) => t.id === Number(tableId));
+    if (!tbl) return;
+    const url = `${window.location.origin}${window.location.pathname}?table=${tbl.id}#menu`;
+    if ($('tableQrPhoto')) $('tableQrPhoto').src = tbl.photo || 'assets/tables/table-4seat.jpg';
+    if ($('tableQrHeading')) $('tableQrHeading').textContent = `${tbl.label} (${tbl.seats} Seats) — QR Menu`;
+    if ($('tableQrImg')) $('tableQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`;
+    if ($('tableQrUrlText')) $('tableQrUrlText').textContent = url;
+    if ($('useThisTableNowBtn')) $('useThisTableNowBtn').dataset.tid = String(tbl.id);
+    $('tableQrModal')?.classList.remove('hidden');
+  }
+  $('closeTableQrBtn')?.addEventListener('click', () => $('tableQrModal')?.classList.add('hidden'));
+  $('tableQrModal')?.addEventListener('click', (e) => {
+    if (e.target === $('tableQrModal')) $('tableQrModal')?.classList.add('hidden');
+  });
+  $('useThisTableNowBtn')?.addEventListener('click', () => {
+    const tid = Number($('useThisTableNowBtn').dataset.tid || 1);
+    appState.activeTableId = tid;
+    appState.orderType = 'dine-in';
+    sessionStorage.setItem('chatkaro_qr_table', String(tid));
+    $('tableQrModal')?.classList.add('hidden');
+    renderTableQrBanner();
+    renderWaiterServicePanel();
+    renderAuthUI();
+    renderCart();
+    document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' });
+    showToast(`🪑 Table ${tid} selected! Every dish you add goes to Table ${tid}.`);
+  });
+  $('printTableQrBtn')?.addEventListener('click', () => window.print());
+
   function renderTables() {
     $('tablesGrid').innerHTML = appState.tables
       .map((t) => {
-        const isMine = appState.user && t.occupantEmail === appState.user.email;
+        const isMine = (appState.user && t.occupantEmail === appState.user.email) || appState.activeTableId === t.id;
         const avail = t.status === 'available';
         return `
         <div class="table-tile ${avail ? 'available' : 'occupied'}">
+          <img class="table-photo-thumb" src="${escapeHtml(t.photo || 'assets/tables/table-4seat.jpg')}" alt="${escapeHtml(t.label)}" loading="lazy" />
           <div class="table-top">
             <span>${escapeHtml(t.label)} <small class="muted">(${t.seats}s)</small></span>
             <span class="table-status-pill ${avail ? 'avail' : 'occ'}">${avail ? 'Available' : 'Occupied'}</span>
@@ -2212,14 +2417,15 @@
           <div class="table-body-info">
             ${avail ? 'Ready for dine-in guests' : `<strong>${escapeHtml(t.occupantName)}</strong><br/>${escapeHtml(t.dishSummary || 'Dining')}`}
           </div>
-          <div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.35rem;">
             ${
               avail
-                ? `<button type="button" class="btn btn-outline btn-xs table-action-btn hover-pop" data-table-id="${t.id}" data-act="occupy">Sit Here</button>`
+                ? `<button type="button" class="btn btn-outline btn-xs table-action-btn" data-table-id="${t.id}" data-act="occupy">Sit Here</button>`
                 : isMine
-                ? `<button type="button" class="btn btn-danger btn-xs table-action-btn" data-table-id="${t.id}" data-act="leave">Leave Table</button>`
+                ? `<button type="button" class="btn btn-danger btn-xs table-action-btn" data-table-id="${t.id}" data-act="leave">Leave</button>`
                 : `<span class="muted small">Guest dining</span>`
             }
+            <button type="button" class="btn btn-primary btn-xs table-qr-open-btn" data-table-id="${t.id}">📱 QR</button>
           </div>
         </div>`;
       })
@@ -2227,11 +2433,13 @@
   }
 
   $('tablesGrid').addEventListener('click', async (e) => {
+    const qrBtn = e.target.closest('.table-qr-open-btn');
+    if (qrBtn) return openTableQrModal(qrBtn.dataset.tableId);
     const btn = e.target.closest('.table-action-btn');
     if (!btn) return;
     if (!appState.user) {
       $('googleLoginModal').classList.remove('hidden');
-      return showToast('Sign in with Google to check in at a table.');
+      return showToast('Sign in with Google / Gmail OTP to check in at a table.');
     }
     try {
       await api('/api/tables/checkin', 'POST', {
@@ -2240,7 +2448,94 @@
         name: appState.user.name,
         action: btn.dataset.act
       });
+      if (btn.dataset.act === 'occupy') {
+        appState.activeTableId = Number(btn.dataset.tableId);
+        sessionStorage.setItem('chatkaro_qr_table', String(appState.activeTableId));
+      } else {
+        appState.activeTableId = null;
+        sessionStorage.removeItem('chatkaro_qr_table');
+      }
+      renderTableQrBanner();
+      renderWaiterServicePanel();
       showToast(btn.dataset.act === 'occupy' ? `Checked into Table ${btn.dataset.tableId}!` : 'Table available.');
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+
+  function renderWaiterServicePanel() {
+    const sel = $('serviceTableSelect');
+    if (sel && appState.tables.length) {
+      const prev = sel.value || String(appState.activeTableId || appState.user?.tableId || appState.tables[0].id);
+      sel.innerHTML = appState.tables.map((t) => `<option value="${t.id}">${escapeHtml(t.label)} (${t.seats}s)</option>`).join('');
+      if (appState.tables.some((t) => String(t.id) === String(prev))) sel.value = String(prev);
+    }
+    const tid = Number(sel?.value || appState.activeTableId || 1);
+    const statusWrap = $('myWaiterCallsStatus');
+    if (statusWrap) {
+      const recentCalls = (appState.waiterCalls || []).filter((c) => Number(c.tableId) === tid).slice(0, 5);
+      statusWrap.innerHTML = recentCalls.map((c) => `
+        <span class="waiter-call-chip ${escapeHtml(c.status)}">
+          ${c.status === 'ringing' ? '🔔 Ringing Waiter:' : c.status === 'accepted' ? '🏃 Waiter Coming:' : '✅ Served:'} ${escapeHtml(c.requestType)}
+        </span>`).join('');
+    }
+    const chatLog = $('tableWaiterChatMsgs');
+    if (chatLog) {
+      const msgs = (appState.waiterChats || []).filter((m) => Number(m.tableId) === tid).slice(-15);
+      chatLog.innerHTML = msgs.length
+        ? msgs.map((m) => `<div><strong style="color:${m.senderRole === 'waiter' ? '#22c55e' : 'var(--accent)'};">${escapeHtml(m.senderName)}:</strong> ${escapeHtml(m.text)}</div>`).join('')
+        : '<span class="muted">Table ' + tid + ' — Waiter ko direct message bhejein (e.g. extra chutney, jaldi laiye)...</span>';
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+  }
+
+  $('serviceTableSelect')?.addEventListener('change', renderWaiterServicePanel);
+  $('waiterQuickBtns')?.addEventListener('click', async (e) => {
+    const b = e.target.closest('.waiter-req-btn');
+    if (!b) return;
+    const tid = Number($('serviceTableSelect')?.value || appState.activeTableId || 1);
+    try {
+      await api('/api/waiter/call', 'POST', {
+        tableId: tid,
+        customerName: appState.user?.name || `Table ${tid} Guest`,
+        requestType: b.dataset.req
+      });
+      showToast(`🔔 Sent "${b.dataset.req}" to Waiter App for Table ${tid}!`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+  $('customWaiterReqForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const note = $('customWaiterReqInput').value.trim();
+    if (!note) return;
+    const tid = Number($('serviceTableSelect')?.value || appState.activeTableId || 1);
+    $('customWaiterReqInput').value = '';
+    try {
+      await api('/api/waiter/call', 'POST', {
+        tableId: tid,
+        customerName: appState.user?.name || `Table ${tid} Guest`,
+        requestType: '🛎️ Special Request',
+        note
+      });
+      showToast(`🔔 Waiter Bell rung for Table ${tid}!`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+  $('tableWaiterChatForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = $('tableWaiterChatInput').value.trim();
+    if (!text) return;
+    const tid = Number($('serviceTableSelect')?.value || appState.activeTableId || 1);
+    $('tableWaiterChatInput').value = '';
+    try {
+      await api('/api/waiter/chat', 'POST', {
+        tableId: tid,
+        senderRole: 'customer',
+        senderName: appState.user?.name ? `${appState.user.name} (T${tid})` : `Table ${tid}`,
+        text
+      });
     } catch (err) {
       showToast(err.message);
     }
@@ -2333,23 +2628,42 @@
     wrap.innerHTML = mine
       .map((o) => {
         const editable = o.status !== 'cancelled' && o.status !== 'served';
+        const dtStr = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+        const isDel = o.orderType === 'delivery';
+        const st = o.deliveryStage || 'placed';
+        const s2 = ['picked_up', 'on_the_way', 'delivered'].includes(st);
+        const s3 = ['on_the_way', 'delivered'].includes(st);
+        const s4 = st === 'delivered' || o.status === 'served';
         return `
-        <div class="admin-row-card">
-          <div>
-            <strong>#${escapeHtml(o.id)} • ₹${o.total}</strong>
-            <span class="status-chip status-${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
-            <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
-            <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
+        <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.45rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+            <div>
+              <strong>#${escapeHtml(o.id)} • ₹${o.total}</strong>
+              <span class="status-chip status-${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
+              <small class="muted"> • ${dtStr}</small>
+            </div>
+            <div class="admin-controls-inline">
+              <button type="button" class="btn btn-outline btn-xs view-bill-btn" data-id="${escapeHtml(o.id)}">🧾 Official Bill</button>
+              <button type="button" class="btn btn-primary btn-xs reorder-hist-btn" data-id="${escapeHtml(o.id)}">🔁 Reorder</button>
+              ${
+                editable
+                  ? `<button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">✏️ Edit</button>
+                     <button type="button" class="btn btn-danger btn-xs cancel-my-order-btn" data-id="${escapeHtml(o.id)}">Cancel</button>`
+                  : ''
+              }
+            </div>
           </div>
-          <div class="admin-controls-inline">
-            <button type="button" class="btn btn-outline btn-xs view-bill-btn" data-id="${escapeHtml(o.id)}">🧾 Official Bill</button>
-            ${
-              editable
-                ? `<button type="button" class="btn btn-outline btn-xs edit-my-order-btn" data-id="${escapeHtml(o.id)}">✏️ Edit</button>
-                   <button type="button" class="btn btn-danger btn-xs cancel-my-order-btn" data-id="${escapeHtml(o.id)}">Cancel</button>`
-                : ''
-            }
-          </div>
+          <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
+          <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
+          ${isDel ? `
+            <div class="amazon-track-steps">
+              <div class="amazon-t-step done">1. Confirmed</div>
+              <div class="amazon-t-step ${s2 ? 'done' : ''}">2. Picked Up</div>
+              <div class="amazon-t-step ${s3 ? 'done' : ''}">3. On the Way</div>
+              <div class="amazon-t-step ${s4 ? 'done' : ''}">4. Delivered</div>
+            </div>
+            <small class="muted">🔐 Delivery PIN: <strong>${escapeHtml(o.deliveryOtp || '----')}</strong>${o.driverName ? ` • Rider: <strong>${escapeHtml(o.driverName)}</strong> (${escapeHtml(o.driverPhone || '')})` : ''}</small>
+          ` : ''}
         </div>`;
       })
       .join('');
@@ -2427,6 +2741,17 @@
   }
 
   document.body.addEventListener('click', async (e) => {
+    const reorderBtn = e.target.closest('.reorder-hist-btn');
+    if (reorderBtn) {
+      const ord = appState.orders.find((o) => o.id === reorderBtn.dataset.id);
+      if (ord && Array.isArray(ord.items)) {
+        ord.items.forEach((it) => { if (it.id) updateQty(it.id, Number(it.qty || 1)); });
+        $('profileModal')?.classList.add('hidden');
+        openCart();
+        showToast('🔁 Added items from past order to Cart!');
+      }
+      return;
+    }
     const billBtn = e.target.closest('.view-bill-btn');
     if (billBtn) {
       const ord = appState.orders.find((o) => o.id === billBtn.dataset.id);
@@ -3059,8 +3384,8 @@
               <div class="acru-quick-actions">
                 <button type="button" class="acru-qa-btn" data-jump="orders"><span>📋</span>Orders</button>
                 <button type="button" class="acru-qa-btn" data-jump="parcels"><span>📦</span>Parcels</button>
-                <button type="button" class="acru-qa-btn" data-jump="ads"><span>🎬</span>Ads</button>
-                <button type="button" class="acru-qa-btn" id="exportSalesCsvBtn"><span>⬇</span>CSV</button>
+                <a class="acru-qa-btn" href="waiter.html" target="_blank" style="text-decoration:none;"><span>🛎️</span>Waiter App</a>
+                <a class="acru-qa-btn" href="delivery.html" target="_blank" style="text-decoration:none;"><span>🛵</span>Rider App</a>
               </div>
             </div>
 
@@ -3162,7 +3487,7 @@
         });
       });
 
-      $('exportSalesCsvBtn').addEventListener('click', () => {
+      $('exportSalesCsvBtn')?.addEventListener('click', () => {
         const rows = [['Dish', 'Category', 'Qty Sold', 'Revenue INR'], ...sales.itemSales.map((i) => [i.name, i.category, i.qtySold, i.revenue])];
         const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -3183,10 +3508,13 @@
         return true;
       });
       $('adminTabOrders').innerHTML = `
-        <div class="modal-tabs" style="margin-bottom:0.85rem;">
-          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'all' ? 'active' : ''}" data-aof="all">All Real Orders (${realOrders.length})</button>
-          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'parcel' ? 'active' : ''}" data-aof="parcel">📦 Parcel &amp; Delivery (${ps.totalCount})</button>
-          <button type="button" class="tab-btn ${appState.adminOrderFilter === 'dine-in' ? 'active' : ''}" data-aof="dine-in">🍽️ Dine-In (${ds.totalCount})</button>
+        <div class="modal-tabs" style="margin-bottom:0.85rem;justify-content:space-between;align-items:center;">
+          <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+            <button type="button" class="tab-btn ${appState.adminOrderFilter === 'all' ? 'active' : ''}" data-aof="all">All Real Orders (${realOrders.length})</button>
+            <button type="button" class="tab-btn ${appState.adminOrderFilter === 'parcel' ? 'active' : ''}" data-aof="parcel">📦 Parcel &amp; Delivery (${ps.totalCount})</button>
+            <button type="button" class="tab-btn ${appState.adminOrderFilter === 'dine-in' ? 'active' : ''}" data-aof="dine-in">🍽️ Dine-In (${ds.totalCount})</button>
+          </div>
+          <a href="delivery.html" target="_blank" class="btn btn-primary btn-xs">🛵 Open Delivery Boy App</a>
         </div>
         <div class="admin-grid-list">
           ${filteredOrders.length
@@ -3598,11 +3926,16 @@
     // 3. TABLES & CUSTOMERS CRUD TAB
     if (activeAdminTab === 'tables') {
       $('adminTabTables').innerHTML = `
+        <div class="admin-row-card" style="margin-bottom:0.85rem;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+          <strong>🛎️ Live Waiter Calls (${(appState.waiterCalls || []).filter((c) => c.status === 'ringing').length} ringing now)</strong>
+          <a href="waiter.html" target="_blank" class="btn btn-primary btn-xs">🛎️ Open Waiter Bell App</a>
+        </div>
         <form id="admAddTableForm" class="admin-row-card" style="margin-bottom:1rem;background:var(--surface);">
           <strong>➕ Add Hotel Table</strong>
           <div class="admin-controls-inline">
             <input type="text" id="newTblLabel" placeholder="Table Name (e.g. Table 9 VIP)" required />
             <input type="number" id="newTblSeats" value="4" min="1" max="20" style="width:70px;" />
+            <input type="text" id="newTblPhoto" placeholder="Photo URL (Optional)" style="min-width:150px;" />
             <button type="submit" class="btn btn-primary btn-sm">Add Table</button>
           </div>
         </form>
@@ -3610,54 +3943,106 @@
           ${appState.tables
             .map(
               (t) => `
-            <div class="admin-row-card">
-              <div class="admin-controls-inline">
-                <input type="text" class="adm-tlabel" data-tid="${t.id}" value="${escapeHtml(t.label)}" style="width:140px;" />
-                <input type="number" class="adm-tseats" data-tid="${t.id}" value="${t.seats}" style="width:65px;" />
-                <span class="muted small">${t.status === 'occupied' ? 'Occupied: ' + escapeHtml(t.occupantName) : 'Available'}</span>
+            <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.5rem;">
+              <div class="admin-controls-inline" style="justify-content:space-between;">
+                <div class="admin-controls-inline">
+                  <img src="${escapeHtml(t.photo || 'assets/tables/table-4seat.jpg')}" alt="" style="width:56px;height:42px;border-radius:8px;object-fit:cover;border:1px solid #d1d5db;" />
+                  <input type="text" class="adm-tlabel" data-tid="${t.id}" value="${escapeHtml(t.label)}" style="width:130px;" />
+                  <input type="number" class="adm-tseats" data-tid="${t.id}" value="${t.seats}" style="width:60px;" />
+                  <span class="muted small">${t.status === 'occupied' ? 'Occupied: ' + escapeHtml(t.occupantName) : 'Available'}</span>
+                </div>
+                <div class="admin-controls-inline">
+                  <button type="button" class="btn btn-outline btn-xs adm-tbl-qr-btn" data-tid="${t.id}">📱 Table QR</button>
+                  <button type="button" class="btn btn-primary btn-xs adm-save-tbl-btn" data-tid="${t.id}">Save</button>
+                  ${t.status === 'occupied' ? `<button type="button" class="btn btn-outline btn-xs adm-clear-tbl-btn" data-tid="${t.id}">Clear</button>` : ''}
+                  <button type="button" class="btn btn-danger btn-xs adm-del-tbl-btn" data-tid="${t.id}">✕</button>
+                </div>
               </div>
               <div class="admin-controls-inline">
-                <button type="button" class="btn btn-primary btn-xs adm-save-tbl-btn" data-tid="${t.id}">Save</button>
-                ${t.status === 'occupied' ? `<button type="button" class="btn btn-outline btn-xs adm-clear-tbl-btn" data-tid="${t.id}">Clear</button>` : ''}
-                <button type="button" class="btn btn-danger btn-xs adm-del-tbl-btn" data-tid="${t.id}">✕</button>
+                <input type="text" class="adm-tphoto" data-tid="${t.id}" value="${escapeHtml(t.photo || '')}" placeholder="Table photo path or URL..." style="flex:1;min-width:160px;" />
+                <label class="btn btn-outline btn-xs" style="cursor:pointer;">
+                  📷 Upload Photo <input type="file" accept="image/*" class="adm-tphoto-file" data-tid="${t.id}" style="display:none;" />
+                </label>
               </div>
             </div>`
             )
             .join('')}
         </div>
-        <h3>👥 Customers &amp; Leaderboard Control</h3>
+        <h3>👥 Customers, Gmail Profiles &amp; Complete Purchase History</h3>
         <div class="admin-grid-list">
           ${appState.customersAll
-            .map(
-              (c) => `
-            <div class="admin-row-card">
-              <div>
-                <strong>${escapeHtml(c.name)}</strong> <span class="muted small">(${escapeHtml(c.email)})</span>
-                <div class="muted small">Orders: ${c.ordersCount} • Spent: ₹${c.totalSpent} • Game Best: ${c.bestGameScore || 0}</div>
+            .map((c) => {
+              const custOrders = appState.orders.filter((o) => o.customerEmail === c.email && !o.isFake);
+              const avSrc = c.picture || buildGmailInitialAvatar(c.name, c.avatarColor || '#dc2626');
+              return `
+            <div class="admin-row-card" style="flex-direction:column;align-items:stretch;gap:0.45rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                  <img src="${escapeHtml(avSrc)}" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1.5px solid #22c55e;" />
+                  <div>
+                    <strong>${escapeHtml(c.name)}</strong> <span class="muted small">(${escapeHtml(c.email)}) ${c.phone ? '• 📞 ' + escapeHtml(c.phone) : ''}</span>
+                    <div class="muted small">Orders: ${c.ordersCount} • Total Spent: ₹${c.totalSpent} • Game Best: ${c.bestGameScore || 0}</div>
+                  </div>
+                </div>
+                <div class="admin-controls-inline">
+                  <button type="button" class="btn btn-outline btn-xs adm-toggle-chist-btn" data-email="${escapeHtml(c.email)}">📜 History (${custOrders.length})</button>
+                  <input type="number" class="adm-corders" data-email="${escapeHtml(c.email)}" value="${c.ordersCount}" style="width:60px;" title="Orders" />
+                  <input type="number" class="adm-cscore" data-email="${escapeHtml(c.email)}" value="${c.bestGameScore || 0}" style="width:68px;" title="Game Score" />
+                  <button type="button" class="btn btn-primary btn-xs adm-save-cust-btn" data-email="${escapeHtml(c.email)}">Save</button>
+                  <button type="button" class="btn btn-danger btn-xs adm-del-cust-btn" data-email="${escapeHtml(c.email)}">Delete</button>
+                </div>
               </div>
-              <div class="admin-controls-inline">
-                <input type="number" class="adm-corders" data-email="${escapeHtml(c.email)}" value="${c.ordersCount}" style="width:64px;" title="Orders" />
-                <input type="number" class="adm-cscore" data-email="${escapeHtml(c.email)}" value="${c.bestGameScore || 0}" style="width:74px;" title="Game Score" />
-                <button type="button" class="btn btn-primary btn-xs adm-save-cust-btn" data-email="${escapeHtml(c.email)}">Save</button>
-                <button type="button" class="btn btn-danger btn-xs adm-del-cust-btn" data-email="${escapeHtml(c.email)}">Delete</button>
+              <div class="hidden adm-cust-history-box" data-email="${escapeHtml(c.email)}" style="background:rgba(0,0,0,0.05);padding:0.55rem;border-radius:10px;font-size:0.78rem;">
+                ${custOrders.length ? custOrders.map((co) => `
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;padding:0.25rem 0;border-bottom:1px dotted rgba(128,128,128,0.25);flex-wrap:wrap;">
+                    <span><strong>#${escapeHtml(co.id)}</strong> (${new Date(co.createdAt).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}) — ${co.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</span>
+                    <span><strong>₹${co.total}</strong> <button type="button" class="btn btn-outline btn-xs view-bill-btn" data-id="${escapeHtml(co.id)}">🧾 Bill</button></span>
+                  </div>`).join('') : '<span class="muted">No orders placed yet.</span>'}
               </div>
-            </div>`
-            )
+            </div>`;
+            })
             .join('')}
         </div>`;
 
       $('admAddTableForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        await api('/api/admin/tables', 'POST', { table: { label: $('newTblLabel').value.trim(), seats: Number($('newTblSeats').value) } }, pinHeaders);
+        await api('/api/admin/tables', 'POST', {
+          table: { label: $('newTblLabel').value.trim(), seats: Number($('newTblSeats').value), photo: $('newTblPhoto')?.value.trim() || undefined }
+        }, pinHeaders);
         showToast('Table added!');
+      });
+      $('adminTabTables').querySelectorAll('.adm-tbl-qr-btn').forEach((btn) => {
+        btn.addEventListener('click', () => openTableQrModal(btn.dataset.tid));
       });
       $('adminTabTables').querySelectorAll('.adm-save-tbl-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const tid = Number(btn.dataset.tid);
           const label = $('adminTabTables').querySelector(`.adm-tlabel[data-tid="${tid}"]`).value.trim();
           const seats = Number($('adminTabTables').querySelector(`.adm-tseats[data-tid="${tid}"]`).value);
-          await api('/api/admin/tables', 'POST', { table: { id: tid, label, seats } }, pinHeaders);
+          const photo = $('adminTabTables').querySelector(`.adm-tphoto[data-tid="${tid}"]`)?.value.trim();
+          await api('/api/admin/tables', 'POST', { table: { id: tid, label, seats, photo } }, pinHeaders);
           showToast('Table updated!');
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-tphoto-file').forEach((inp) => {
+        inp.addEventListener('change', async () => {
+          const file = inp.files?.[0];
+          const tableId = Number(inp.dataset.tid);
+          if (!file || !tableId) return;
+          try {
+            showToast('Uploading table photo...');
+            const dataUrl = await compressImageFile(file);
+            await api('/api/admin/upload-table-photo', 'POST', { tableId, dataUrl }, pinHeaders);
+            showToast('Table photo updated! 📸');
+          } catch (err) {
+            showToast(err.message);
+          }
+        });
+      });
+      $('adminTabTables').querySelectorAll('.adm-toggle-chist-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const box = $('adminTabTables').querySelector(`.adm-cust-history-box[data-email="${btn.dataset.email}"]`);
+          if (box) box.classList.toggle('hidden');
         });
       });
       $('adminTabTables').querySelectorAll('.adm-clear-tbl-btn').forEach((btn) => {
@@ -3974,6 +4359,17 @@
           <span id="admApkStatusLabel" class="small muted">${s.apkDownloadUrl ? `✅ Direct APK Active: ${escapeHtml(s.apkDownloadUrl)}` : '1-Tap Phone WebApp Install is already live on website!'}</span>
 
           <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
+          <strong>📩 Gmail OTP &amp; Auto Royal Bill Email + Staff App PIN (Waiter &amp; Delivery)</strong>
+          <div class="two-col">
+            <div><label>Waiter &amp; Delivery Boy App PIN</label><input type="text" id="admStaffPin" value="${escapeHtml(s.staffPin || '1234')}" placeholder="1234" /></div>
+            <div><label>Gmail Address (For Sending OTP &amp; Bills)</label><input type="email" id="admSmtpUser" value="${escapeHtml(s.smtpUser || '')}" placeholder="yourshop@gmail.com" /></div>
+          </div>
+          <div class="two-col">
+            <div><label>Gmail App Password (16-char from Google Security)</label><input type="password" id="admSmtpPass" value="${escapeHtml(s.smtpPass || '')}" placeholder="xxxx xxxx xxxx xxxx" /></div>
+            <div><label>Or Resend API Key (Optional Email API)</label><input type="password" id="admResendKey" value="${escapeHtml(s.resendApiKey || '')}" placeholder="re_..." /></div>
+          </div>
+
+          <hr style="border:none;border-top:1px dashed var(--border);margin:0.8rem 0;" />
           <label>✨ Gemini API Key (Enables Real AI Chat, Daily Ads &amp; Smart Dish Photos)</label>
           <div class="admin-controls-inline">
             <input type="password" id="admGeminiKey" value="${escapeHtml(s.geminiApiKey || '')}" placeholder="AQ.Ab8... or AIza..." style="flex:1;" />
@@ -4055,6 +4451,10 @@
           bgVideoUrl: $('admBgVideoUrl').value,
           bgVideoEnabled: $('admBgVideoEnabled').checked,
           apkDownloadUrl: $('admApkUrl')?.value || '',
+          staffPin: $('admStaffPin')?.value || '1234',
+          smtpUser: $('admSmtpUser')?.value || '',
+          smtpPass: $('admSmtpPass')?.value || '',
+          resendApiKey: $('admResendKey')?.value || '',
           address: $('admAddress').value,
           merchantUpiId: $('admMerchantUpi').value,
           razorpayKeyId: $('admRzpKeyId').value,
@@ -4828,5 +5228,19 @@
   initHeroAdReel();
   syncCouponUI();
   renderAuthUI();
-  initialFetch().then(() => checkPhonePeRedirectReturn());
+  initialFetch().then(() => {
+    checkPhonePeRedirectReturn();
+    const urlTbl = Number(new URLSearchParams(window.location.search).get('table') || 0);
+    if (urlTbl > 0) {
+      appState.activeTableId = urlTbl;
+      appState.orderType = 'dine-in';
+      sessionStorage.setItem('chatkaro_qr_table', String(urlTbl));
+      renderTableQrBanner();
+      renderWaiterServicePanel();
+      renderAuthUI();
+      renderCart();
+      setTimeout(() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' }), 350);
+      showToast(`🪑 Scanned Table ${urlTbl} QR! Orders go straight to Table ${urlTbl}.`);
+    }
+  });
 })();

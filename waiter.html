@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>🛎️ Chatkaro Waiter Bell App</title>
+  <meta name="theme-color" content="#dc2626" />
+  <link rel="manifest" href="manifest-waiter.webmanifest" />
+  <link rel="icon" href="assets/app-icon-192.png" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; color: #f8fafc; min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 20; background: linear-gradient(135deg, #991b1b, #dc2626); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .topbar h1 { margin: 0; font-size: 1.08rem; }
+    .topbar small { display: block; font-size: 0.74rem; opacity: 0.9; }
+    .btn { border: none; border-radius: 999px; padding: 9px 15px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .btn-gold { background: #fbbf24; color: #111; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-dark { background: #1e293b; color: #fff; border: 1px solid #334155; }
+    .btn-red { background: #dc2626; color: #fff; }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 14px; }
+    .lock-card { max-width: 380px; margin: 48px auto; background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 24px; text-align: center; }
+    input, select { width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.95rem; margin: 6px 0; }
+    .ring-banner { background: linear-gradient(135deg, #dc2626, #ea580c); padding: 12px 16px; border-radius: 14px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; animation: pulseRing 1s infinite alternate; }
+    @keyframes pulseRing { from { transform: scale(1); } to { transform: scale(1.015); box-shadow: 0 0 24px rgba(239,68,68,0.65); } }
+    .call-card { background: #111827; border: 1.5px solid #334155; border-radius: 18px; padding: 13px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .call-card.ringing { border-color: #ef4444; background: #1f1215; }
+    .call-card.accepted { border-color: #f59e0b; }
+    .call-card.served { opacity: 0.62; }
+    .call-card img { width: 72px; height: 58px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
+    .call-info { flex: 1; min-width: 180px; }
+    .call-req { display: inline-block; background: #fbbf24; color: #111; font-weight: 900; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; margin: 4px 0; }
+    .chat-box { background: #111827; border: 1px solid #334155; border-radius: 18px; padding: 14px; margin-top: 16px; }
+    .chat-log { max-height: 240px; overflow-y: auto; display: grid; gap: 8px; margin: 10px 0; }
+    .chat-bubble { padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; }
+    .chat-bubble.cust { background: #1e293b; border-left: 3px solid #fbbf24; }
+    .chat-bubble.waiter { background: #7f1d1d; border-right: 3px solid #22c55e; text-align: right; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>🛎️ Chatkaro Waiter Bell App</h1>
+      <small id="statusTxt">Connecting Live...</small>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" class="btn btn-gold" id="soundBtn">🔔 Enable Bell Sound</button>
+      <a href="/" class="btn btn-dark" style="text-decoration:none;">🏠 Shop</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="lock-card" id="lockCard">
+      <div style="font-size:2.4rem;">🛎️</div>
+      <h2 style="margin:6px 0;">Waiter App Unlock</h2>
+      <p style="color:#94a3b8;font-size:0.86rem;">Enter Waiter Name &amp; Staff PIN (Default: 1234) or Owner PIN.</p>
+      <form id="loginForm">
+        <input type="text" id="waiterNameInput" placeholder="Your Name (e.g. Suresh)" required />
+        <input type="password" id="pinInput" placeholder="Staff / Owner PIN" required />
+        <button type="submit" class="btn btn-red" style="width:100%;margin-top:8px;">Unlock Waiter Bell →</button>
+      </form>
+      <p id="errMsg" style="color:#f87171;font-size:0.82rem;"></p>
+    </div>
+
+    <div id="appBody" class="hidden">
+      <div id="ringBanner" class="ring-banner hidden">
+        <span id="ringBannerText">🔔 TABLE CALLING!</span>
+        <button type="button" class="btn btn-gold" id="muteBellOnceBtn">🔕 Silence Bell</button>
+      </div>
+
+      <h3 style="margin:6px 0 10px;">📋 Active Table Requests (Water / Tissue / Bill / Chat)</h3>
+      <div id="callsList"></div>
+
+      <div class="chat-box">
+        <h3 style="margin:0 0 6px;">💬 Direct Waiter ↔ Table Chat</h3>
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <select id="chatTableSel"></select>
+        </div>
+        <div class="chat-log" id="chatLog"></div>
+        <form id="waiterChatForm" style="display:flex;gap:8px;">
+          <input type="text" id="waiterChatInput" placeholder="Reply to table..." required style="margin:0;" />
+          <button type="submit" class="btn btn-green">Send</button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      let staffToken = sessionStorage.getItem('chatkaro_staff_token') || '';
+      let waiterName = localStorage.getItem('chatkaro_waiter_name') || 'Waiter';
+      let audioCtx = null;
+      let soundEnabled = false;
+      let bellTimer = null;
+      let state = { tables: [], waiterCalls: [], waiterChats: [] };
+
+      function playRestaurantBell() {
+        if (!soundEnabled) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          [880, 1174.66, 1318.5].forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const t = audioCtx.currentTime + i * 0.14;
+            gain.gain.setValueAtTime(0.001, t);
+            gain.gain.exponentialRampToValueAtTime(0.32, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + 0.5);
+          });
+          if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
+        } catch {}
+      }
+
+      $('soundBtn').addEventListener('click', () => {
+        soundEnabled = true;
+        $('soundBtn').textContent = '🔔 Bell Sound ON ✓';
+        $('soundBtn').className = 'btn btn-green';
+        playRestaurantBell();
+      });
+
+      function checkBellLoop() {
+        const ringing = (state.waiterCalls || []).filter((c) => c.status === 'ringing');
+        if (ringing.length > 0) {
+          $('ringBanner').classList.remove('hidden');
+          $('ringBannerText').textContent = `🔔 ${ringing.length} Table Request Ringing: ${ringing[0].tableLabel} (${ringing[0].requestType})`;
+          if (!bellTimer) {
+            playRestaurantBell();
+            bellTimer = setInterval(playRestaurantBell, 2800);
+          }
+        } else {
+          $('ringBanner').classList.add('hidden');
+          if (bellTimer) { clearInterval(bellTimer); bellTimer = null; }
+        }
+      }
+
+      $('muteBellOnceBtn').addEventListener('click', () => {
+        if (bellTimer) { clearInterval(bellTimer); bellTimer = null; }
+      });
+
+      function esc(s) { return String(s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+      function render() {
+        if (!staffToken) return;
+        const calls = state.waiterCalls || [];
+        $('callsList').innerHTML = calls.length ? calls.map((c) => `
+          <div class="call-card ${esc(c.status)}">
+            <img src="${esc(c.tablePhoto || 'assets/tables/table-4seat.jpg')}" alt="" />
+            <div class="call-info">
+              <strong>${esc(c.tableLabel)} • ${esc(c.customerName)}</strong>
+              <div><span class="call-req">${esc(c.requestType)}</span></div>
+              ${c.note ? `<div style="font-size:0.84rem;color:#cbd5e1;">"${esc(c.note)}"</div>` : ''}
+              <small style="color:#94a3b8;">${new Date(c.createdAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })} • Status: ${esc(c.status.toUpperCase())}</small>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${c.status === 'ringing' ? `<button type="button" class="btn btn-gold act-btn" data-id="${esc(c.id)}" data-st="accepted">✅ Coming Now</button>` : ''}
+              ${c.status !== 'served' ? `<button type="button" class="btn btn-green act-btn" data-id="${esc(c.id)}" data-st="served">✓ Done / Served</button>` : '<span style="color:#4ade80;font-weight:800;">✓ Served</span>'}
+            </div>
+          </div>`).join('') : '<p style="color:#94a3b8;">No table calls right now. Waiting for customer tap...</p>';
+
+        const sel = $('chatTableSel');
+        const curVal = sel.value || '1';
+        if ((state.tables || []).length) {
+          sel.innerHTML = state.tables.map((t) => `<option value="${t.id}">${esc(t.label)} (${esc(t.status)})</option>`).join('');
+          sel.value = curVal;
+        }
+        const tid = Number(sel.value || 1);
+        const msgs = (state.waiterChats || []).filter((m) => Number(m.tableId) === tid);
+        $('chatLog').innerHTML = msgs.length ? msgs.map((m) => `
+          <div class="chat-bubble ${m.senderRole === 'waiter' ? 'waiter' : 'cust'}">
+            <strong>${esc(m.senderName)}:</strong> ${esc(m.text)}
+          </div>`).join('') : '<small style="color:#94a3b8;">No messages for this table yet.</small>';
+        $('chatLog').scrollTop = $('chatLog').scrollHeight;
+        checkBellLoop();
+      }
+
+      $('callsList').addEventListener('click', async (e) => {
+        const b = e.target.closest('.act-btn');
+        if (!b) return;
+        soundEnabled = true;
+        await fetch('/api/waiter/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
+          body: JSON.stringify({ callId: b.dataset.id, status: b.dataset.st, waiterName })
+        });
+      });
+
+      $('chatTableSel').addEventListener('change', render);
+      $('waiterChatForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = $('waiterChatInput').value.trim();
+        if (!text) return;
+        $('waiterChatInput').value = '';
+        await fetch('/api/waiter/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
+          body: JSON.stringify({ tableId: Number($('chatTableSel').value || 1), senderRole: 'waiter', senderName: waiterName + ' (Waiter)', text })
+        });
+      });
+
+      async function bootApp() {
+        $('lockCard').classList.add('hidden');
+        $('appBody').classList.remove('hidden');
+        const r = await fetch('/api/state');
+        state = await r.json();
+        $('statusTxt').textContent = `● Live Sync (${waiterName})`;
+        render();
+        const es = new EventSource('/api/events');
+        es.addEventListener('state', (ev) => { state = JSON.parse(ev.data); render(); });
+        es.addEventListener('waiter-call', (ev) => {
+          const c = JSON.parse(ev.data);
+          if (!state.waiterCalls) state.waiterCalls = [];
+          const idx = state.waiterCalls.findIndex((x) => x.id === c.id);
+          if (idx >= 0) state.waiterCalls[idx] = c; else state.waiterCalls.unshift(c);
+          playRestaurantBell();
+          render();
+        });
+        es.addEventListener('waiter-chat', (ev) => {
+          const m = JSON.parse(ev.data);
+          if (!state.waiterChats) state.waiterChats = [];
+          state.waiterChats.push(m);
+          render();
+        });
+      }
+
+      $('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        soundEnabled = true;
+        waiterName = $('waiterNameInput').value.trim() || 'Waiter';
+        localStorage.setItem('chatkaro_waiter_name', waiterName);
+        const r = await fetch('/api/staff/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: $('pinInput').value.trim() })
+        });
+        const d = await r.json();
+        if (!r.ok) { $('errMsg').textContent = d.error || 'Wrong PIN'; return; }
+        staffToken = d.staffToken;
+        sessionStorage.setItem('chatkaro_staff_token', staffToken);
+        bootApp();
+      });
+
+      if (staffToken) bootApp();
+    })();
+  </script>
+</body>
+</html>

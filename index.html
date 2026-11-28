@@ -65,7 +65,8 @@
         <button type="button" class="icon-pill-btn hover-pop" id="themeToggleBtn" title="Switch Dark / White theme">☀️ White</button>
         <button type="button" class="icon-pill-btn admin-pill hover-pop" id="openAdminBtn" title="Owner Admin Dashboard">⚙️ Admin</button>
         <button type="button" class="auth-pill-btn hover-pop" id="authHeaderBtn">
-          <span class="g-badge">G</span>
+          <img id="authHeaderAvatar" class="auth-avatar-img hidden" alt="" />
+          <span class="g-badge" id="authHeaderBadge">G</span>
           <span id="authHeaderLabel">Sign in</span>
         </button>
         <button type="button" class="cart-trigger hover-pop" id="openCartBtn" aria-label="Open order cart">
@@ -205,6 +206,17 @@
           </div>
         </div>
 
+        <div class="table-qr-banner hidden" id="menuTableQrBanner">
+          <div>
+            <strong id="menuTableQrText">🪑 Ordering from Table 1</strong>
+            <small>Your order &amp; waiter requests will go straight to this table!</small>
+          </div>
+          <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+            <a href="#tableServicePanel" class="btn btn-primary btn-xs">🛎️ Water / Tissue / Waiter</a>
+            <button type="button" class="btn btn-outline btn-xs" id="clearQrTableBtn">✕ Change</button>
+          </div>
+        </div>
+
         <div class="menu-tabs" id="menuTabs" role="tablist" aria-label="Menu categories">
           <button class="tab-btn active" data-category="all" role="tab">🍽️ All Dishes</button>
           <button class="tab-btn" data-category="veg-prep" role="tab">🥘 Veg Preparation</button>
@@ -252,6 +264,43 @@
             </span>
           </div>
           <div class="tables-grid" id="tablesGrid"></div>
+        </div>
+
+        <!-- Customer Waiter Call Bell & Live Table Service Chat -->
+        <div class="panel-card mb-lg card-hover" id="tableServicePanel">
+          <div class="panel-head">
+            <div>
+              <h3>🛎️ Table Service Bell &amp; Waiter Chat</h3>
+              <p class="muted">Pani, Tissue Paper, Spoon ya kuch bhi chahiye? Ek tap karein — seedha Waiter App me bell bajegi!</p>
+            </div>
+            <select id="serviceTableSelect" style="width:auto;min-width:155px;" aria-label="Select Your Table"></select>
+          </div>
+          <div class="waiter-quick-grid" id="waiterQuickBtns">
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="💧 Pani (Water Bottle/Glass)">💧 Pani (Water)</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🧻 Tissue Paper">🧻 Tissue Paper</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🥄 Spoon &amp; Fork">🥄 Spoon / Fork</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🍋 Onion &amp; Lemon">🍋 Onion / Lemon</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🌶️ Extra Chutney / Pickle">🌶️ Chutney</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🧹 Clean Table">🧹 Clean Table</button>
+            <button type="button" class="btn btn-outline btn-sm waiter-req-btn" data-req="🧾 Bring Printed Bill">🧾 Bring Bill</button>
+            <button type="button" class="btn btn-primary btn-sm waiter-req-btn" data-req="🛎️ Call Waiter to Table">🛎️ Call Waiter</button>
+          </div>
+          <div id="myWaiterCallsStatus" class="waiter-status-strip"></div>
+          <div class="two-col" style="margin-top:0.85rem;gap:0.85rem;">
+            <div>
+              <form id="customWaiterReqForm" class="promo-row" style="margin:0;">
+                <input type="text" id="customWaiterReqInput" placeholder="Kuch aur chahiye? (e.g. 2 extra bowl, masala)..." required />
+                <button type="submit" class="btn btn-primary btn-sm">Ring Waiter 🔔</button>
+              </form>
+            </div>
+            <div class="table-waiter-chat-box">
+              <div id="tableWaiterChatMsgs" class="table-waiter-chat-log"></div>
+              <form id="tableWaiterChatForm" class="promo-row" style="margin:0;">
+                <input type="text" id="tableWaiterChatInput" placeholder="Waiter se chat karein..." required />
+                <button type="submit" class="btn btn-outline btn-sm">Send 💬</button>
+              </form>
+            </div>
+          </div>
         </div>
 
         <div class="hub-three-col">
@@ -730,26 +779,49 @@
         <div class="live-eta-pill" id="modalLiveEta">⏱️ Preparing...</div>
       </div>
       <div class="receipt-box" id="orderReceiptBox"></div>
+      <div id="orderAmazonTrackingBox" class="hidden"></div>
       <div class="modal-actions">
         <a id="whatsappOrderLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-lg">
           💬 Send Order to Owner on WhatsApp (090546 33908)
         </a>
+        <a id="whatsappCustomerBillLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          📲 Share Royal Bill on My WhatsApp
+        </a>
+        <button type="button" class="btn btn-outline" id="resendEmailBillBtn">📧 Send / Resend Bill to My Gmail</button>
         <button type="button" class="btn btn-outline" id="printReceiptBtn">🖨️ Print / Save Receipt</button>
       </div>
     </div>
   </div>
 
-  <!-- Google / Gmail Sign-In Modal -->
+  <!-- Table QR Standee Modal -->
+  <div class="modal-backdrop hidden" id="tableQrModal">
+    <div class="modal-card" style="text-align:center;">
+      <button type="button" class="close-drawer-btn modal-close" id="closeTableQrBtn">✕</button>
+      <img id="tableQrPhoto" src="assets/tables/table-4seat.jpg" alt="Table" style="width:100%;height:150px;object-fit:cover;border-radius:14px;margin-bottom:0.75rem;" />
+      <h2 id="tableQrHeading" style="margin-bottom:0.2rem;">Table 1 QR Menu</h2>
+      <p class="muted small" style="margin-top:0;">Scan QR with any phone camera to open Menu &amp; order directly from this Table!</p>
+      <div style="background:#fff;padding:12px;border-radius:16px;display:inline-block;margin:0.5rem auto;">
+        <img id="tableQrImg" src="" alt="Table QR Code" width="210" height="210" style="display:block;" />
+      </div>
+      <div class="small muted" id="tableQrUrlText" style="word-break:break-all;margin-bottom:0.75rem;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="useThisTableNowBtn">🪑 Order From This Table Now</button>
+        <button type="button" class="btn btn-outline" id="printTableQrBtn">🖨️ Print Table QR Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google / Gmail OTP Sign-In Modal -->
   <div class="modal-backdrop hidden" id="googleLoginModal">
     <div class="modal-card">
       <button type="button" class="close-drawer-btn modal-close" id="closeGoogleLoginBtn">✕</button>
       <div class="modal-head-center">
         <div class="google-logo-circle">G</div>
-        <h2>Sign in with Google / Gmail</h2>
-        <p class="muted">Order karne, Razorpay/PhonePe payment karne, table book karne aur chat ke liye apni Gmail ID se login karein.</p>
+        <h2>Sign in with Google / Gmail OTP</h2>
+        <p class="muted">Apni Gmail ID aur OTP daalkar login karein — aapka Gmail naam, logo set hoga aur Royal Bill seedha aapke Gmail &amp; WhatsApp par jayega!</p>
       </div>
       <div id="realGoogleBtnWrap" class="hidden" style="display:flex;justify-content:center;margin:1rem 0;"></div>
-      <div id="googleClientDivider" class="hidden" style="text-align:center;margin:0.4rem 0 0.8rem;"><small class="muted">— or continue with your Gmail address —</small></div>
+      <div id="googleClientDivider" class="hidden" style="text-align:center;margin:0.4rem 0 0.8rem;"><small class="muted">— or Sign in with Gmail OTP —</small></div>
       <form id="googleQuickForm" class="stack-form">
         <label>Full Name *</label>
         <input type="text" id="gNameInput" placeholder="e.g. Rahul Patel" required />
@@ -757,7 +829,17 @@
         <input type="email" id="gEmailInput" placeholder="yourname@gmail.com" pattern="^[^\s@]+@(gmail|googlemail)\.com$" title="Please enter a valid @gmail.com email address" required />
         <label>WhatsApp / Mobile No. *</label>
         <input type="tel" id="gPhoneInput" placeholder="10-digit mobile number" required />
-        <button type="submit" class="btn btn-primary btn-lg">Continue with Gmail →</button>
+        <div class="two-col">
+          <button type="button" class="btn btn-outline" id="sendGmailOtpBtn">📩 Send 6-Digit Gmail OTP</button>
+          <button type="submit" class="btn btn-primary" id="quickGmailSubmitBtn">Quick Gmail Login →</button>
+        </div>
+        <div id="otpVerifyBox" class="hidden" style="margin-top:0.5rem;padding:0.75rem;border:1.5px dashed var(--primary);border-radius:12px;">
+          <label>Enter 6-Digit OTP sent to your Gmail *</label>
+          <div class="promo-row" style="margin-top:0.3rem;">
+            <input type="text" id="gOtpInput" placeholder="6-digit OTP (e.g. 482910)" maxlength="6" inputmode="numeric" />
+            <button type="button" class="btn btn-primary" id="verifyGmailOtpBtn">Verify OTP ✓</button>
+          </div>
+        </div>
       </form>
     </div>
   </div>

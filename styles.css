@@ -3095,6 +3095,100 @@ body.has-bg-video .hero-bg-pattern {
   #headerDownloadAppBtn, #mobileNavAppBtn, .app-download-section { display: none !important; }
 }
 
+/* ==================== AUTH AVATAR, TABLE PHOTOS, QR BANNER, WAITER BELL & AMAZON TRACKER ==================== */
+.auth-avatar-img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #22c55e;
+  flex-shrink: 0;
+}
+.table-qr-banner {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.18), rgba(251, 191, 36, 0.15));
+  border: 1.5px solid #22c55e;
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.table-photo-thumb {
+  width: 100%;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 0.55rem;
+  display: block;
+  border: 1px solid var(--border);
+}
+.waiter-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.waiter-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+.waiter-call-chip {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.72rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.waiter-call-chip.ringing { border-color: #ef4444; color: #fca5a5; }
+.waiter-call-chip.accepted { border-color: #f59e0b; color: #fde68a; }
+.waiter-call-chip.served { border-color: #22c55e; color: #86efac; }
+.table-waiter-chat-box {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.55rem;
+}
+.table-waiter-chat-log {
+  max-height: 110px;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  margin-bottom: 0.45rem;
+}
+.amazon-track-card {
+  background: var(--surface-alt);
+  border: 1.5px solid #ea580c;
+  border-radius: 14px;
+  padding: 0.85rem;
+  margin-top: 0.75rem;
+}
+.amazon-track-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
+.amazon-t-step {
+  text-align: center;
+  padding: 0.35rem 0.25rem;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+.amazon-t-step.done {
+  background: #16a34a;
+  color: #fff;
+}
+
 /* ==================== LIVE NEW DISH & DISCOUNT NOTIFICATION UI ==================== */
 .notif-bell-btn {
   position: relative;
