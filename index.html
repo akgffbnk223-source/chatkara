@@ -48,21 +48,12 @@
         </span>
       </a>
 
-      <nav class="nav-links" id="navLinks" aria-label="Main navigation">
-        <a href="#menu">Menu</a>
-        <a href="#live-hub">Live Tables &amp; Chat</a>
-        <a href="#game">Game 🎮</a>
-        <a href="#maps-gallery">Maps Photos 📸</a>
-        <a href="#reviews">Reviews</a>
-        <a href="#location">Map</a>
-      </nav>
+      <nav class="nav-links hidden" id="navLinks" aria-label="Secondary links"></nav>
 
       <div class="header-actions">
         <button type="button" class="icon-pill-btn notif-bell-btn" id="headerNotifBtn" title="New Dish &amp; Discount Alerts" aria-label="Notifications">
           🔔 <span class="notif-badge hidden" id="notifUnreadBadge">0</span>
         </button>
-        <button type="button" class="icon-pill-btn app-dl-pill" id="headerDownloadAppBtn" title="Download Phone App">📲 App</button>
-        <button type="button" class="icon-pill-btn hover-pop" id="themeToggleBtn" title="Switch Dark / White theme">☀️ White</button>
         <button type="button" class="icon-pill-btn admin-pill hover-pop" id="openAdminBtn" title="Owner Admin Dashboard">⚙️ Admin</button>
         <button type="button" class="auth-pill-btn hover-pop" id="authHeaderBtn">
           <img id="authHeaderAvatar" class="auth-avatar-img hidden" alt="" />
@@ -74,7 +65,6 @@
           <span class="hide-mobile">Order</span>
           <span class="cart-badge" id="headerCartCount">0</span>
         </button>
-        <button type="button" class="menu-toggle" id="mobileMenuBtn" aria-label="Toggle menu" aria-expanded="false">☰</button>
       </div>
     </div>
   </header>
@@ -97,19 +87,10 @@
             Fresh Amul butter, real cashew gravies, live crisp Dosas, smoky Tandoor platters &amp; fiery Indo-Chinese — cooked live to order with Google Sign-In, Razorpay &amp; PhonePe UPI!
           </p>
 
-          <div class="service-pills">
-            <span class="hover-chip">🍽️ Dine-In</span>
-            <span class="hover-chip">🚗 Drive-Through</span>
-            <span class="hover-chip">📦 No-Contact Delivery</span>
-            <span class="hover-chip">🅿️ Free Parking</span>
-            <span class="hover-chip">🏳️‍🌈 LGBTQ+ Friendly</span>
-          </div>
+          <p class="hero-meta-line">🍽️ Dine-In • 🚗 Drive-Through • 📦 No-Contact Delivery • 🅿️ Free Parking</p>
 
           <div class="hero-ctas">
             <a href="#menu" class="btn btn-primary btn-lg glow-btn">Explore Menu &amp; Order →</a>
-            <button type="button" class="btn btn-secondary btn-lg" id="heroDownloadAppBtn">📲 Download Phone App</button>
-            <a href="#live-hub" class="btn btn-secondary btn-lg hover-pop">🪑 Live Tables &amp; Orders</a>
-            <a href="#game" class="btn btn-secondary btn-lg hover-pop">🎮 Play Together</a>
           </div>
 
           <div class="my-live-banner hidden" id="myLiveOrderBanner">
@@ -656,7 +637,29 @@
     </section>
   </main>
 
-  <footer class="site-footer">
+    <section class="section bottom-quick-dock" id="quickLinksDock" aria-label="Quick Navigation and Tools">
+      <div class="container">
+        <div class="bottom-dock-card">
+          <div class="bottom-dock-head">
+            <strong>⚡ Quick Menu, Live Tools &amp; Phone App</strong>
+            <span class="small muted">Sabhi sections &amp; tools ek tap me</span>
+          </div>
+          <div class="bottom-dock-grid">
+            <a href="#menu" class="btn btn-outline btn-sm">🍽️ Menu</a>
+            <a href="#live-hub" class="btn btn-outline btn-sm">🪑 Live Tables &amp; Chat</a>
+            <a href="#game" class="btn btn-outline btn-sm">🎮 Play Together</a>
+            <a href="#maps-gallery" class="btn btn-outline btn-sm">📸 Maps Photos</a>
+            <a href="#reviews" class="btn btn-outline btn-sm">⭐ Reviews</a>
+            <a href="#location" class="btn btn-outline btn-sm">🗺️ Restaurant Map</a>
+            <button type="button" class="btn btn-primary btn-sm" id="heroDownloadAppBtn">📲 Download Phone App</button>
+            <button type="button" class="btn btn-outline btn-sm app-dl-pill" id="headerDownloadAppBtn">📱 Get APK / Apps</button>
+            <button type="button" class="btn btn-outline btn-sm" id="themeToggleBtn">☀️ White</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
     <div class="container footer-inner">
       <div>
         <strong>🍲 Chatkaro Food Hub — Talala</strong>
@@ -710,7 +713,7 @@
     </div>
   </div>
 
-  <!-- Amazon-Style Dish Detail Modal -->
+  <!-- Dish Detail Modal -->
   <div class="modal-backdrop hidden" id="dishDetailModal">
     <div class="modal-card modal-wide amazon-detail-modal">
       <button type="button" class="close-drawer-btn modal-close" id="closeDishDetailBtn">✕</button>

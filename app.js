@@ -2084,7 +2084,7 @@
             ? `
           <div class="amz-addr-box">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.35rem;">
-              <strong style="font-size:0.8rem;">📍 Amazon-Style Delivery Location &amp; Address</strong>
+              <strong style="font-size:0.8rem;">📍 Delivery Location &amp; Address</strong>
               <button type="button" class="btn btn-outline btn-xs" id="useGpsAddrBtn">📡 Use My Live GPS</button>
             </div>
             ${
@@ -2379,7 +2379,7 @@
     return `
       <div class="amazon-track-card">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
-          <strong>🛵 Amazon-Style Live Delivery Tracking</strong>
+          <strong>🛵 Live Delivery Tracking</strong>
           <span class="badge badge-veg">Delivery PIN: ${escapeHtml(order.deliveryOtp || '----')}</span>
         </div>
         <div class="amazon-track-steps">
@@ -4511,7 +4511,7 @@
         {
           id: 'delivery',
           icon: '🛵',
-          title: 'Delivery Boy App (Amazon-Style)',
+          title: 'Delivery Boy App (Pro)',
           desc: 'Live GPS sharing, Razorpay QR, PhonePe/UPI QR, Cash COD + Screenshot Proof upload & Customer Chat.',
           apkUrl: toAbs(s.deliveryApkUrl || 'assets/app/Chatkaro-Delivery.apk'),
           webUrl: `${origin}/delivery.html`,
@@ -4532,7 +4532,7 @@
           id: 'customer',
           icon: '🍲',
           title: 'Customer Food Ordering App',
-          desc: 'Menu, Cart, Table QR menu, Live Amazon-Style GPS Tracking, Gmail OTP, Royal Het Bill & Games.',
+          desc: 'Menu, Cart, Table QR menu, Live Delivery GPS Tracking, Gmail OTP, Royal Het Bill & Games.',
           apkUrl: toAbs(s.apkDownloadUrl || 'assets/app/Chatkaro-Customer.apk'),
           webUrl: `${origin}/`,
           apkFileName: 'Chatkaro-Customer.apk',
@@ -4646,50 +4646,47 @@
       const allCust = (appState.customersAll || []).filter((c) => (c.cancelCount || 0) > 0 || c.codBlocked);
       const rankMedals = ['🥇', '🥈', '🥉'];
 
-      const renderStaffRows = (list, role) =>
-        list.length
-          ? list
-              .map(
-                (st, i) => `
-              <div class="admin-row-card" style="flex-wrap:wrap;gap:0.6rem;">
-                <div style="flex:1;min-width:210px;">
-                  <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
-                    <span class="staff-rank-pill">${rankMedals[i] || '#' + st.rank} Rank ${st.rank}</span>
-                    <strong>${escapeHtml(st.name)}</strong>
-                    ${st.phone ? `<small class="muted">(${escapeHtml(st.phone)})</small>` : ''}
-                    <span class="mini-pill" style="background:${escapeHtml(st.gradeColor)};color:#fff;">${escapeHtml(st.grade)}</span>
-                  </div>
-                  <div class="small muted" style="margin-top:0.35rem;">
-                    🏆 Score: <strong style="color:var(--primary);">${st.score} pts</strong>
-                    • 💰 Sales: <strong>₹${st.salesTotal}</strong>
-                    ${
-                      role === 'waiter'
-                        ? `• 🍽️ Orders Served: <strong>${st.ordersCount}</strong> • 🔔 Bells Done: <strong>${st.bellsResolved}</strong> (Fast: ${st.fastBells}, Slow: ${st.slowBells})${st.avgResponseSec ? ` • ⏱️ Avg Bell: ${st.avgResponseSec}s` : ''}`
-                        : `• 🛵 Delivered: <strong>${st.ordersCount}</strong> • 📡 GPS: <strong>${st.gpsDeliveries}</strong> • 📸 SS Proofs: <strong>${st.proofCount}</strong>`
-                    }
-                    ${st.avgRating ? ` • ⭐ ${st.avgRating}/5 (${st.ratingCount})` : ''}
-                  </div>
-                </div>
-                <div class="admin-controls-inline">
-                  <button type="button" class="btn btn-primary btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="10">+10 Bonus</button>
-                  <button type="button" class="btn btn-danger btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="-10">-10 Penalty</button>
-                </div>
-              </div>`
-              )
-              .join('')
-          : `<div class="admin-row-card"><span class="muted">No ${role === 'waiter' ? 'Waiter' : 'Delivery Boy'} activity recorded yet. Jab staff app se order/bell handle karenge to yahan live Rank &amp; Sales dikhega!</span></div>`;
+      const renderStaffGaugeCard = (st, i, role) => {
+        const pct = Math.max(0, Math.min(100, Math.round(st.score || 0)));
+        const arcColor = pct >= 60 ? '#84cc16' : pct >= 25 ? '#f59e0b' : '#ef4444';
+        const dashOff = Math.round(220 - (220 * pct) / 100);
+        const subText = role === 'waiter' ? 'Service & Bell Score' : 'Delivery Score';
+        const bottomMeta = role === 'waiter'
+          ? `Sales: <strong>₹${st.salesTotal}</strong> • Orders: <strong>${st.ordersCount}</strong> • Bells: <strong>${st.bellsResolved}</strong> (Fast ${st.fastBells}/Slow ${st.slowBells})`
+          : `Sales: <strong>₹${st.salesTotal}</strong> • Delivered: <strong>${st.ordersCount}</strong> • SS Proofs: <strong>${st.proofCount}</strong> • GPS: <strong>${st.gpsDeliveries}</strong>`;
+        return `
+          <div class="acru-card staff-gauge-card">
+            <div class="acru-card-head">
+              <div>
+                <div class="acru-card-title">${rankMedals[i] || '#' + st.rank} ${escapeHtml(st.name)}</div>
+                <div class="acru-card-sub">${st.phone ? escapeHtml(st.phone) + ' • ' : ''}Rank #${st.rank}${st.avgRating ? ` • ⭐ ${st.avgRating}/5` : ''}</div>
+              </div>
+              <span class="acru-pill-tag" style="background:${escapeHtml(st.gradeColor)};color:#fff;border-color:${escapeHtml(st.gradeColor)};">${escapeHtml(st.grade)}</span>
+            </div>
+            <svg viewBox="0 0 180 100" style="width:168px;max-width:100%;margin:0.15rem auto 0;display:block;">
+              <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round" />
+              <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="${arcColor}" stroke-width="14" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="${dashOff}" />
+              <text x="90" y="76" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a">${pct}%</text>
+              <text x="90" y="94" text-anchor="middle" font-size="9.5" font-weight="600" fill="#6b7280">${subText}</text>
+            </svg>
+            <div class="acru-card-sub" style="text-align:center;margin-top:0.25rem;">${bottomMeta}</div>
+            <div style="display:flex;justify-content:center;gap:0.4rem;margin-top:0.5rem;">
+              <button type="button" class="btn btn-primary btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="10">+10 Bonus</button>
+              <button type="button" class="btn btn-danger btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="-10">-10 Penalty</button>
+            </div>
+          </div>`;
+      };
 
       $('adminTabStaff').innerHTML = `
-        <h3>🏆 Amazon-Style Staff Performance Leaderboard (Kaam, Rank &amp; Sales)</h3>
-        <div class="staff-board-grid">
-          <div class="staff-board-col">
-            <h4>🛎️ Waiter Leaderboard &amp; Kaam Report</h4>
-            <div class="admin-grid-list">${renderStaffRows(waiters, 'waiter')}</div>
-          </div>
-          <div class="staff-board-col">
-            <h4>🛵 Delivery Boy Leaderboard &amp; Sales</h4>
-            <div class="admin-grid-list">${renderStaffRows(drivers, 'driver')}</div>
-          </div>
+        <h3>🏆 Chatkaro Staff Performance Score &amp; Ranks (Waiter + Delivery Boy)</h3>
+        <h4 style="margin:0.65rem 0 0.4rem;">🛎️ Waiter Performance &amp; Kaam Report</h4>
+        <div class="staff-gauge-grid">
+          ${waiters.length ? waiters.map((st, i) => renderStaffGaugeCard(st, i, 'waiter')).join('') : `<div class="acru-card"><span class="muted small">Abhi koi Waiter activity record nahi hui. Waiter app se bell/order handle karte hi yahan score meter aur rank live dikhega!</span></div>`}
+        </div>
+
+        <h4 style="margin:1rem 0 0.4rem;">🛵 Delivery Boy Performance &amp; Sales</h4>
+        <div class="staff-gauge-grid">
+          ${drivers.length ? drivers.map((st, i) => renderStaffGaugeCard(st, i, 'driver')).join('') : `<div class="acru-card"><span class="muted small">Abhi koi Delivery Boy activity record nahi hui. Rider app se delivery complete karte hi yahan score meter aur sales dikhega!</span></div>`}
         </div>
 
         <h4 style="margin-top:1.1rem;">🚫 Customer 5-Cancel COD Block Monitor</h4>
@@ -5489,11 +5486,11 @@
   $('closeOrderModalBtn').addEventListener('click', () => $('orderModal').classList.add('hidden'));
   $('printReceiptBtn').addEventListener('click', () => window.print());
 
-  $('mobileMenuBtn').addEventListener('click', () => {
-    const open = $('navLinks').classList.toggle('open');
-    $('mobileMenuBtn').setAttribute('aria-expanded', String(open));
+  $('mobileMenuBtn')?.addEventListener('click', () => {
+    const open = $('navLinks')?.classList.toggle('open');
+    $('mobileMenuBtn')?.setAttribute('aria-expanded', String(open));
   });
-  $('navLinks').querySelectorAll('a').forEach((a) => a.addEventListener('click', () => $('navLinks').classList.remove('open')));
+  $('navLinks')?.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => $('navLinks')?.classList.remove('open')));
 
   $('btnGoogleMap').addEventListener('click', () => {
     $('btnGoogleMap').classList.add('active');

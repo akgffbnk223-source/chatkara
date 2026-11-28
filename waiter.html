@@ -237,19 +237,28 @@
           : '<p style="color:#94a3b8;">No dine-in / parcel orders right now.</p>';
 
         const medals = ['🥇', '🥈', '🥉'];
+        const myPct = Math.max(0, Math.min(100, Math.round(myRec ? myRec.score : 0)));
+        const myArc = myPct >= 60 ? '#84cc16' : myPct >= 25 ? '#f59e0b' : '#ef4444';
+        const myOff = Math.round(220 - (220 * myPct) / 100);
         $('waiterRankPanel').innerHTML = `
-          <div class="score-hero">
+          <div class="score-hero" style="background:#ffffff;color:#0f172a;border-color:#e2e8f0;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
               <strong>🏆 My Performance Scoreboard (${esc(waiterName)})</strong>
               <span class="rank-pill" style="background:${myRec ? esc(myRec.gradeColor) : '#2563eb'};color:#fff;">${myRec ? esc(myRec.grade) : 'Ready to Earn'}</span>
             </div>
+            <svg viewBox="0 0 180 100" style="width:185px;max-width:100%;margin:6px auto 0;display:block;">
+              <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round" />
+              <path d="M 20 88 A 70 70 0 0 1 160 88" fill="none" stroke="${myArc}" stroke-width="14" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="${myOff}" />
+              <text x="90" y="76" text-anchor="middle" font-size="24" font-weight="800" fill="#0f172a">${myPct}%</text>
+              <text x="90" y="94" text-anchor="middle" font-size="9.5" font-weight="600" fill="#6b7280">Orders &amp; Bells Score</text>
+            </svg>
+            <div style="text-align:center;font-size:0.82rem;color:#475569;margin-bottom:8px;">
+              Rank: <strong>#${myRec ? myRec.rank : '-'}</strong> • Total Sales: <strong>₹${myRec ? myRec.salesTotal : 0}</strong> • Rating: <strong>${myRec && myRec.avgRating ? myRec.avgRating + '★' : 'N/A'}</strong>
+            </div>
             <div class="score-grid">
-              <div class="score-stat"><span>Rank</span><strong>#${myRec ? myRec.rank : '-'}</strong></div>
-              <div class="score-stat"><span>Score</span><strong>${myRec ? myRec.score : 0} pts</strong></div>
-              <div class="score-stat"><span>Total Sales</span><strong>₹${myRec ? myRec.salesTotal : 0}</strong></div>
-              <div class="score-stat"><span>Orders Served</span><strong>${myRec ? myRec.ordersCount : 0}</strong></div>
-              <div class="score-stat"><span>Bells (Fast/Slow)</span><strong>${myRec ? myRec.bellsResolved : 0} (${myRec ? myRec.fastBells : 0}/${myRec ? myRec.slowBells : 0})</strong></div>
-              <div class="score-stat"><span>Customer Rating</span><strong>${myRec && myRec.avgRating ? myRec.avgRating + '★' : 'N/A'}</strong></div>
+              <div class="score-stat" style="background:#f8fafc;border-color:#e2e8f0;color:#0f172a;"><span>Score</span><strong style="color:#16a34a;">${myRec ? myRec.score : 0} pts</strong></div>
+              <div class="score-stat" style="background:#f8fafc;border-color:#e2e8f0;color:#0f172a;"><span>Orders Served</span><strong style="color:#16a34a;">${myRec ? myRec.ordersCount : 0}</strong></div>
+              <div class="score-stat" style="background:#f8fafc;border-color:#e2e8f0;color:#0f172a;"><span>Bells (Fast/Slow)</span><strong style="color:#ea580c;">${myRec ? myRec.bellsResolved : 0} (${myRec ? myRec.fastBells : 0}/${myRec ? myRec.slowBells : 0})</strong></div>
             </div>
           </div>
           <h3 style="margin:8px 0;">📊 All Waiters Rank (Kaam Achha vs Slow)</h3>
@@ -260,7 +269,7 @@
                 <span class="rank-pill" style="background:${esc(w.gradeColor)};color:#fff;margin-left:6px;">${esc(w.grade)}</span>
                 <div style="font-size:0.8rem;color:#94a3b8;margin-top:3px;">Sales: ₹${w.salesTotal} • Orders: ${w.ordersCount} • Bells: ${w.bellsResolved} (Fast ${w.fastBells}, Slow ${w.slowBells})${w.avgRating ? ` • ⭐ ${w.avgRating}★` : ''}</div>
               </div>
-              <strong style="color:#fbbf24;font-size:1.05rem;">${w.score} pts</strong>
+              <strong style="color:#84cc16;font-size:1.05rem;">${Math.min(100, w.score)}%</strong>
             </div>`).join('') : '<p style="color:#94a3b8;">Abhi koi waiter score record nahi hua. Table bell accept karein ya dine-in order Serve karein!</p>'}
         `;
 

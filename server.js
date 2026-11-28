@@ -1753,7 +1753,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, { ok: true, message: msg });
     }
 
-    // Amazon-Style Delivery Boy App Endpoints
+    // Live Delivery Boy App Endpoints
     if (pathname === '/api/delivery/action' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
@@ -1811,7 +1811,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, { ok: true, message: msg });
     }
 
-    // Delivery Boy Live GPS Location Broadcast (Amazon-Style Live Tracking)
+    // Delivery Boy Live GPS Location Broadcast (Live Tracking)
     if (pathname === '/api/delivery/location' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
