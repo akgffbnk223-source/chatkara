@@ -3260,6 +3260,102 @@ body.has-bg-video .hero-bg-pattern {
   object-fit: contain;
   display: block;
 }
+.amz-addr-box {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 0.55rem;
+}
+.amz-gps-ok {
+  background: rgba(22, 163, 74, 0.2);
+  border: 1px solid #16a34a;
+  color: #86efac;
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+.amz-saved-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+.amz-saved-chip {
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.amz-label-pills {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+.amz-lbl-btn {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.amz-lbl-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.amz-addr-grid {
+  display: grid;
+  gap: 0.35rem;
+}
+.cod-blocked-alert {
+  background: rgba(220, 38, 38, 0.18);
+  border: 1px solid #ef4444;
+  color: #fecaca;
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.75rem;
+  margin: 0.4rem 0;
+}
+.pay-opt-btn.locked {
+  opacity: 0.48;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.staff-rate-row {
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.staff-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+}
+.staff-rank-pill {
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: #111;
+  font-weight: 900;
+  font-size: 0.72rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+}
 
 /* ==================== LIVE NEW DISH & DISCOUNT NOTIFICATION UI ==================== */
 .notif-bell-btn {

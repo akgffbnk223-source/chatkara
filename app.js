@@ -586,6 +586,13 @@
     }
     if (snap.waiterCalls) appState.waiterCalls = snap.waiterCalls;
     if (snap.waiterChats) appState.waiterChats = snap.waiterChats;
+    if (snap.staffLeaderboard) appState.staffLeaderboard = snap.staffLeaderboard;
+    if (snap.customersAll && appState.user?.email) {
+      const me = snap.customersAll.find((c) => c.email === appState.user.email.toLowerCase());
+      if (me) {
+        appState.user = { ...appState.user, cancelCount: me.cancelCount || 0, codBlocked: Boolean(me.codBlocked), savedAddresses: me.savedAddresses || appState.user.savedAddresses || [] };
+      }
+    }
     if (snap.deliveryChats) appState.deliveryChats = snap.deliveryChats;
     if (snap.dailyAiAd) appState.dailyAiAd = snap.dailyAiAd;
     if (snap.tables) appState.tables = snap.tables;
@@ -2049,6 +2056,20 @@
       .map((t) => `<option value="${t.id}" ${activeTid === t.id ? 'selected' : ''}>${escapeHtml(t.label)} (${t.status})</option>`)
       .join('');
 
+    if (!appState.deliveryDraft) {
+      appState.deliveryDraft = { label: 'Home', house: '', area: '', landmark: '', city: 'Talala', pincode: '362150', lat: null, lng: null };
+    }
+    const dd = appState.deliveryDraft;
+    const savedAddrs = Array.isArray(appState.user?.savedAddresses) ? appState.user.savedAddresses : [];
+    const curCustRec = appState.user?.email
+      ? (appState.customersAll || []).find((c) => c.email === appState.user.email.toLowerCase()) || appState.user
+      : null;
+    const cancelCount = Number(curCustRec?.cancelCount || 0);
+    const isCodBlocked = Boolean(curCustRec?.codBlocked || cancelCount >= 5);
+    if (isCodBlocked && appState.paymentMethod === 'cod') {
+      appState.paymentMethod = 'razorpay';
+    }
+
     $('cartDrawerFooter').innerHTML = `
       <div class="order-type-pills">
         <button type="button" class="order-mode-btn ${appState.orderType === 'dine-in' ? 'active' : ''}" data-mode="dine-in">🍽️ Dine-In</button>
@@ -2058,17 +2079,54 @@
       <div class="checkout-inputs">
         ${appState.orderType === 'dine-in' ? `<select id="custTableSelect"><option value="">Select Table (Optional)</option>${tableOptions}</select>` : ''}
         <input type="tel" id="custPhone" placeholder="Mobile / WhatsApp *" value="${escapeHtml(appState.user?.phone || '')}" />
-        <input type="text" id="custDetail" placeholder="${appState.orderType === 'delivery' ? 'Delivery Address in Talala *' : 'Cooking notes (e.g. Less spicy)'}" />
+        ${
+          appState.orderType === 'delivery'
+            ? `
+          <div class="amz-addr-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+              <strong style="font-size:0.8rem;">📍 Amazon-Style Delivery Location &amp; Address</strong>
+              <button type="button" class="btn btn-outline btn-xs" id="useGpsAddrBtn">📡 Use My Live GPS</button>
+            </div>
+            ${
+              dd.lat && dd.lng
+                ? `<div class="amz-gps-ok">✅ GPS Pin Locked: ${Number(dd.lat).toFixed(5)}, ${Number(dd.lng).toFixed(5)} (<a href="https://maps.google.com/?q=${dd.lat},${dd.lng}" target="_blank" rel="noopener" style="color:inherit;">View Map</a>)</div>`
+                : ''
+            }
+            ${
+              savedAddrs.length
+                ? `<div class="amz-saved-row">${savedAddrs.map((a, idx) => `<button type="button" class="amz-saved-chip" data-saved-idx="${idx}">📌 ${escapeHtml(a.label || 'Saved')}: ${escapeHtml((a.house || a.area || a.fullText || '').slice(0, 22))}</button>`).join('')}</div>`
+                : ''
+            }
+            <div class="amz-label-pills">
+              ${['Home', 'Work', 'Shop'].map((lbl) => `<button type="button" class="amz-lbl-btn ${dd.label === lbl ? 'active' : ''}" data-albl="${lbl}">${lbl === 'Home' ? '🏠' : lbl === 'Work' ? '🏢' : '🏪'} ${lbl}</button>`).join('')}
+            </div>
+            <div class="amz-addr-grid">
+              <input type="text" id="addrHouse" placeholder="Flat / House / Shop No. *" value="${escapeHtml(dd.house)}" />
+              <input type="text" id="addrArea" placeholder="Area / Street / Colony / Road *" value="${escapeHtml(dd.area)}" />
+              <input type="text" id="addrLandmark" placeholder="Landmark (e.g. Near Mandir)" value="${escapeHtml(dd.landmark)}" />
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;">
+                <input type="text" id="addrCity" placeholder="City (Talala)" value="${escapeHtml(dd.city)}" />
+                <input type="text" id="addrPincode" placeholder="Pincode" value="${escapeHtml(dd.pincode)}" />
+              </div>
+            </div>
+          </div>`
+            : `<input type="text" id="custDetail" placeholder="Cooking notes (e.g. Less spicy)" />`
+        }
       </div>
       <div class="promo-row">
         <input type="text" id="promoInput" placeholder="Promo (WELCOME5 / CHATKARO10)" value="${escapeHtml(appState.promoCode)}" />
         <button type="button" class="btn btn-outline btn-sm" id="applyPromoBtn">Apply</button>
       </div>
+      ${
+        isCodBlocked
+          ? `<div class="cod-blocked-alert">⚠️ <strong>Cash on Delivery (COD) Off:</strong> Aapne ${cancelCount} orders cancel kiye hain (Limit: 5). Ab sirf online <strong>Razorpay / PhonePe / UPI</strong> payment se order hoga.</div>`
+          : ''
+      }
       <div class="payment-method-pills" aria-label="Payment Gateway">
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'razorpay' ? 'active' : ''}" data-pay="razorpay">💳 Razorpay</button>
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'phonepe' ? 'active' : ''}" data-pay="phonepe">📱 PhonePe</button>
         <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'upi-qr' ? 'active' : ''}" data-pay="upi-qr">📷 UPI QR</button>
-        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'cod' ? 'active' : ''}" data-pay="cod">💵 Counter/COD</button>
+        <button type="button" class="pay-opt-btn ${appState.paymentMethod === 'cod' ? 'active' : ''} ${isCodBlocked ? 'locked' : ''}" data-pay="cod" ${isCodBlocked ? 'disabled title="COD Blocked due to 5+ cancelled orders"' : ''}>${isCodBlocked ? '🔒 COD Off' : '💵 Counter/COD'}</button>
       </div>
       <div class="bill-lines">
         <div class="bill-line"><span>Subtotal</span><span>₹${subtotal}</span></div>
@@ -2117,11 +2175,29 @@
       return showToast('Sign in with Gmail before placing an order.');
     }
     const phone = ($('custPhone')?.value || appState.user.phone || '').trim();
-    const detail = ($('custDetail')?.value || '').trim();
     const tableId = appState.orderType === 'dine-in' && $('custTableSelect')?.value ? Number($('custTableSelect').value) : null;
     if (!phone) {
       showToast('Please enter your mobile number.');
       return $('custPhone')?.focus();
+    }
+
+    let detail = ($('custDetail')?.value || '').trim();
+    let deliveryAddress = null;
+    let customerLocation = null;
+    if (appState.orderType === 'delivery') {
+      const dd = appState.deliveryDraft || {};
+      const house = ($('addrHouse')?.value || dd.house || '').trim();
+      const area = ($('addrArea')?.value || dd.area || '').trim();
+      const landmark = ($('addrLandmark')?.value || dd.landmark || '').trim();
+      const city = ($('addrCity')?.value || dd.city || 'Talala').trim();
+      const pincode = ($('addrPincode')?.value || dd.pincode || '362150').trim();
+      if (!house && !area) {
+        showToast('Please enter House/Flat No. & Delivery Area (or tap Use Live GPS).');
+        return $('addrHouse')?.focus();
+      }
+      deliveryAddress = { label: dd.label || 'Home', house, area, landmark, city, pincode };
+      detail = [house, area, landmark ? (/^near\b/i.test(landmark) ? landmark : `Near ${landmark}`) : '', `${city} ${pincode}`.trim()].filter(Boolean).join(', ');
+      if (dd.lat && dd.lng) customerLocation = { lat: Number(dd.lat), lng: Number(dd.lng) };
     }
 
     const items = getCartItems();
@@ -2136,6 +2212,8 @@
       orderType: appState.orderType,
       tableId,
       detail,
+      deliveryAddress,
+      customerLocation,
       items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
       discountAmt,
       deliveryFee,
@@ -2281,6 +2359,23 @@
           </form>
         </div>`;
 
+    const rateHtml =
+      s4 && order.driverName
+        ? `
+          <div class="staff-rate-row">
+            <span class="small"><strong>⭐ Rate ${escapeHtml(order.driverName)}:</strong></span>
+            <div style="display:flex;gap:0.25rem;">
+              ${[1, 2, 3, 4, 5]
+                .map(
+                  (n) =>
+                    `<button type="button" class="btn btn-xs ${Number(order.staffRatings?.driverRating || 0) >= n ? 'btn-primary' : 'btn-outline'} rate-staff-btn" data-order-id="${escapeHtml(order.id)}" data-role="driver" data-star="${n}">${n}★</button>`
+                )
+                .join('')}
+            </div>
+            ${order.staffRatings?.driverRating ? `<small style="color:#4ade80;">Rated ${order.staffRatings.driverRating}★ ✓</small>` : ''}
+          </div>`
+        : '';
+
     return `
       <div class="amazon-track-card">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
@@ -2299,6 +2394,7 @@
         </div>
         ${mapHtml}
         ${proofHtml}
+        ${rateHtml}
         ${chatHtml}
       </div>`;
   }
@@ -2309,6 +2405,23 @@
     if (order.orderType === 'delivery') {
       trackBox.classList.remove('hidden');
       trackBox.innerHTML = buildLiveDeliveryTrackerHtml(order);
+    } else if (order.status === 'served' && order.servedByWaiter) {
+      trackBox.classList.remove('hidden');
+      trackBox.innerHTML = `
+        <div class="amazon-track-card">
+          <div class="staff-rate-row">
+            <span class="small"><strong>🛎️ Served by ${escapeHtml(order.servedByWaiter)} — Rate Service:</strong></span>
+            <div style="display:flex;gap:0.25rem;">
+              ${[1, 2, 3, 4, 5]
+                .map(
+                  (n) =>
+                    `<button type="button" class="btn btn-xs ${Number(order.staffRatings?.waiterRating || 0) >= n ? 'btn-primary' : 'btn-outline'} rate-staff-btn" data-order-id="${escapeHtml(order.id)}" data-role="waiter" data-star="${n}">${n}★</button>`
+                )
+                .join('')}
+            </div>
+            ${order.staffRatings?.waiterRating ? `<small style="color:#4ade80;">Rated ${order.staffRatings.waiterRating}★ ✓</small>` : ''}
+          </div>
+        </div>`;
     } else {
       trackBox.classList.add('hidden');
       trackBox.innerHTML = '';
@@ -2440,6 +2553,26 @@
     refreshOrderModalTracking(order);
     $('orderModal').classList.remove('hidden');
   }
+
+  document.addEventListener('click', async (e) => {
+    const rateBtn = e.target.closest('.rate-staff-btn');
+    if (!rateBtn || !appState.user) return;
+    try {
+      const res = await api(`/api/orders/${rateBtn.dataset.orderId}/rate-staff`, 'POST', {
+        customerEmail: appState.user.email,
+        role: rateBtn.dataset.role,
+        rating: Number(rateBtn.dataset.star)
+      });
+      if (res?.order) {
+        const idx = appState.orders.findIndex((x) => x.id === res.order.id);
+        if (idx >= 0) appState.orders[idx] = res.order;
+        if (appState.activeTrackOrderId === res.order.id) refreshOrderModalTracking(res.order);
+      }
+      showToast(`⭐ Thank you! ${rateBtn.dataset.star}★ rating saved!`);
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
 
   document.addEventListener('submit', async (e) => {
     const form = e.target.closest('.cust-driver-chat-form');
@@ -2778,6 +2911,15 @@
           <div class="muted small">${o.items.map((i) => `${i.qty}× ${escapeHtml(i.name)}`).join(', ')}</div>
           <div class="eta-countdown" data-order-eta="${escapeHtml(o.id)}">⏱️ ${formatEtaText(o)}</div>
           ${isDel ? buildLiveDeliveryTrackerHtml(o, { compact: true }) : ''}
+          ${!isDel && o.status === 'served' && o.servedByWaiter ? `
+            <div class="staff-rate-row">
+              <span class="small"><strong>🛎️ Waiter ${escapeHtml(o.servedByWaiter)}:</strong></span>
+              <div style="display:flex;gap:0.25rem;">
+                ${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="btn btn-xs ${Number(o.staffRatings?.waiterRating || 0) >= n ? 'btn-primary' : 'btn-outline'} rate-staff-btn" data-order-id="${escapeHtml(o.id)}" data-role="waiter" data-star="${n}">${n}★</button>`).join('')}
+              </div>
+              ${o.staffRatings?.waiterRating ? `<small style="color:#4ade80;">Rated ${o.staffRatings.waiterRating}★ ✓</small>` : ''}
+            </div>
+          ` : ''}
         </div>`;
       })
       .join('');
@@ -3266,7 +3408,7 @@
         <small>Served: ${sales.servedOrdersCount} • Menu: ${appState.menu.length}</small>
       </div>`;
 
-    ['Sales', 'Orders', 'Menu', 'Ads', 'Tables', 'Photos', 'Reviews', 'Chat', 'Apps', 'Colors'].forEach((name) => {
+    ['Sales', 'Orders', 'Menu', 'Ads', 'Tables', 'Photos', 'Reviews', 'Chat', 'Apps', 'Staff', 'Colors'].forEach((name) => {
       $('adminTab' + name)?.classList.toggle('hidden', activeAdminTab !== name.toLowerCase());
     });
 
@@ -4496,7 +4638,118 @@
       });
     }
 
-    // 8. LIVE WEBSITE COLORS & SETTINGS TAB
+    // 8. STAFF PERFORMANCE RANKS (WAITERS + DELIVERY BOYS) & 5-CANCEL COD BLOCKS
+    if (activeAdminTab === 'staff') {
+      const lb = appState.staffLeaderboard || { waiters: [], drivers: [] };
+      const waiters = Array.isArray(lb.waiters) ? lb.waiters : [];
+      const drivers = Array.isArray(lb.drivers) ? lb.drivers : [];
+      const allCust = (appState.customersAll || []).filter((c) => (c.cancelCount || 0) > 0 || c.codBlocked);
+      const rankMedals = ['🥇', '🥈', '🥉'];
+
+      const renderStaffRows = (list, role) =>
+        list.length
+          ? list
+              .map(
+                (st, i) => `
+              <div class="admin-row-card" style="flex-wrap:wrap;gap:0.6rem;">
+                <div style="flex:1;min-width:210px;">
+                  <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
+                    <span class="staff-rank-pill">${rankMedals[i] || '#' + st.rank} Rank ${st.rank}</span>
+                    <strong>${escapeHtml(st.name)}</strong>
+                    ${st.phone ? `<small class="muted">(${escapeHtml(st.phone)})</small>` : ''}
+                    <span class="mini-pill" style="background:${escapeHtml(st.gradeColor)};color:#fff;">${escapeHtml(st.grade)}</span>
+                  </div>
+                  <div class="small muted" style="margin-top:0.35rem;">
+                    🏆 Score: <strong style="color:var(--primary);">${st.score} pts</strong>
+                    • 💰 Sales: <strong>₹${st.salesTotal}</strong>
+                    ${
+                      role === 'waiter'
+                        ? `• 🍽️ Orders Served: <strong>${st.ordersCount}</strong> • 🔔 Bells Done: <strong>${st.bellsResolved}</strong> (Fast: ${st.fastBells}, Slow: ${st.slowBells})${st.avgResponseSec ? ` • ⏱️ Avg Bell: ${st.avgResponseSec}s` : ''}`
+                        : `• 🛵 Delivered: <strong>${st.ordersCount}</strong> • 📡 GPS: <strong>${st.gpsDeliveries}</strong> • 📸 SS Proofs: <strong>${st.proofCount}</strong>`
+                    }
+                    ${st.avgRating ? ` • ⭐ ${st.avgRating}/5 (${st.ratingCount})` : ''}
+                  </div>
+                </div>
+                <div class="admin-controls-inline">
+                  <button type="button" class="btn btn-primary btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="10">+10 Bonus</button>
+                  <button type="button" class="btn btn-danger btn-xs adm-staff-adj-btn" data-role="${role}" data-name="${escapeHtml(st.name)}" data-phone="${escapeHtml(st.phone)}" data-delta="-10">-10 Penalty</button>
+                </div>
+              </div>`
+              )
+              .join('')
+          : `<div class="admin-row-card"><span class="muted">No ${role === 'waiter' ? 'Waiter' : 'Delivery Boy'} activity recorded yet. Jab staff app se order/bell handle karenge to yahan live Rank &amp; Sales dikhega!</span></div>`;
+
+      $('adminTabStaff').innerHTML = `
+        <h3>🏆 Amazon-Style Staff Performance Leaderboard (Kaam, Rank &amp; Sales)</h3>
+        <div class="staff-board-grid">
+          <div class="staff-board-col">
+            <h4>🛎️ Waiter Leaderboard &amp; Kaam Report</h4>
+            <div class="admin-grid-list">${renderStaffRows(waiters, 'waiter')}</div>
+          </div>
+          <div class="staff-board-col">
+            <h4>🛵 Delivery Boy Leaderboard &amp; Sales</h4>
+            <div class="admin-grid-list">${renderStaffRows(drivers, 'driver')}</div>
+          </div>
+        </div>
+
+        <h4 style="margin-top:1.1rem;">🚫 Customer 5-Cancel COD Block Monitor</h4>
+        <p class="small muted" style="margin:0.2rem 0 0.6rem;">Jo customer 5 ya zyada baar order cancel karta hai, uska Cash on Delivery (COD) automatically off ho jata hai — sirf Razorpay / PhonePe online payment chalu rehta hai.</p>
+        <div class="admin-grid-list">
+          ${
+            allCust.length
+              ? allCust
+                  .sort((a, b) => (b.cancelCount || 0) - (a.cancelCount || 0))
+                  .map(
+                    (c) => `
+                  <div class="admin-row-card">
+                    <div>
+                      <strong>${escapeHtml(c.name || c.email)}</strong> <small class="muted">(${escapeHtml(c.email)}${c.phone ? ' • ' + escapeHtml(c.phone) : ''})</small>
+                      <div class="small" style="margin-top:0.25rem;">
+                        Cancels: <strong>${c.cancelCount || 0} / 5</strong> •
+                        ${c.codBlocked ? '<span class="mini-pill" style="background:#dc2626;color:#fff;">🔒 COD BLOCKED (Online Pay Only)</span>' : '<span class="mini-pill paid">COD Allowed</span>'}
+                      </div>
+                    </div>
+                    ${
+                      c.codBlocked
+                        ? `<button type="button" class="btn btn-outline btn-xs adm-unblock-cod-btn" data-email="${escapeHtml(c.email)}">🔓 Unblock COD</button>`
+                        : ''
+                    }
+                  </div>`
+                  )
+                  .join('')
+              : '<div class="admin-row-card"><span class="muted">Abhi kisi bhi customer ke cancellations nahi hain.</span></div>'
+          }
+        </div>`;
+
+      $('adminTabStaff').querySelectorAll('.adm-staff-adj-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            await api('/api/admin/staff/adjust-score', 'POST', {
+              role: btn.dataset.role,
+              name: btn.dataset.name,
+              phone: btn.dataset.phone,
+              delta: Number(btn.dataset.delta)
+            }, pinHeaders);
+            showToast(`Updated ${btn.dataset.name} score (${btn.dataset.delta} pts)!`);
+          } catch (err) {
+            showToast(err.message);
+          }
+        });
+      });
+
+      $('adminTabStaff').querySelectorAll('.adm-unblock-cod-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            await api('/api/admin/customers/unblock-cod', 'POST', { email: btn.dataset.email }, pinHeaders);
+            showToast(`🔓 COD unblocked for ${btn.dataset.email}`);
+          } catch (err) {
+            showToast(err.message);
+          }
+        });
+      });
+    }
+
+    // 9. LIVE WEBSITE COLORS & SETTINGS TAB
     if (activeAdminTab === 'colors') {
       const bt = appState.settings.brandTheme || COLOR_PRESETS['greenrush-3d'];
       const s = appState.adminFullSettings || appState.settings;
@@ -5087,14 +5340,84 @@
     const btn = e.target.closest('[data-cart-action]');
     if (btn) updateQty(btn.dataset.id, btn.dataset.cartAction === 'inc' ? 1 : -1);
   });
+  $('cartDrawerFooter').addEventListener('input', (e) => {
+    if (!appState.deliveryDraft) {
+      appState.deliveryDraft = { label: 'Home', house: '', area: '', landmark: '', city: 'Talala', pincode: '362150', lat: null, lng: null };
+    }
+    const id = e.target.id;
+    if (id === 'addrHouse') appState.deliveryDraft.house = e.target.value;
+    if (id === 'addrArea') appState.deliveryDraft.area = e.target.value;
+    if (id === 'addrLandmark') appState.deliveryDraft.landmark = e.target.value;
+    if (id === 'addrCity') appState.deliveryDraft.city = e.target.value;
+    if (id === 'addrPincode') appState.deliveryDraft.pincode = e.target.value;
+  });
+
   $('cartDrawerFooter').addEventListener('click', (e) => {
     const modeBtn = e.target.closest('.order-mode-btn');
     if (modeBtn) {
       appState.orderType = modeBtn.dataset.mode;
       return renderCart();
     }
+    const lblBtn = e.target.closest('.amz-lbl-btn');
+    if (lblBtn) {
+      appState.deliveryDraft = { ...(appState.deliveryDraft || {}), label: lblBtn.dataset.albl };
+      return renderCart();
+    }
+    const savedChip = e.target.closest('.amz-saved-chip');
+    if (savedChip) {
+      const idx = Number(savedChip.dataset.savedIdx);
+      const a = appState.user?.savedAddresses?.[idx];
+      if (a) {
+        appState.deliveryDraft = {
+          label: a.label || 'Home',
+          house: a.house || '',
+          area: a.area || a.fullText || '',
+          landmark: a.landmark || '',
+          city: a.city || 'Talala',
+          pincode: a.pincode || '362150',
+          lat: a.lat || null,
+          lng: a.lng || null
+        };
+        showToast(`📍 Selected ${a.label || 'Saved'} Address`);
+        renderCart();
+      }
+      return;
+    }
+    if (e.target.id === 'useGpsAddrBtn') {
+      if (!navigator.geolocation) return showToast('GPS not supported on this device.');
+      e.target.disabled = true;
+      e.target.textContent = '📡 Locating...';
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          appState.deliveryDraft = { ...(appState.deliveryDraft || { label: 'Home', house: '', area: '', landmark: '', city: 'Talala', pincode: '362150' }), lat, lng };
+          try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+            const geo = await resp.json();
+            const ad = geo.address || {};
+            if (!appState.deliveryDraft.area) {
+              appState.deliveryDraft.area = [ad.road, ad.suburb || ad.neighbourhood || ad.village].filter(Boolean).join(', ') || (geo.display_name || '').split(',').slice(0, 2).join(', ');
+            }
+            if (ad.city || ad.town || ad.village) appState.deliveryDraft.city = ad.city || ad.town || ad.village;
+            if (ad.postcode) appState.deliveryDraft.pincode = ad.postcode;
+          } catch {}
+          showToast('📡 Live Delivery GPS Location Locked!');
+          renderCart();
+        },
+        () => {
+          showToast('Allow Location permission in browser/phone to pin GPS.');
+          renderCart();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+      return;
+    }
     const payBtn = e.target.closest('.pay-opt-btn');
     if (payBtn) {
+      if (payBtn.disabled || payBtn.classList.contains('locked')) {
+        return showToast('🔒 COD Off: 5+ cancelled orders — pay online via Razorpay or PhonePe.');
+      }
       appState.paymentMethod = payBtn.dataset.pay;
       return renderCart();
     }

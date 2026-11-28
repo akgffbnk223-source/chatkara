@@ -124,6 +124,7 @@ function createDefaultDb() {
     waiterCalls: [],
     waiterChats: [],
     deliveryChats: [],
+    staffAdjustments: { waiters: {}, drivers: {} },
     reviews: [
       {
         id: 'rev-1',
@@ -274,6 +275,11 @@ function loadDb() {
       if (!Array.isArray(parsed.waiterCalls)) parsed.waiterCalls = [];
       if (!Array.isArray(parsed.waiterChats)) parsed.waiterChats = [];
       if (!Array.isArray(parsed.deliveryChats)) parsed.deliveryChats = [];
+      if (!parsed.staffAdjustments || typeof parsed.staffAdjustments !== 'object') {
+        parsed.staffAdjustments = { waiters: {}, drivers: {} };
+      }
+      if (!parsed.staffAdjustments.waiters) parsed.staffAdjustments.waiters = {};
+      if (!parsed.staffAdjustments.drivers) parsed.staffAdjustments.drivers = {};
       if (Array.isArray(parsed.tables)) {
         const defTMap = new Map(def.tables.map((t) => [t.id, t]));
         parsed.tables = parsed.tables.map((t) => ({
@@ -683,10 +689,184 @@ function computeSalesAnalytics() {
   };
 }
 
+function getCustomerCancelStats(email) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail) return { cancelCount: 0, codBlocked: false };
+  const c = db.customers[cleanEmail] || {};
+  const unblockedAt = Number(c.codUnblockedAt || 0);
+  const orderCancels = (db.orders || []).filter(
+    (o) =>
+      !o.isFake &&
+      o.customerEmail === cleanEmail &&
+      o.status === 'cancelled' &&
+      o.cancelledBy !== 'admin' &&
+      Number(o.cancelledAt || o.createdAt || 0) > unblockedAt
+  ).length;
+  const count = Math.max(Number(c.cancelledCount || 0), orderCancels);
+  return { cancelCount: count, codBlocked: count >= 5 };
+}
+
+function getGradeBadge(score, avgRating, slowCount = 0) {
+  if (avgRating > 0 && avgRating < 3.2) return { grade: 'Needs Attention', color: '#dc2626' };
+  if (slowCount >= 3 && score < 25) return { grade: 'Slow Response', color: '#ea580c' };
+  if (score >= 60) return { grade: 'Top Star', color: '#16a34a' };
+  if (score >= 25) return { grade: 'Good Work', color: '#2563eb' };
+  if (score >= 8) return { grade: 'Average', color: '#f59e0b' };
+  return { grade: 'Needs Improvement', color: '#dc2626' };
+}
+
+function computeStaffLeaderboard() {
+  const adj = db.staffAdjustments || { waiters: {}, drivers: {} };
+  const waiterMap = new Map();
+  const driverMap = new Map();
+
+  const ensureStaff = (map, rawName, phone = '') => {
+    const cleanName = String(rawName || '').trim();
+    if (!cleanName) return null;
+    const key = cleanName.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: cleanName,
+        phone: String(phone || '').trim(),
+        score: 0,
+        ordersCount: 0,
+        salesTotal: 0,
+        onlineSales: 0,
+        cashSales: 0,
+        bellsResolved: 0,
+        fastBells: 0,
+        slowBells: 0,
+        avgResponseSec: 0,
+        totalResponseSec: 0,
+        responseSamples: 0,
+        gpsDeliveries: 0,
+        proofCount: 0,
+        ratingSum: 0,
+        ratingCount: 0,
+        bonusPoints: 0
+      });
+    }
+    const rec = map.get(key);
+    if (phone && !rec.phone) rec.phone = String(phone).trim();
+    return rec;
+  };
+
+  for (const call of db.waiterCalls || []) {
+    if (!call.waiterName) continue;
+    const rec = ensureStaff(waiterMap, call.waiterName, call.waiterPhone || '');
+    if (!rec) continue;
+    if (call.status === 'served' || call.status === 'accepted') {
+      rec.bellsResolved += 1;
+      const doneAt = Number(call.acceptedAt || call.updatedAt || call.createdAt || 0);
+      const sec = Math.max(1, Math.round((doneAt - Number(call.createdAt || doneAt)) / 1000));
+      rec.totalResponseSec += sec;
+      rec.responseSamples += 1;
+      if (sec <= 120) {
+        rec.fastBells += 1;
+        rec.score += call.status === 'served' ? 15 : 8;
+      } else if (sec <= 300) {
+        rec.score += call.status === 'served' ? 10 : 5;
+      } else {
+        rec.slowBells += 1;
+        rec.score += call.status === 'served' ? 3 : 1;
+      }
+    }
+  }
+
+  for (const ord of db.orders || []) {
+    if (ord.isFake || ord.status === 'cancelled') continue;
+    const total = Number(ord.total || 0);
+
+    const wName = ord.servedByWaiter || '';
+    if (wName) {
+      const wRec = ensureStaff(waiterMap, wName, ord.waiterPhone || '');
+      if (wRec) {
+        wRec.ordersCount += 1;
+        wRec.salesTotal += total;
+        if (ord.paymentStatus === 'paid' && ord.paymentMethod !== 'cod') wRec.onlineSales += total;
+        else wRec.cashSales += total;
+        wRec.score += total >= 500 ? 15 : 10;
+        const wr = Number(ord.staffRatings?.waiterRating || 0);
+        if (wr >= 1 && wr <= 5) {
+          wRec.ratingSum += wr;
+          wRec.ratingCount += 1;
+          wRec.score += (wr - 2.5) * 10;
+        }
+      }
+    }
+
+    if (ord.orderType === 'delivery' && ord.driverName) {
+      const dRec = ensureStaff(driverMap, ord.driverName, ord.driverPhone || '');
+      if (dRec) {
+        if (ord.driverLocation?.lat) dRec.gpsDeliveries += 1;
+        if (ord.paymentProofImg) dRec.proofCount += 1;
+        if (ord.status === 'served' || ord.deliveryStage === 'delivered') {
+          dRec.ordersCount += 1;
+          dRec.salesTotal += total;
+          if (ord.paymentStatus === 'paid' && !['cod', 'cash'].includes(String(ord.paymentMethod || '').toLowerCase())) {
+            dRec.onlineSales += total;
+          } else {
+            dRec.cashSales += total;
+          }
+          const deliveredAt = Number(ord.deliveryTimeline?.find((x) => x.stage === 'delivered')?.at || ord.etaEndsAt || ord.createdAt);
+          const onTime = !ord.etaEndsAt || deliveredAt <= ord.etaEndsAt + 10 * 60000;
+          dRec.score += onTime ? 20 : 8;
+          if (ord.driverLocation?.lat) dRec.score += 10;
+          if (ord.paymentProofImg) dRec.score += 15;
+        } else if (ord.deliveryStage === 'picked_up' || ord.deliveryStage === 'on_the_way') {
+          dRec.score += 5;
+          if (ord.driverLocation?.lat) dRec.score += 5;
+        }
+        const dr = Number(ord.staffRatings?.driverRating || 0);
+        if (dr >= 1 && dr <= 5) {
+          dRec.ratingSum += dr;
+          dRec.ratingCount += 1;
+          dRec.score += (dr - 2.5) * 10;
+        }
+      }
+    }
+  }
+
+  for (const [k, info] of Object.entries(adj.waiters || {})) {
+    const rec = ensureStaff(waiterMap, info.name || k, info.phone || '');
+    if (rec) {
+      rec.bonusPoints += Number(info.delta || 0);
+      rec.score += Number(info.delta || 0);
+    }
+  }
+  for (const [k, info] of Object.entries(adj.drivers || {})) {
+    const rec = ensureStaff(driverMap, info.name || k, info.phone || '');
+    if (rec) {
+      rec.bonusPoints += Number(info.delta || 0);
+      rec.score += Number(info.delta || 0);
+    }
+  }
+
+  const finalize = (map) =>
+    Array.from(map.values())
+      .map((r) => {
+        const avgRating = r.ratingCount ? Number((r.ratingSum / r.ratingCount).toFixed(1)) : 0;
+        const avgResponseSec = r.responseSamples ? Math.round(r.totalResponseSec / r.responseSamples) : 0;
+        const score = Math.round(r.score);
+        const badge = getGradeBadge(score, avgRating, r.slowBells);
+        return { ...r, score, avgRating, avgResponseSec, grade: badge.grade, gradeColor: badge.color };
+      })
+      .sort((a, b) => (b.score - a.score) || (b.salesTotal - a.salesTotal) || (b.ordersCount - a.ordersCount))
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+
+  return { waiters: finalize(waiterMap), drivers: finalize(driverMap) };
+}
+
 function getPublicSnapshot() {
   const realOrders = db.orders.filter((o) => !o.isFake);
+  const enrichCustomer = (c) => {
+    const st = getCustomerCancelStats(c.email);
+    return { ...c, cancelCount: st.cancelCount, codBlocked: st.codBlocked };
+  };
   const topCustomers = Object.values(db.customers)
     .filter((c) => !c.isFake)
+    .map(enrichCustomer)
     .sort((a, b) => (b.ordersCount * 50 + (b.bestGameScore || 0)) - (a.ordersCount * 50 + (a.bestGameScore || 0)))
     .slice(0, 15);
 
@@ -742,7 +922,8 @@ function getPublicSnapshot() {
     mapPhotos: db.mapPhotos.slice(0, 40),
     chatMessages: db.chatMessages.slice(-60),
     topCustomers,
-    customersAll: Object.values(db.customers).filter((c) => !c.isFake),
+    customersAll: Object.values(db.customers).filter((c) => !c.isFake).map(enrichCustomer),
+    staffLeaderboard: computeStaffLeaderboard(),
     gameRooms: Array.from(gameRooms.values()).map(serializeRoom)
   };
 }
@@ -773,6 +954,14 @@ function createOrderFromPayload(body, paymentOverride = {}) {
   const items = Array.isArray(body.items) ? body.items : [];
   if (items.length === 0) throw new Error('Cart is empty.');
 
+  const payMethodFinal = paymentOverride.paymentMethod || body.paymentMethod || 'cod';
+  const cancelStats = getCustomerCancelStats(email);
+  if (payMethodFinal === 'cod' && cancelStats.codBlocked) {
+    const err = new Error(`Aapne ${cancelStats.cancelCount} orders cancel kiye hain (Limit: 5). Cash on Delivery band hai — online Razorpay ya PhonePe UPI se payment karein!`);
+    err.statusCode = 403;
+    throw err;
+  }
+
   const subtotal = items.reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
   const discountAmt = Number(body.discountAmt || 0);
   const deliveryFee = Number(body.deliveryFee || 0);
@@ -781,6 +970,24 @@ function createOrderFromPayload(body, paymentOverride = {}) {
   const now = Date.now();
   const orderType = body.orderType === 'drive-through' ? 'parcel' : (body.orderType || 'dine-in');
 
+  const rawAddr = body.deliveryAddress && typeof body.deliveryAddress === 'object' ? body.deliveryAddress : null;
+  const structuredAddr = rawAddr
+    ? {
+        label: String(rawAddr.label || 'Home').trim(),
+        house: String(rawAddr.house || '').trim(),
+        area: String(rawAddr.area || '').trim(),
+        landmark: String(rawAddr.landmark || '').trim(),
+        city: String(rawAddr.city || 'Talala').trim(),
+        pincode: String(rawAddr.pincode || '362150').trim()
+      }
+    : null;
+  const formattedAddr = structuredAddr
+    ? [structuredAddr.house, structuredAddr.area, structuredAddr.landmark ? (/^near\b/i.test(structuredAddr.landmark) ? structuredAddr.landmark : `Near ${structuredAddr.landmark}`) : '', `${structuredAddr.city} ${structuredAddr.pincode}`.trim()].filter(Boolean).join(', ')
+    : '';
+  const rawLoc = body.customerLocation && Number.isFinite(Number(body.customerLocation.lat)) && Number.isFinite(Number(body.customerLocation.lng))
+    ? { lat: Number(body.customerLocation.lat), lng: Number(body.customerLocation.lng) }
+    : null;
+
   const order = {
     id: 'CFH-' + Math.floor(1000 + Math.random() * 9000),
     customerName: String(body.customerName || 'Guest').trim(),
@@ -788,14 +995,16 @@ function createOrderFromPayload(body, paymentOverride = {}) {
     customerPhone: String(body.customerPhone || '').trim(),
     orderType,
     tableId: orderType === 'dine-in' && body.tableId ? Number(body.tableId) : null,
-    detail: String(body.detail || '').trim(),
+    detail: String(body.detail || formattedAddr || '').trim(),
+    deliveryAddress: structuredAddr,
+    customerLocation: rawLoc,
     items,
     subtotal,
     discountAmt,
     deliveryFee,
     total,
     promoCode: String(body.promoCode || ''),
-    paymentMethod: paymentOverride.paymentMethod || body.paymentMethod || 'cod',
+    paymentMethod: payMethodFinal,
     paymentStatus: paymentOverride.paymentStatus || body.paymentStatus || 'cod',
     paymentId: paymentOverride.paymentId || body.paymentId || '',
     isFake: false,
@@ -829,6 +1038,11 @@ function createOrderFromPayload(body, paymentOverride = {}) {
   db.customers[email].ordersCount += 1;
   db.customers[email].totalSpent += total;
   if (order.customerPhone) db.customers[email].phone = order.customerPhone;
+  if (orderType === 'delivery' && formattedAddr) {
+    const prevSaved = Array.isArray(db.customers[email].savedAddresses) ? db.customers[email].savedAddresses : [];
+    const entry = { ...structuredAddr, fullText: formattedAddr, lat: rawLoc?.lat || null, lng: rawLoc?.lng || null };
+    db.customers[email].savedAddresses = [entry, ...prevSaved.filter((a) => a.fullText !== formattedAddr)].slice(0, 4);
+  }
 
   if (order.orderType === 'dine-in' && order.tableId) {
     const tbl = db.tables.find((t) => t.id === order.tableId);
@@ -1349,7 +1563,7 @@ const server = http.createServer(async (req, res) => {
       existing.emailVerified = true;
       db.customers[email] = existing;
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { customer: existing });
+      return sendJson(res, 200, { customer: { ...existing, ...getCustomerCancelStats(email) } });
     }
 
     // Customer Auth & Profile (Real Google OAuth ID Token or Verified Gmail)
@@ -1405,7 +1619,7 @@ const server = http.createServer(async (req, res) => {
       if (body.phone) existing.phone = String(body.phone).trim();
       db.customers[email] = existing;
       recalculateTopAndBroadcast();
-      return sendJson(res, 200, { customer: existing });
+      return sendJson(res, 200, { customer: { ...existing, ...getCustomerCancelStats(email) } });
     }
 
     if (pathname === '/api/profile' && req.method === 'POST') {
@@ -1468,12 +1682,53 @@ const server = http.createServer(async (req, res) => {
       if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
       const call = (db.waiterCalls || []).find((c) => c.id === body.callId);
       if (!call) return sendJson(res, 404, { error: 'Request not found.' });
-      call.status = ['ringing', 'accepted', 'served'].includes(body.status) ? body.status : 'accepted';
+      const nextStatus = ['ringing', 'accepted', 'served'].includes(body.status) ? body.status : 'accepted';
+      call.status = nextStatus;
       if (body.waiterName) call.waiterName = String(body.waiterName).trim();
-      call.updatedAt = Date.now();
+      if (body.waiterPhone) call.waiterPhone = String(body.waiterPhone).trim();
+      const nowTs = Date.now();
+      if ((nextStatus === 'accepted' || nextStatus === 'served') && !call.acceptedAt) call.acceptedAt = nowTs;
+      if (nextStatus === 'served') call.servedAt = nowTs;
+      call.updatedAt = nowTs;
       broadcast('waiter-call', call);
       recalculateTopAndBroadcast();
       return sendJson(res, 200, { ok: true, call });
+    }
+
+    if (pathname === '/api/waiter/serve-order' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireStaffOrAdmin(req, body)) return sendJson(res, 401, { error: 'Staff PIN required.' });
+      const ord = db.orders.find((o) => o.id === body.orderId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      ord.status = 'served';
+      ord.etaMinutes = 0;
+      ord.etaEndsAt = Date.now();
+      if (body.waiterName) ord.servedByWaiter = String(body.waiterName).trim();
+      if (body.waiterPhone) ord.waiterPhone = String(body.waiterPhone).trim();
+      if (body.markPaid) ord.paymentStatus = 'paid';
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, order: ord });
+    }
+
+    if (pathname.startsWith('/api/orders/') && pathname.endsWith('/rate-staff') && req.method === 'POST') {
+      const parts = pathname.split('/').filter(Boolean);
+      const ordId = parts[parts.length - 2];
+      const body = await readJsonBody(req);
+      const ord = db.orders.find((o) => o.id === ordId);
+      if (!ord) return sendJson(res, 404, { error: 'Order not found.' });
+      const callerEmail = String(body.customerEmail || '').trim().toLowerCase();
+      if (!callerEmail || callerEmail !== ord.customerEmail) return sendJson(res, 403, { error: 'Unauthorized.' });
+      if (!ord.staffRatings || typeof ord.staffRatings !== 'object') ord.staffRatings = {};
+      const rating = Math.max(1, Math.min(5, Math.round(Number(body.rating || 5))));
+      if (body.role === 'driver') {
+        ord.staffRatings.driverRating = rating;
+        ord.staffRatings.driverFeedback = String(body.feedback || '').trim().slice(0, 160);
+      } else {
+        ord.staffRatings.waiterRating = rating;
+        ord.staffRatings.waiterFeedback = String(body.feedback || '').trim().slice(0, 160);
+      }
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, order: ord });
     }
 
     if (pathname === '/api/waiter/chat' && req.method === 'POST') {
@@ -1968,11 +2223,18 @@ const server = http.createServer(async (req, res) => {
       if (body.detail !== undefined) order.detail = String(body.detail);
 
       if (body.action === 'cancel' || body.status === 'cancelled') {
+        const wasCancelled = order.status === 'cancelled';
         order.status = 'cancelled';
+        order.cancelledBy = isAdmin ? 'admin' : 'customer';
+        order.cancelledAt = Date.now();
         order.cancelReason = String(body.cancelReason || (isAdmin ? 'Cancelled by owner' : 'Cancelled by customer'));
         order.etaMinutes = 0; order.etaEndsAt = Date.now();
+        if (!wasCancelled && !isAdmin && order.customerEmail && db.customers[order.customerEmail]) {
+          db.customers[order.customerEmail].cancelledCount = Number(db.customers[order.customerEmail].cancelledCount || 0) + 1;
+        }
       } else if (isAdmin) {
         if (body.status) order.status = String(body.status);
+        if (body.servedByWaiter) order.servedByWaiter = String(body.servedByWaiter).trim();
         if (body.etaMinutes !== undefined) {
           const mins = Math.max(0, Number(body.etaMinutes));
           order.etaMinutes = mins; order.etaEndsAt = Date.now() + mins * 60000;
@@ -2619,6 +2881,35 @@ function pushShopNotification({ type = 'offer', title, body, dishId = '', image 
       return sendJson(res, 200, { mapPhotos: db.mapPhotos });
     }
 
+    if (pathname === '/api/admin/staff/adjust-score' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const role = body.role === 'driver' ? 'drivers' : 'waiters';
+      const name = String(body.name || '').trim();
+      const delta = Number(body.delta || 0);
+      if (!name || !Number.isFinite(delta)) return sendJson(res, 400, { error: 'Staff name and valid score delta required.' });
+      if (!db.staffAdjustments) db.staffAdjustments = { waiters: {}, drivers: {} };
+      if (!db.staffAdjustments[role]) db.staffAdjustments[role] = {};
+      const key = name.toLowerCase();
+      const cur = db.staffAdjustments[role][key] || { name, phone: String(body.phone || '').trim(), delta: 0 };
+      cur.name = name;
+      cur.delta = Number(cur.delta || 0) + delta;
+      db.staffAdjustments[role][key] = cur;
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true, staffLeaderboard: computeStaffLeaderboard() });
+    }
+
+    if (pathname === '/api/admin/customers/unblock-cod' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
+      const email = String(body.email || '').trim().toLowerCase();
+      if (!email || !db.customers[email]) return sendJson(res, 404, { error: 'Customer not found.' });
+      db.customers[email].cancelledCount = 0;
+      db.customers[email].codUnblockedAt = Date.now();
+      recalculateTopAndBroadcast();
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (pathname === '/api/admin/customers' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (!requireAdmin(req, body)) return sendJson(res, 401, { error: 'Unauthorized.' });
@@ -2872,7 +3163,7 @@ function pushShopNotification({ type = 'offer', title, body, dishId = '', image 
       return sendJson(res, 200, { ok: true });
     }
   } catch (err) {
-    return sendJson(res, 400, { error: err.message });
+    return sendJson(res, err.statusCode || 400, { error: err.message });
   }
 
   let filePath = pathname === '/' ? '/index.html' : pathname;

@@ -35,6 +35,14 @@
     .chat-bubble { padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; }
     .chat-bubble.cust { background: #1e293b; border-left: 3px solid #fbbf24; }
     .chat-bubble.waiter { background: #7f1d1d; border-right: 3px solid #22c55e; text-align: right; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .rank-pill { background: #fbbf24; color: #111; font-weight: 900; font-size: 0.76rem; padding: 5px 11px; border-radius: 999px; }
+    .score-hero { background: #111827; border: 1.5px solid #fbbf24; border-radius: 18px; padding: 14px; margin-bottom: 12px; }
+    .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+    .score-stat { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 9px; text-align: center; }
+    .score-stat strong { display: block; font-size: 1.15rem; color: #fbbf24; }
+    .lb-row { background: #111827; border: 1px solid #334155; border-radius: 14px; padding: 11px 13px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .lb-row.me { border-color: #fbbf24; background: #1c1917; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -45,6 +53,7 @@
       <small id="statusTxt">Connecting Live...</small>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <span id="waiterRankBadge" class="rank-pill hidden"></span>
       <button type="button" class="btn btn-gold" id="soundBtn">🔔 Bell ON</button>
       <a href="assets/app/Chatkaro-Waiter.apk" download="Chatkaro-Waiter.apk" class="btn btn-dark" style="text-decoration:none;">🤖 Waiter .APK</a>
       <a href="/" class="btn btn-dark" style="text-decoration:none;">🏠 Shop</a>
@@ -55,9 +64,10 @@
     <div class="lock-card" id="lockCard">
       <div style="font-size:2.4rem;">🛎️</div>
       <h2 style="margin:6px 0;">Waiter App Unlock</h2>
-      <p style="color:#94a3b8;font-size:0.86rem;">Enter Waiter Name &amp; Staff PIN (Default: 1234) or Owner PIN.</p>
+      <p style="color:#94a3b8;font-size:0.86rem;">Enter Waiter Name, Mobile &amp; Staff PIN (Default: 1234).</p>
       <form id="loginForm">
         <input type="text" id="waiterNameInput" placeholder="Your Name (e.g. Suresh)" required />
+        <input type="tel" id="waiterPhoneInput" placeholder="Mobile Number (Optional)" />
         <input type="password" id="pinInput" placeholder="Staff / Owner PIN" required />
         <button type="submit" class="btn btn-red" style="width:100%;margin-top:8px;">Unlock Waiter Bell →</button>
       </form>
@@ -70,8 +80,25 @@
         <button type="button" class="btn btn-gold" id="muteBellOnceBtn">🔕 Silence Bell</button>
       </div>
 
-      <h3 style="margin:6px 0 10px;">📋 Active Table Requests (Water / Tissue / Bill / Chat)</h3>
-      <div id="callsList"></div>
+      <div class="tabs">
+        <button type="button" class="btn btn-red" id="wTabBellsBtn">🔔 Table Bells</button>
+        <button type="button" class="btn btn-dark" id="wTabOrdersBtn">🍽️ Dine-In Orders</button>
+        <button type="button" class="btn btn-dark" id="wTabRankBtn">🏆 My Score &amp; Ranks</button>
+      </div>
+
+      <div id="wPaneBells">
+        <h3 style="margin:6px 0 10px;">📋 Active Table Requests (Water / Tissue / Bill / Chat)</h3>
+        <div id="callsList"></div>
+      </div>
+
+      <div id="wPaneOrders" class="hidden">
+        <h3 style="margin:6px 0 10px;">🍽️ Table &amp; Parcel Orders — Mark Served to Earn Sales &amp; Score</h3>
+        <div id="waiterOrdersList"></div>
+      </div>
+
+      <div id="wPaneRank" class="hidden">
+        <div id="waiterRankPanel"></div>
+      </div>
 
       <div class="chat-box">
         <h3 style="margin:0 0 6px;">💬 Direct Waiter ↔ Table Chat</h3>
@@ -92,10 +119,12 @@
       const $ = (id) => document.getElementById(id);
       let staffToken = sessionStorage.getItem('chatkaro_staff_token') || '';
       let waiterName = localStorage.getItem('chatkaro_waiter_name') || 'Waiter';
+      let waiterPhone = localStorage.getItem('chatkaro_waiter_phone') || '';
+      let activeTab = 'bells';
       let audioCtx = null;
       let soundEnabled = false;
       let bellTimer = null;
-      let state = { tables: [], waiterCalls: [], waiterChats: [] };
+      let state = { tables: [], waiterCalls: [], waiterChats: [], orders: [], staffLeaderboard: { waiters: [], drivers: [] } };
 
       function playRestaurantBell() {
         if (!soundEnabled) return;
@@ -179,8 +208,87 @@
             <strong>${esc(m.senderName)}:</strong> ${esc(m.text)}
           </div>`).join('') : '<small style="color:#94a3b8;">No messages for this table yet.</small>';
         $('chatLog').scrollTop = $('chatLog').scrollHeight;
+
+        const waiters = state.staffLeaderboard?.waiters || [];
+        const myRec = waiters.find((w) => w.name.toLowerCase() === waiterName.toLowerCase());
+        const rb = $('waiterRankBadge');
+        if (myRec) {
+          rb.textContent = `🏆 Rank #${myRec.rank} • ${myRec.score} pts`;
+          rb.classList.remove('hidden');
+        } else {
+          rb.textContent = `🏆 ${waiterName} • Ready`;
+          rb.classList.remove('hidden');
+        }
+
+        const dineOrders = (state.orders || []).filter((o) => !o.isFake && o.orderType !== 'delivery' && o.status !== 'cancelled').slice(0, 30);
+        $('waiterOrdersList').innerHTML = dineOrders.length
+          ? dineOrders.map((o) => `
+              <div class="call-card ${o.status === 'served' ? 'served' : ''}">
+                <div class="call-info">
+                  <strong>#${esc(o.id)} • ${o.tableId ? 'Table ' + o.tableId : esc((o.orderType || 'dine-in').toUpperCase())} • ${esc(o.customerName)}</strong>
+                  <div style="color:#fbbf24;font-weight:800;font-size:0.88rem;">₹${o.total} (${esc((o.paymentMethod || 'cod').toUpperCase())})</div>
+                  <div style="font-size:0.82rem;color:#cbd5e1;">${(o.items || []).map((i) => `${i.qty}× ${esc(i.name)}`).join(', ')}</div>
+                  <small style="color:#94a3b8;">Status: ${esc(o.status.toUpperCase())}${o.servedByWaiter ? ` • Served by ${esc(o.servedByWaiter)}` : ''}${o.staffRatings?.waiterRating ? ` • ⭐ ${o.staffRatings.waiterRating}★` : ''}</small>
+                </div>
+                <div>
+                  ${o.status !== 'served' ? `<button type="button" class="btn btn-green w-serve-ord-btn" data-id="${esc(o.id)}">✓ Served (Claim Sale)</button>` : '<span style="color:#4ade80;font-weight:800;">✓ Served</span>'}
+                </div>
+              </div>`).join('')
+          : '<p style="color:#94a3b8;">No dine-in / parcel orders right now.</p>';
+
+        const medals = ['🥇', '🥈', '🥉'];
+        $('waiterRankPanel').innerHTML = `
+          <div class="score-hero">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+              <strong>🏆 My Performance Scoreboard (${esc(waiterName)})</strong>
+              <span class="rank-pill" style="background:${myRec ? esc(myRec.gradeColor) : '#2563eb'};color:#fff;">${myRec ? esc(myRec.grade) : 'Ready to Earn'}</span>
+            </div>
+            <div class="score-grid">
+              <div class="score-stat"><span>Rank</span><strong>#${myRec ? myRec.rank : '-'}</strong></div>
+              <div class="score-stat"><span>Score</span><strong>${myRec ? myRec.score : 0} pts</strong></div>
+              <div class="score-stat"><span>Total Sales</span><strong>₹${myRec ? myRec.salesTotal : 0}</strong></div>
+              <div class="score-stat"><span>Orders Served</span><strong>${myRec ? myRec.ordersCount : 0}</strong></div>
+              <div class="score-stat"><span>Bells (Fast/Slow)</span><strong>${myRec ? myRec.bellsResolved : 0} (${myRec ? myRec.fastBells : 0}/${myRec ? myRec.slowBells : 0})</strong></div>
+              <div class="score-stat"><span>Customer Rating</span><strong>${myRec && myRec.avgRating ? myRec.avgRating + '★' : 'N/A'}</strong></div>
+            </div>
+          </div>
+          <h3 style="margin:8px 0;">📊 All Waiters Rank (Kaam Achha vs Slow)</h3>
+          ${waiters.length ? waiters.map((w, idx) => `
+            <div class="lb-row ${w.name.toLowerCase() === waiterName.toLowerCase() ? 'me' : ''}">
+              <div>
+                <strong>${medals[idx] || '#' + w.rank} ${esc(w.name)}</strong>
+                <span class="rank-pill" style="background:${esc(w.gradeColor)};color:#fff;margin-left:6px;">${esc(w.grade)}</span>
+                <div style="font-size:0.8rem;color:#94a3b8;margin-top:3px;">Sales: ₹${w.salesTotal} • Orders: ${w.ordersCount} • Bells: ${w.bellsResolved} (Fast ${w.fastBells}, Slow ${w.slowBells})${w.avgRating ? ` • ⭐ ${w.avgRating}★` : ''}</div>
+              </div>
+              <strong style="color:#fbbf24;font-size:1.05rem;">${w.score} pts</strong>
+            </div>`).join('') : '<p style="color:#94a3b8;">Abhi koi waiter score record nahi hua. Table bell accept karein ya dine-in order Serve karein!</p>'}
+        `;
+
         checkBellLoop();
       }
+
+      function switchWaiterTab(tab) {
+        activeTab = tab;
+        $('wPaneBells').classList.toggle('hidden', tab !== 'bells');
+        $('wPaneOrders').classList.toggle('hidden', tab !== 'orders');
+        $('wPaneRank').classList.toggle('hidden', tab !== 'rank');
+        $('wTabBellsBtn').className = tab === 'bells' ? 'btn btn-red' : 'btn btn-dark';
+        $('wTabOrdersBtn').className = tab === 'orders' ? 'btn btn-red' : 'btn btn-dark';
+        $('wTabRankBtn').className = tab === 'rank' ? 'btn btn-red' : 'btn btn-dark';
+      }
+      $('wTabBellsBtn').addEventListener('click', () => switchWaiterTab('bells'));
+      $('wTabOrdersBtn').addEventListener('click', () => switchWaiterTab('orders'));
+      $('wTabRankBtn').addEventListener('click', () => switchWaiterTab('rank'));
+
+      $('waiterOrdersList').addEventListener('click', async (e) => {
+        const b = e.target.closest('.w-serve-ord-btn');
+        if (!b) return;
+        await fetch('/api/waiter/serve-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
+          body: JSON.stringify({ orderId: b.dataset.id, waiterName, waiterPhone })
+        });
+      });
 
       $('callsList').addEventListener('click', async (e) => {
         const b = e.target.closest('.act-btn');
@@ -189,7 +297,7 @@
         await fetch('/api/waiter/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-staff-token': staffToken },
-          body: JSON.stringify({ callId: b.dataset.id, status: b.dataset.st, waiterName })
+          body: JSON.stringify({ callId: b.dataset.id, status: b.dataset.st, waiterName, waiterPhone })
         });
       });
 
@@ -235,7 +343,9 @@
         e.preventDefault();
         soundEnabled = true;
         waiterName = $('waiterNameInput').value.trim() || 'Waiter';
+        waiterPhone = ($('waiterPhoneInput')?.value || '').trim();
         localStorage.setItem('chatkaro_waiter_name', waiterName);
+        localStorage.setItem('chatkaro_waiter_phone', waiterPhone);
         const r = await fetch('/api/staff/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
